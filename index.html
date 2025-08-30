@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>檔案格式轉換器 - File Converter</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>檔案格式轉換器</h1>
+            <p>支援圖片、文書、音檔、影片格式轉換</p>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Upload Area -->
+            <section class="upload-section">
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-content">
+                        <div class="upload-icon">📁</div>
+                        <h3>拖拉檔案到此處或點擊上傳</h3>
+                        <p>支援 JPG、PNG、GIF、BMP、WebP 格式</p>
+                        <input type="file" id="fileInput" multiple accept="image/*" style="display: none;">
+                        <button class="upload-btn" id="uploadBtn">選擇檔案</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- File List -->
+            <section class="file-list-section" id="fileListSection" style="display: none;">
+                <h3>待轉換檔案</h3>
+                <div class="file-list" id="fileList"></div>
+            </section>
+
+            <!-- Conversion Options -->
+            <section class="conversion-section" id="conversionSection" style="display: none;">
+                <h3>轉換設定</h3>
+                <div class="conversion-options">
+                    <div class="option-group">
+                        <label for="outputFormat">輸出格式：</label>
+                        <select id="outputFormat">
+                            <option value="">請選擇格式</option>
+                            <option value="jpeg">JPEG</option>
+                            <option value="png">PNG</option>
+                            <option value="webp">WebP</option>
+                        </select>
+                    </div>
+                    <div class="option-group">
+                        <label for="quality">品質設定：</label>
+                        <input type="range" id="quality" min="0.1" max="1" step="0.1" value="0.8">
+                        <span id="qualityValue">80%</span>
+                    </div>
+                    <div class="option-group">
+                        <label for="maxWidth">最大寬度 (像素)：</label>
+                        <input type="number" id="maxWidth" placeholder="不限制" min="1">
+                    </div>
+                </div>
+                <button class="convert-btn" id="convertBtn" disabled>開始轉換</button>
+            </section>
+
+            <!-- Progress Section -->
+            <section class="progress-section" id="progressSection" style="display: none;">
+                <h3>轉換進度</h3>
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <span class="progress-text" id="progressText">0%</span>
+                </div>
+                <div class="progress-details" id="progressDetails"></div>
+            </section>
+
+            <!-- Download Section -->
+            <section class="download-section" id="downloadSection" style="display: none;">
+                <h3>轉換完成</h3>
+                <div class="download-list" id="downloadList"></div>
+                <button class="download-all-btn" id="downloadAllBtn">下載全部</button>
+                <button class="reset-btn" id="resetBtn">重新開始</button>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>&copy; 2024 檔案格式轉換器 | 純前端處理，檔案不上傳伺服器</p>
+        </footer>
+    </div>
+
+    <script src="assets/js/app.js"></script>
+    <script src="assets/js/converters/image.js"></script>
+</body>
+</html>
