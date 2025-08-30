@@ -3,16 +3,24 @@ class FileConverter {
         this.uploadedFiles = [];
         this.convertedFiles = [];
         this.isConverting = false;
+        this.currentFileType = 'image'; // image, document, spreadsheet, presentation
         
         this.initializeElements();
         this.bindEvents();
+        this.setupFileTypeSelector();
     }
 
     initializeElements() {
+        // File type selector
+        this.typeTabs = document.querySelectorAll('.tab-btn');
+        
         // Upload elements
         this.uploadArea = document.getElementById('uploadArea');
         this.fileInput = document.getElementById('fileInput');
         this.uploadBtn = document.getElementById('uploadBtn');
+        this.uploadIcon = document.getElementById('uploadIcon');
+        this.uploadTitle = document.getElementById('uploadTitle');
+        this.uploadDescription = document.getElementById('uploadDescription');
         
         // File list elements
         this.fileListSection = document.getElementById('fileListSection');
@@ -20,10 +28,7 @@ class FileConverter {
         
         // Conversion elements
         this.conversionSection = document.getElementById('conversionSection');
-        this.outputFormat = document.getElementById('outputFormat');
-        this.quality = document.getElementById('quality');
-        this.qualityValue = document.getElementById('qualityValue');
-        this.maxWidth = document.getElementById('maxWidth');
+        this.conversionOptions = document.getElementById('conversionOptions');
         this.convertBtn = document.getElementById('convertBtn');
         
         // Progress elements
@@ -50,15 +55,110 @@ class FileConverter {
         this.uploadArea.addEventListener('drop', (e) => this.handleDrop(e));
         
         // Conversion events
-        this.quality.addEventListener('input', (e) => {
-            this.qualityValue.textContent = Math.round(e.target.value * 100) + '%';
-        });
-        this.outputFormat.addEventListener('change', () => this.updateConvertButton());
         this.convertBtn.addEventListener('click', () => this.startConversion());
         
         // Download events
         this.downloadAllBtn.addEventListener('click', () => this.downloadAll());
         this.resetBtn.addEventListener('click', () => this.reset());
+    }
+
+    setupFileTypeSelector() {
+        this.typeTabs.forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                const fileType = e.target.dataset.type;
+                this.switchFileType(fileType);
+            });
+        });
+    }
+
+    switchFileType(fileType) {
+        this.currentFileType = fileType;
+        
+        // Update active tab
+        this.typeTabs.forEach(tab => {
+            tab.classList.remove('active');
+            if (tab.dataset.type === fileType) {
+                tab.classList.add('active');
+            }
+        });
+        
+        // Update UI based on file type
+        this.updateUploadInterface(fileType);
+        
+        // Clear current files if switching type
+        this.reset();
+    }
+
+    updateUploadInterface(fileType) {
+        const configs = {
+            image: {
+                icon: '🖼️',
+                title: '拖拉圖片檔案到此處或點擊上傳',
+                description: '支援 JPG、PNG、GIF、BMP、WebP 格式',
+                accept: 'image/*'
+            },
+            document: {
+                icon: '📄',
+                title: '拖拉文書檔案到此處或點擊上傳',
+                description: '支援 DOCX、TXT、HTML、MD、RTF 格式',
+                accept: '.docx,.doc,.txt,.html,.htm,.md,.rtf'
+            },
+            spreadsheet: {
+                icon: '📊',
+                title: '拖拉表單檔案到此處或點擊上傳',
+                description: '支援 XLSX、CSV、TSV 格式',
+                accept: '.xlsx,.xls,.csv,.tsv'
+            },
+            presentation: {
+                icon: '🎯',
+                title: '拖拉簡報檔案到此處或點擊上傳',
+                description: '支援 PPTX、HTML 格式',
+                accept: '.pptx,.ppt,.html,.htm'
+            }
+        };
+        
+        const config = configs[fileType];
+        if (config) {
+            this.uploadIcon.textContent = config.icon;
+            this.uploadTitle.textContent = config.title;
+            this.uploadDescription.textContent = config.description;
+            this.fileInput.setAttribute('accept', config.accept);
+        }
+    }
+
+    isValidFile(file) {
+        switch (this.currentFileType) {
+            case 'image':
+                return ImageConverter.isValidImageFile(file);
+            case 'document':
+                return DocumentConverter.isValidDocumentFile(file);
+            case 'spreadsheet':
+                return SpreadsheetConverter.isValidSpreadsheetFile(file);
+            case 'presentation':
+                return PresentationConverter.isValidPresentationFile(file);
+            default:
+                return false;
+        }
+    }
+
+    getFileTypeErrorMessage() {
+        const messages = {
+            image: '請選擇有效的圖片檔案 (JPG, PNG, GIF, BMP, WebP)',
+            document: '請選擇有效的文書檔案 (DOCX, TXT, HTML, MD, RTF)',
+            spreadsheet: '請選擇有效的表單檔案 (XLSX, CSV, TSV)',
+            presentation: '請選擇有效的簡報檔案 (PPTX, HTML)'
+        };
+        return messages[this.currentFileType] || '請選擇有效的檔案';
+    }
+
+    getFileTypeName() {
+        const names = {
+            image: '圖片',
+            document: '文書',
+            spreadsheet: '表單',
+            presentation: '簡報'
+        };
+        return names[this.currentFileType] || '檔案';
     }
 
     handleDragOver(e) {
@@ -88,18 +188,19 @@ class FileConverter {
     }
 
     processFiles(files) {
-        const imageFiles = files.filter(file => this.isValidImageFile(file));
+        const validFiles = files.filter(file => this.isValidFile(file));
         
-        if (imageFiles.length === 0) {
-            alert('請選擇有效的圖片檔案 (JPG, PNG, GIF, BMP, WebP)');
+        if (validFiles.length === 0) {
+            alert(this.getFileTypeErrorMessage());
             return;
         }
 
-        if (imageFiles.length !== files.length) {
-            alert(`只能處理圖片檔案，已篩選出 ${imageFiles.length} 個圖片檔案`);
+        if (validFiles.length !== files.length) {
+            const fileTypeName = this.getFileTypeName();
+            alert(`只能處理${fileTypeName}檔案，已篩選出 ${validFiles.length} 個有效檔案`);
         }
 
-        this.uploadedFiles = imageFiles;
+        this.uploadedFiles = validFiles;
         this.displayFileList();
         this.showConversionOptions();
     }
@@ -171,39 +272,191 @@ class FileConverter {
     }
 
     showConversionOptions() {
-        // Update format options based on uploaded files
-        this.updateFormatOptions();
+        // Create conversion options based on file type
+        this.createConversionOptions();
         this.conversionSection.style.display = 'block';
         this.updateConvertButton();
     }
 
-    updateFormatOptions() {
-        // Get unique input formats
-        const inputFormats = [...new Set(this.uploadedFiles.map(file => {
-            return file.type.split('/')[1].toLowerCase();
-        }))];
+    createConversionOptions() {
+        this.conversionOptions.innerHTML = '';
         
-        // Reset options
-        this.outputFormat.innerHTML = '<option value="">請選擇格式</option>';
+        // Create options based on file type
+        const optionConfigs = {
+            image: this.createImageOptions(),
+            document: this.createDocumentOptions(),
+            spreadsheet: this.createSpreadsheetOptions(),
+            presentation: this.createPresentationOptions()
+        };
         
-        // Add available output formats
-        const formats = [
+        const config = optionConfigs[this.currentFileType];
+        if (config) {
+            this.conversionOptions.appendChild(config);
+        }
+    }
+
+    createImageOptions() {
+        const container = document.createElement('div');
+        
+        // Output format
+        const formatGroup = this.createOptionGroup('輸出格式', 'select', 'outputFormat', [
+            { value: '', label: '請選擇格式' },
             { value: 'jpeg', label: 'JPEG' },
             { value: 'png', label: 'PNG' },
             { value: 'webp', label: 'WebP' }
-        ];
+        ]);
         
-        formats.forEach(format => {
-            const option = document.createElement('option');
-            option.value = format.value;
-            option.textContent = format.label;
-            this.outputFormat.appendChild(option);
+        // Quality setting
+        const qualityGroup = this.createOptionGroup('品質設定', 'range', 'quality', null, {
+            min: 0.1, max: 1, step: 0.1, value: 0.8
         });
+        
+        // Max width
+        const widthGroup = this.createOptionGroup('最大寬度 (像素)', 'number', 'maxWidth', null, {
+            placeholder: '不限制', min: 1
+        });
+        
+        container.appendChild(formatGroup);
+        container.appendChild(qualityGroup);
+        container.appendChild(widthGroup);
+        
+        return container;
+    }
+
+    createDocumentOptions() {
+        const container = document.createElement('div');
+        
+        // Output format
+        const formatGroup = this.createOptionGroup('輸出格式', 'select', 'outputFormat', [
+            { value: '', label: '請選擇格式' },
+            { value: 'txt', label: '純文字 (TXT)' },
+            { value: 'html', label: 'HTML 網頁' },
+            { value: 'md', label: 'Markdown' },
+            { value: 'pdf', label: 'PDF 文件' }
+        ]);
+        
+        // Compression level
+        const compressionGroup = this.createOptionGroup('內容壓縮', 'select', 'compression', [
+            { value: 'standard', label: '標準' },
+            { value: 'low', label: '輕度壓縮' },
+            { value: 'medium', label: '中度壓縮' },
+            { value: 'high', label: '高度壓縮' }
+        ]);
+        
+        container.appendChild(formatGroup);
+        container.appendChild(compressionGroup);
+        
+        return container;
+    }
+
+    createSpreadsheetOptions() {
+        const container = document.createElement('div');
+        
+        // Output format
+        const formatGroup = this.createOptionGroup('輸出格式', 'select', 'outputFormat', [
+            { value: '', label: '請選擇格式' },
+            { value: 'csv', label: 'CSV 逗號分隔' },
+            { value: 'json', label: 'JSON 格式' },
+            { value: 'html', label: 'HTML 表格' },
+            { value: 'txt', label: '純文字' }
+        ]);
+        
+        // Include headers
+        const headersGroup = this.createOptionGroup('包含標題行', 'checkbox', 'includeHeaders', null, {
+            checked: true
+        });
+        
+        container.appendChild(formatGroup);
+        container.appendChild(headersGroup);
+        
+        return container;
+    }
+
+    createPresentationOptions() {
+        const container = document.createElement('div');
+        
+        // Output format
+        const formatGroup = this.createOptionGroup('輸出格式', 'select', 'outputFormat', [
+            { value: '', label: '請選擇格式' },
+            { value: 'html', label: 'HTML 簡報' },
+            { value: 'txt', label: '純文字' },
+            { value: 'md', label: 'Markdown' },
+            { value: 'pdf', label: 'PDF 文件' }
+        ]);
+        
+        // Include notes
+        const notesGroup = this.createOptionGroup('包含備註', 'checkbox', 'includeNotes', null, {
+            checked: true
+        });
+        
+        container.appendChild(formatGroup);
+        container.appendChild(notesGroup);
+        
+        return container;
+    }
+
+    createOptionGroup(label, type, id, options = null, attrs = {}) {
+        const group = document.createElement('div');
+        group.className = 'option-group';
+        
+        const labelEl = document.createElement('label');
+        labelEl.textContent = label + '：';
+        labelEl.setAttribute('for', id);
+        
+        let input;
+        if (type === 'select') {
+            input = document.createElement('select');
+            if (options) {
+                options.forEach(option => {
+                    const optionEl = document.createElement('option');
+                    optionEl.value = option.value;
+                    optionEl.textContent = option.label;
+                    input.appendChild(optionEl);
+                });
+            }
+        } else {
+            input = document.createElement('input');
+            input.type = type;
+        }
+        
+        input.id = id;
+        Object.keys(attrs).forEach(attr => {
+            if (attr === 'checked') {
+                input.checked = attrs[attr];
+            } else {
+                input.setAttribute(attr, attrs[attr]);
+            }
+        });
+        
+        // Add event listeners
+        if (type === 'range') {
+            const valueDisplay = document.createElement('span');
+            valueDisplay.id = id + 'Value';
+            valueDisplay.textContent = Math.round(attrs.value * 100) + '%';
+            
+            input.addEventListener('input', (e) => {
+                valueDisplay.textContent = Math.round(e.target.value * 100) + '%';
+            });
+            
+            group.appendChild(labelEl);
+            group.appendChild(input);
+            group.appendChild(valueDisplay);
+        } else {
+            group.appendChild(labelEl);
+            group.appendChild(input);
+        }
+        
+        if (id === 'outputFormat') {
+            input.addEventListener('change', () => this.updateConvertButton());
+        }
+        
+        return group;
     }
 
     updateConvertButton() {
         const hasFiles = this.uploadedFiles.length > 0;
-        const hasFormat = this.outputFormat.value !== '';
+        const outputFormat = document.getElementById('outputFormat');
+        const hasFormat = outputFormat && outputFormat.value !== '';
         
         this.convertBtn.disabled = !hasFiles || !hasFormat || this.isConverting;
     }
@@ -230,7 +483,7 @@ class FileConverter {
                 this.updateProgress(processedFiles, totalFiles, `正在處理: ${file.name}`);
                 
                 try {
-                    const convertedBlob = await this.convertImage(file);
+                    const convertedBlob = await this.convertFile(file);
                     const convertedFile = {
                         name: this.generateOutputFileName(file.name),
                         blob: convertedBlob,
@@ -259,7 +512,27 @@ class FileConverter {
         }
     }
 
-    async convertImage(file) {
+    async convertFile(file) {
+        const outputFormat = document.getElementById('outputFormat').value;
+        
+        switch (this.currentFileType) {
+            case 'image':
+                return await this.convertImageFile(file, outputFormat);
+            case 'document':
+                return await this.convertDocumentFile(file, outputFormat);
+            case 'spreadsheet':
+                return await this.convertSpreadsheetFile(file, outputFormat);
+            case 'presentation':
+                return await this.convertPresentationFile(file, outputFormat);
+            default:
+                throw new Error(`不支援的檔案類型: ${this.currentFileType}`);
+        }
+    }
+
+    async convertImageFile(file, outputFormat) {
+        const maxWidth = document.getElementById('maxWidth')?.value;
+        const quality = document.getElementById('quality')?.value || 0.8;
+        
         return new Promise((resolve, reject) => {
             const img = new Image();
             const canvas = document.createElement('canvas');
@@ -269,11 +542,11 @@ class FileConverter {
                 try {
                     // Calculate dimensions
                     let { width, height } = img;
-                    const maxWidth = parseInt(this.maxWidth.value) || null;
+                    const maxW = parseInt(maxWidth) || null;
                     
-                    if (maxWidth && width > maxWidth) {
-                        height = (height * maxWidth) / width;
-                        width = maxWidth;
+                    if (maxW && width > maxW) {
+                        height = (height * maxW) / width;
+                        width = maxW;
                     }
                     
                     // Set canvas size
@@ -284,17 +557,15 @@ class FileConverter {
                     ctx.drawImage(img, 0, 0, width, height);
                     
                     // Convert to blob
-                    const outputFormat = this.outputFormat.value;
-                    const quality = parseFloat(this.quality.value);
                     const mimeType = `image/${outputFormat}`;
                     
                     canvas.toBlob((blob) => {
                         if (blob) {
                             resolve(blob);
                         } else {
-                            reject(new Error('轉換失敗'));
+                            reject(new Error('圖片轉換失敗'));
                         }
-                    }, mimeType, quality);
+                    }, mimeType, parseFloat(quality));
                     
                 } catch (error) {
                     reject(error);
@@ -306,9 +577,65 @@ class FileConverter {
         });
     }
 
+    async convertDocumentFile(file, outputFormat) {
+        try {
+            const extractedContent = await DocumentConverter.extractTextContent(file);
+            const compression = document.getElementById('compression')?.value || 'standard';
+            
+            // Apply compression if needed
+            if (compression !== 'standard') {
+                extractedContent.content = DocumentConverter.compressContent(
+                    extractedContent.content, compression
+                );
+            }
+            
+            return await DocumentConverter.convertToFormat(extractedContent, outputFormat, {
+                compression
+            });
+        } catch (error) {
+            throw new Error(`文書轉換失敗: ${error.message}`);
+        }
+    }
+
+    async convertSpreadsheetFile(file, outputFormat) {
+        try {
+            const parsedData = await SpreadsheetConverter.parseSpreadsheetData(file);
+            const includeHeaders = document.getElementById('includeHeaders')?.checked || true;
+            
+            return await SpreadsheetConverter.convertToFormat(parsedData, outputFormat, {
+                includeHeaders
+            });
+        } catch (error) {
+            throw new Error(`表單轉換失敗: ${error.message}`);
+        }
+    }
+
+    async convertPresentationFile(file, outputFormat) {
+        try {
+            const presentationData = await PresentationConverter.extractPresentationContent(file);
+            const includeNotes = document.getElementById('includeNotes')?.checked || true;
+            
+            return await PresentationConverter.convertToFormat(presentationData, outputFormat, {
+                includeNotes
+            });
+        } catch (error) {
+            throw new Error(`簡報轉換失敗: ${error.message}`);
+        }
+    }
+
     generateOutputFileName(originalName) {
         const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
-        const outputFormat = this.outputFormat.value;
+        const outputFormat = document.getElementById('outputFormat').value;
+        
+        // Handle special cases
+        if (outputFormat === 'html') {
+            return `${nameWithoutExt}.html`;
+        } else if (outputFormat === 'json') {
+            return `${nameWithoutExt}.json`;
+        } else if (outputFormat === 'md') {
+            return `${nameWithoutExt}.md`;
+        }
+        
         return `${nameWithoutExt}.${outputFormat}`;
     }
 
@@ -395,10 +722,11 @@ class FileConverter {
         
         // Reset form
         this.fileInput.value = '';
-        this.outputFormat.value = '';
-        this.quality.value = 0.8;
-        this.qualityValue.textContent = '80%';
-        this.maxWidth.value = '';
+        
+        // Clear dynamic options
+        if (this.conversionOptions) {
+            this.conversionOptions.innerHTML = '';
+        }
         
         // Hide sections
         this.fileListSection.style.display = 'none';

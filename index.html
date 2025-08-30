@@ -14,15 +14,26 @@
             <p>支援圖片、文書、音檔、影片格式轉換</p>
         </header>
 
+        <!-- File Type Selector -->
+        <section class="file-type-selector">
+            <h2>選擇檔案類型</h2>
+            <div class="type-tabs">
+                <button class="tab-btn active" data-type="image">🖼️ 圖片轉檔</button>
+                <button class="tab-btn" data-type="document">📄 文書轉檔</button>
+                <button class="tab-btn" data-type="spreadsheet">📊 表單轉檔</button>
+                <button class="tab-btn" data-type="presentation">🎯 簡報轉檔</button>
+            </div>
+        </section>
+
         <!-- Main Content -->
         <main class="main-content">
             <!-- Upload Area -->
             <section class="upload-section">
                 <div class="upload-area" id="uploadArea">
                     <div class="upload-content">
-                        <div class="upload-icon">📁</div>
-                        <h3>拖拉檔案到此處或點擊上傳</h3>
-                        <p>支援 JPG、PNG、GIF、BMP、WebP 格式</p>
+                        <div class="upload-icon" id="uploadIcon">🖼️</div>
+                        <h3 id="uploadTitle">拖拉圖片檔案到此處或點擊上傳</h3>
+                        <p id="uploadDescription">支援 JPG、PNG、GIF、BMP、WebP 格式</p>
                         <input type="file" id="fileInput" multiple accept="image/*" style="display: none;">
                         <button class="upload-btn" id="uploadBtn">選擇檔案</button>
                     </div>
@@ -38,25 +49,8 @@
             <!-- Conversion Options -->
             <section class="conversion-section" id="conversionSection" style="display: none;">
                 <h3>轉換設定</h3>
-                <div class="conversion-options">
-                    <div class="option-group">
-                        <label for="outputFormat">輸出格式：</label>
-                        <select id="outputFormat">
-                            <option value="">請選擇格式</option>
-                            <option value="jpeg">JPEG</option>
-                            <option value="png">PNG</option>
-                            <option value="webp">WebP</option>
-                        </select>
-                    </div>
-                    <div class="option-group">
-                        <label for="quality">品質設定：</label>
-                        <input type="range" id="quality" min="0.1" max="1" step="0.1" value="0.8">
-                        <span id="qualityValue">80%</span>
-                    </div>
-                    <div class="option-group">
-                        <label for="maxWidth">最大寬度 (像素)：</label>
-                        <input type="number" id="maxWidth" placeholder="不限制" min="1">
-                    </div>
+                <div class="conversion-options" id="conversionOptions">
+                    <!-- Dynamic options will be inserted here -->
                 </div>
                 <button class="convert-btn" id="convertBtn" disabled>開始轉換</button>
             </section>
@@ -90,5 +84,8 @@
 
     <script src="assets/js/app.js"></script>
     <script src="assets/js/converters/image.js"></script>
+    <script src="assets/js/converters/document.js"></script>
+    <script src="assets/js/converters/spreadsheet.js"></script>
+    <script src="assets/js/converters/presentation.js"></script>
 </body>
 </html>
