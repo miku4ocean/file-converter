@@ -259,34 +259,7 @@ ${error.message}
             fileItem.className = 'file-item';
             
             // Create preview based on file type
-            const preview = document.createElement('div');
-            preview.className = 'file-preview';
-            
-            if (this.currentFileType === 'image') {
-                const img = document.createElement('img');
-                img.style.width = '100%';
-                img.style.height = '100%';
-                img.style.objectFit = 'cover';
-                img.style.borderRadius = '8px';
-                img.src = URL.createObjectURL(file);
-                img.onload = () => URL.revokeObjectURL(img.src);
-                preview.appendChild(img);
-            } else {
-                // Show icon for non-image files
-                const icons = {
-                    document: '📄',
-                    spreadsheet: '📊',
-                    presentation: '🎯'
-                };
-                preview.textContent = icons[this.currentFileType] || '📁';
-                preview.style.display = 'flex';
-                preview.style.alignItems = 'center';
-                preview.style.justifyContent = 'center';
-                preview.style.fontSize = '2rem';
-                preview.style.backgroundColor = '#f8f9fa';
-                preview.style.border = '1px solid #ddd';
-                preview.style.borderRadius = '8px';
-            }
+            const preview = this.createFilePreview(file);
             
             // File info
             const fileInfo = document.createElement('div');
@@ -807,6 +780,45 @@ ${error.message}
         this.downloadSection.style.display = 'none';
         
         this.updateConvertButton();
+    }
+
+    createFilePreview(file) {
+        const preview = document.createElement('div');
+        preview.className = 'file-preview';
+        
+        // Only show thumbnails for images and videos
+        if (this.currentFileType === 'image' || this.currentFileType === 'video') {
+            if (this.currentFileType === 'image') {
+                const img = document.createElement('img');
+                img.style.width = '100%';
+                img.style.height = '100%';
+                img.style.objectFit = 'cover';
+                img.style.borderRadius = '8px';
+                img.src = URL.createObjectURL(file);
+                img.onload = () => URL.revokeObjectURL(img.src);
+                preview.appendChild(img);
+            }
+        } else {
+            // For documents, spreadsheets, presentations - show type icon
+            const icons = {
+                document: '📄',
+                spreadsheet: '📊',
+                presentation: '🎯',
+                audio: '🎧'
+            };
+            preview.textContent = icons[this.currentFileType] || '📁';
+            preview.style.display = 'flex';
+            preview.style.alignItems = 'center';
+            preview.style.justifyContent = 'center';
+            preview.style.fontSize = '2rem';
+            preview.style.backgroundColor = '#f8f9fa';
+            preview.style.border = '1px solid #ddd';
+            preview.style.borderRadius = '8px';
+            preview.style.width = '50px';
+            preview.style.height = '50px';
+        }
+        
+        return preview;
     }
 
     formatFileSize(bytes) {

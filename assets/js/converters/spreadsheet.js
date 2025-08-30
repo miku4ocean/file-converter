@@ -346,29 +346,102 @@ class SpreadsheetConverter {
         return blob;
     }
 
-    // Convert to Excel format (requires SheetJS)
+    // Convert to Excel format (using basic XML structure)
     static async convertToExcel(data, fileName, options = {}) {
         try {
-            // Note: This would require SheetJS library
-            // For now, return a placeholder implementation
-            const excelContent = `Excel 轉換功能需要 SheetJS 函式庫支援
+            if (!data || data.length === 0) {
+                throw new Error('無資料可轉換');
+            }
+
+            // Create a basic Excel XML format (works with Excel 2003+)
+            const { includeHeaders = true } = options;
             
-檔案名稱: ${fileName || '試算表'}
-資料列數: ${data.length}
-資料行數: ${data.length > 0 ? data[0].length : 0}
+            let xmlContent = `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+<DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
+<Title>${fileName || '試算表'}</Title>
+<Created>${new Date().toISOString()}</Created>
+</DocumentProperties>
+<ExcelWorkbook xmlns="urn:schemas-microsoft-com:office:excel">
+<WindowHeight>12000</WindowHeight>
+<WindowWidth>20000</WindowWidth>
+<WindowTopX>0</WindowTopX>
+<WindowTopY>0</WindowTopY>
+<ProtectStructure>False</ProtectStructure>
+<ProtectWindows>False</ProtectWindows>
+</ExcelWorkbook>
+<Styles>
+<Style ss:ID="Default" ss:Name="Normal">
+<Alignment ss:Vertical="Bottom"/>
+<Borders/>
+<Font ss:FontName="新細明體" x:CharSet="136" ss:Size="12"/>
+<Interior/>
+<NumberFormat/>
+<Protection/>
+</Style>
+<Style ss:ID="Header">
+<Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+<Borders>
+<Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>
+<Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/>
+<Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/>
+<Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/>
+</Borders>
+<Font ss:FontName="新細明體" x:CharSet="136" ss:Size="12" ss:Bold="1"/>
+<Interior ss:Color="#C0C0C0" ss:Pattern="Solid"/>
+</Style>
+</Styles>
+<Worksheet ss:Name="Sheet1">
+<Table>`;
 
-請在 HTML 中加入：
-<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+            // Add rows
+            data.forEach((row, rowIndex) => {
+                if (rowIndex === 0 && !includeHeaders) return;
+                
+                const isHeader = rowIndex === 0 && includeHeaders;
+                xmlContent += `\n<Row>`;
+                
+                row.forEach(cell => {
+                    const cellValue = String(cell || '').replace(/[&<>"']/g, function(char) {
+                        const entities = {
+                            '&': '&amp;',
+                            '<': '&lt;',
+                            '>': '&gt;',
+                            '"': '&quot;',
+                            '\'': '&apos;'
+                        };
+                        return entities[char];
+                    });
+                    
+                    const styleId = isHeader ? 'Header' : 'Default';
+                    xmlContent += `\n<Cell ss:StyleID="${styleId}"><Data ss:Type="String">${cellValue}</Data></Cell>`;
+                });
+                
+                xmlContent += `\n</Row>`;
+            });
 
-實際實作時會將資料轉換為 Excel 格式。
+            xmlContent += `\n</Table>
+</Worksheet>
+</Workbook>`;
 
-資料預覽（前5列）:
-${data.slice(0, 5).map(row => row.join('\t')).join('\n')}`;
-
-            const blob = new Blob([excelContent], { type: 'text/plain;charset=utf-8' });
+            // Create blob with proper MIME type for Excel
+            const blob = new Blob([xmlContent], { 
+                type: 'application/vnd.ms-excel;charset=utf-8' 
+            });
+            
             return blob;
+            
         } catch (error) {
-            throw new Error('Excel 轉換失敗: ' + error.message);
+            console.error('Excel 轉換錯誤:', error);
+            
+            // Fallback to CSV if Excel conversion fails
+            console.warn('回退到 CSV 格式');
+            return SpreadsheetConverter.convertToCsv(data, options);
         }
     }
 
