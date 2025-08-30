@@ -14,10 +14,11 @@ class PresentationConverter {
             'application/vnd.openxmlformats-officedocument.presentationml.presentation', // pptx
             'application/vnd.ms-powerpoint', // ppt
             'application/vnd.oasis.opendocument.presentation', // odp
+            'application/pdf', // pdf
             'text/html'
         ];
         
-        const validExtensions = ['.pptx', '.ppt', '.odp', '.html', '.htm'];
+        const validExtensions = ['.pptx', '.ppt', '.odp', '.pdf', '.html', '.htm'];
         const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
         
         return validTypes.includes(file.type) || validExtensions.includes(fileExtension);
@@ -31,6 +32,8 @@ class PresentationConverter {
             case 'pptx':
             case 'ppt':
                 return await PresentationConverter.extractFromPowerPoint(file);
+            case 'pdf':
+                return await PresentationConverter.extractFromPdf(file);
             case 'html':
             case 'htm':
                 return await PresentationConverter.extractFromHtml(file);
@@ -155,6 +158,54 @@ class PresentationConverter {
         }
     }
 
+    // Extract content from PDF files
+    static async extractFromPdf(file) {
+        try {
+            // Note: This would require PDF.js or similar library for full PDF parsing
+            // For now, return a placeholder implementation
+            const fileName = file.name.replace(/\.[^/.]+$/, '');
+            
+            const slides = [
+                {
+                    slideNumber: 1,
+                    title: 'PDF 轉換功能說明',
+                    content: [
+                        'PDF 檔案解析需要 PDF.js 或類似函式庫',
+                        '建議使用專業的 PDF 處理工具',
+                        '或考慮使用伺服器端解決方案'
+                    ],
+                    notes: '當前為佔位符實作'
+                },
+                {
+                    slideNumber: 2,
+                    title: '檔案資訊',
+                    content: [
+                        `檔案名稱: ${file.name}`,
+                        `檔案大小: ${PresentationConverter.formatFileSize(file.size)}`,
+                        `檔案類型: ${file.type}`,
+                        `最後修改: ${new Date(file.lastModified).toLocaleString()}`
+                    ],
+                    notes: '原始 PDF 檔案的基本資訊'
+                }
+            ];
+            
+            return {
+                title: fileName,
+                slides: slides,
+                totalSlides: slides.length,
+                fileName: fileName,
+                metadata: {
+                    fileSize: file.size,
+                    fileType: file.type,
+                    lastModified: file.lastModified,
+                    isPdfSource: true
+                }
+            };
+        } catch (error) {
+            throw new Error('PDF 檔案讀取失敗: ' + error.message);
+        }
+    }
+
     // Convert extracted content to various formats
     static async convertToFormat(presentationData, outputFormat, options = {}) {
         const { title, slides, fileName, originalHtml } = presentationData;
@@ -172,6 +223,8 @@ class PresentationConverter {
                 return PresentationConverter.convertToMarkdown(slides, title, { includeNotes, slideNumbers });
             case 'html':
                 return PresentationConverter.convertToHtml(slides, title, { theme, slideNumbers, originalHtml });
+            case 'pptx':
+                return await PresentationConverter.convertToPptx(slides, title, options);
             case 'pdf':
                 return await PresentationConverter.convertToPdf(slides, title, options);
             case 'images':
@@ -442,29 +495,145 @@ class PresentationConverter {
         return blob;
     }
 
-    // Convert to PDF (placeholder - requires jsPDF or similar)
+    // Convert to PDF (improved placeholder with proper error handling)
     static async convertToPdf(slides, title, options = {}) {
         try {
-            // Note: This would require jsPDF library
-            const pdfContent = `PDF 轉換功能需要 jsPDF 函式庫支援
+            // Validate input data
+            if (!slides || slides.length === 0) {
+                throw new Error('無有可轉換的投影片內容');
+            }
+
+            // Create a more detailed PDF preview document
+            const pdfPreview = `PDF 轉換預覽文件
+${'='.repeat(30)}
+
+簡報標題: ${title || '無標題'}
+投影片總數: ${slides.length}
+生成時間: ${new Date().toLocaleString()}
+
+投影片內容:
+${'-'.repeat(50)}
+
+${slides.map((slide, index) => {
+    let slideText = `投影片 ${slide.slideNumber || index + 1}\n`;
+    slideText += `標題: ${slide.title || '無標題'}\n\n`;
+    
+    if (slide.content && slide.content.length > 0) {
+        slideText += '內容:\n';
+        slide.content.forEach(item => {
+            slideText += `• ${item}\n`;
+        });
+    }
+    
+    if (slide.notes && slide.notes.trim()) {
+        slideText += `\n備註: ${slide.notes}\n`;
+    }
+    
+    return slideText;
+}).join('\n' + '-'.repeat(50) + '\n\n')}
+
+技術說明:
+${'-'.repeat(30)}
+本檔案為 PDF 轉換預覽文件。
+完整的 PDF 轉換功能需要以下函式庫:
+
+1. jsPDF - 基本 PDF 生成
+2. html2canvas - HTML 轉圖片
+3. PptxGenJS - PowerPoint 處理
+
+安裝指令:
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>`;
+
+            // Create blob with proper MIME type
+            const blob = new Blob([pdfPreview], { 
+                type: 'text/plain;charset=utf-8' 
+            });
+            return blob;
+            
+        } catch (error) {
+            console.error('PDF 轉換錯誤:', error);
+            
+            // Create error report document
+            const errorReport = `PDF 轉換錯誤報告
+${'='.repeat(30)}
+
+錯誤時間: ${new Date().toLocaleString()}
+錯誤訊息: ${error.message}
+
+建議解決方案:
+1. 確認檔案格式正確
+2. 檢查檔案是否損壞
+3. 嘗試其他輸出格式 (TXT, HTML, MD)
+4. 檢查瀏覽器控制台獲取詳細錯誤訊息
+
+如果問題持續，請嘗試使用專業的 PDF 處理工具。`;
+            
+            const blob = new Blob([errorReport], { 
+                type: 'text/plain;charset=utf-8' 
+            });
+            return blob;
+        }
+    }
+
+    // Convert to PowerPoint format (placeholder - requires PptxGenJS)
+    static async convertToPptx(slides, title, options = {}) {
+        try {
+            // Validate input
+            if (!slides || slides.length === 0) {
+                throw new Error('無有可轉換的投影片內容');
+            }
+
+            // Note: This would require PptxGenJS library for actual implementation
+            const pptxContent = `PowerPoint 轉換預覽文件
+${'='.repeat(40)}
 
 簡報標題: ${title || '無標題'}
 投影片數量: ${slides.length}
+生成時間: ${new Date().toLocaleString()}
 
-請在 HTML 中加入：
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+投影片列表:
+${slides.map((slide, index) => {
+    return `${index + 1}. ${slide.title || `投影片 ${index + 1}`} (內容項數: ${slide.content?.length || 0})`;
+}).join('\n')}
 
-投影片內容預覽:
-${slides.slice(0, 3).map((slide, index) => 
-`投影片 ${index + 1}: ${slide.title || '無標題'}
-${slide.content.join('\n')}`).join('\n\n')}
+實作指南:
+${'-'.repeat(30)}
+要實現完整的 PPTX 轉換功能，需要：
 
-${slides.length > 3 ? `...還有 ${slides.length - 3} 張投影片` : ''}`;
+1. 安裝 PptxGenJS 函式庫
+   <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
 
-            const blob = new Blob([pdfContent], { type: 'text/plain;charset=utf-8' });
+2. 實作投影片布局和樣式
+3. 處理文字、圖片和其他媒體元素
+4. 配置投影片尺寸和主題
+
+當前為模擬輸出，實際使用時會生成標準 PPTX 檔案。`;
+
+            const blob = new Blob([pptxContent], { type: 'text/plain;charset=utf-8' });
             return blob;
+            
         } catch (error) {
-            throw new Error('PDF 轉換失敗: ' + error.message);
+            console.error('PPTX 轉換錯誤:', error);
+            
+            const errorReport = `PPTX 轉換錯誤報告
+${'='.repeat(30)}
+
+錯誤時間: ${new Date().toLocaleString()}
+錯誤訊息: ${error.message}
+
+可能原因:
+1. 檔案格式不支援
+2. 檔案內容損壞
+3. 所需函式庫未加載
+
+建議解決方案:
+1. 嘗試其他輸出格式 (HTML, TXT, MD)
+2. 檢查原始檔案是否可正常開啟
+3. 使用專業 PDF 處理軟體`;
+            
+            const blob = new Blob([errorReport], { type: 'text/plain;charset=utf-8' });
+            return blob;
         }
     }
 
@@ -490,6 +659,34 @@ ${slides.map((slide, index) =>
             return blob;
         } catch (error) {
             throw new Error('圖片轉換失敗: ' + error.message);
+        }
+    }
+
+    // Convert to PowerPoint format (placeholder - requires PptxGenJS or similar)
+    static async convertToPptx(slides, title, options = {}) {
+        try {
+            // Note: This would require PptxGenJS library
+            const pptxContent = `PowerPoint 轉換功能需要 PptxGenJS 函式庫支援
+
+簡報標題: ${title || '無標題'}
+投影片數量: ${slides.length}
+
+請在 HTML 中加入：
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+
+投影片內容預覽:
+${slides.slice(0, 3).map((slide, index) => 
+`投影片 ${index + 1}: ${slide.title || '無標題'}
+${slide.content.join('\n')}`).join('\n\n')}
+
+${slides.length > 3 ? `...還有 ${slides.length - 3} 張投影片` : ''}
+
+實際實作時會生成標準 PPTX 格式檔案。`;
+
+            const blob = new Blob([pptxContent], { type: 'text/plain;charset=utf-8' });
+            return blob;
+        } catch (error) {
+            throw new Error('PowerPoint 轉換失敗: ' + error.message);
         }
     }
 

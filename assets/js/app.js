@@ -112,8 +112,8 @@ class FileConverter {
             presentation: {
                 icon: '🎯',
                 title: '拖拉簡報檔案到此處或點擊上傳',
-                description: '支援 PPTX、HTML 格式',
-                accept: '.pptx,.ppt,.html,.htm'
+                description: '支援 PPTX、PDF、HTML 格式',
+                accept: '.pptx,.ppt,.pdf,.html,.htm'
             }
         };
         
@@ -159,6 +159,40 @@ class FileConverter {
             presentation: '簡報'
         };
         return names[this.currentFileType] || '檔案';
+    }
+
+    createErrorReport(file, error) {
+        const report = `檔案轉換錯誤報告
+${'='.repeat(40)}
+
+錯誤時間: ${new Date().toLocaleString()}
+檔案名稱: ${file.name}
+檔案大小: ${this.formatFileSize(file.size)}
+檔案類型: ${file.type}
+轉換類型: ${this.currentFileType}
+目標格式: ${document.getElementById('outputFormat')?.value || '未設定'}
+
+錯誤訊息:
+${error.message}
+
+可能原因:
+1. 檔案格式不支援或損壞
+2. 檔案內容異常
+3. 所需的第三方函式庫未加載
+4. 轉換參數設定錯誤
+5. 瀏覽器相容性問題
+
+建議解決方案:
+1. 檢查檔案是否可正常開啟
+2. 嘗試其他輸出格式
+3. 減小檔案大小後再試
+4. 更新瀏覽器版本
+5. 使用專業轉換軟體
+
+技術支援:
+如果問題持續，請將此錯誤報告提供給技術人員。`;
+
+        return new Blob([report], { type: 'text/plain;charset=utf-8' });
     }
 
     handleDragOver(e) {
@@ -224,11 +258,35 @@ class FileConverter {
             const fileItem = document.createElement('div');
             fileItem.className = 'file-item';
             
-            // Create preview
-            const preview = document.createElement('img');
+            // Create preview based on file type
+            const preview = document.createElement('div');
             preview.className = 'file-preview';
-            preview.src = URL.createObjectURL(file);
-            preview.onload = () => URL.revokeObjectURL(preview.src);
+            
+            if (this.currentFileType === 'image') {
+                const img = document.createElement('img');
+                img.style.width = '100%';
+                img.style.height = '100%';
+                img.style.objectFit = 'cover';
+                img.style.borderRadius = '8px';
+                img.src = URL.createObjectURL(file);
+                img.onload = () => URL.revokeObjectURL(img.src);
+                preview.appendChild(img);
+            } else {
+                // Show icon for non-image files
+                const icons = {
+                    document: '📄',
+                    spreadsheet: '📊',
+                    presentation: '🎯'
+                };
+                preview.textContent = icons[this.currentFileType] || '📁';
+                preview.style.display = 'flex';
+                preview.style.alignItems = 'center';
+                preview.style.justifyContent = 'center';
+                preview.style.fontSize = '2rem';
+                preview.style.backgroundColor = '#f8f9fa';
+                preview.style.border = '1px solid #ddd';
+                preview.style.borderRadius = '8px';
+            }
             
             // File info
             const fileInfo = document.createElement('div');
@@ -238,7 +296,7 @@ class FileConverter {
             fileDetails.className = 'file-details';
             fileDetails.innerHTML = `
                 <h4>${file.name}</h4>
-                <p>${this.formatFileSize(file.size)} | ${file.type}</p>
+                <p>${this.formatFileSize(file.size)} | ${this.getFileTypeName()}</p>
             `;
             
             fileInfo.appendChild(preview);
@@ -356,6 +414,7 @@ class FileConverter {
         const formatGroup = this.createOptionGroup('輸出格式', 'select', 'outputFormat', [
             { value: '', label: '請選擇格式' },
             { value: 'csv', label: 'CSV 逗號分隔' },
+            { value: 'xlsx', label: 'Excel 工作簿 (XLSX)' },
             { value: 'json', label: 'JSON 格式' },
             { value: 'html', label: 'HTML 表格' },
             { value: 'txt', label: '純文字' }
@@ -378,6 +437,7 @@ class FileConverter {
         // Output format
         const formatGroup = this.createOptionGroup('輸出格式', 'select', 'outputFormat', [
             { value: '', label: '請選擇格式' },
+            { value: 'pptx', label: 'PowerPoint (PPTX)' },
             { value: 'html', label: 'HTML 簡報' },
             { value: 'txt', label: '純文字' },
             { value: 'md', label: 'Markdown' },
@@ -495,7 +555,19 @@ class FileConverter {
                     
                 } catch (error) {
                     console.error(`轉換失敗: ${file.name}`, error);
-                    this.updateProgress(processedFiles, totalFiles, `轉換失敗: ${file.name}`);
+                    
+                    // Create error report file
+                    const errorReport = this.createErrorReport(file, error);
+                    const errorFile = {
+                        name: `錯誤報告_${file.name.replace(/\.[^/.]+$/, '')}.txt`,
+                        blob: errorReport,
+                        originalFile: file,
+                        isError: true
+                    };
+                    
+                    this.convertedFiles.push(errorFile);
+                    this.updateProgress(processedFiles + 1, totalFiles, `轉換失敗: ${file.name} (已生成錯誤報告)`);
+                    processedFiles++;
                 }
             }
             

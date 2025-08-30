@@ -123,24 +123,36 @@ class SpreadsheetConverter {
             const row = [];
             let current = '';
             let inQuotes = false;
+            let escapeNext = false;
             
             for (let i = 0; i < line.length; i++) {
                 const char = line[i];
                 
-                if (char === '"' && (i === 0 || line[i-1] === delimiter)) {
-                    inQuotes = true;
-                } else if (char === '"' && inQuotes && (i === line.length - 1 || line[i+1] === delimiter)) {
-                    inQuotes = false;
+                if (escapeNext) {
+                    current += char;
+                    escapeNext = false;
+                } else if (char === '\\') {
+                    escapeNext = true;
+                } else if (char === '"') {
+                    if (inQuotes && i + 1 < line.length && line[i + 1] === '"') {
+                        // Double quote escape
+                        current += '"';
+                        i++; // Skip next quote
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
                 } else if (char === delimiter && !inQuotes) {
-                    row.push(current.trim());
+                    row.push(current);
                     current = '';
                 } else {
                     current += char;
                 }
             }
             
-            row.push(current.trim());
-            rows.push(row);
+            row.push(current);
+            if (row.some(cell => cell.trim().length > 0)) { // Only add non-empty rows
+                rows.push(row);
+            }
         }
         
         return rows;
@@ -178,18 +190,22 @@ class SpreadsheetConverter {
     static convertToCsv(data, options = {}) {
         const { delimiter = ',', includeHeaders = true } = options;
         
+        if (!data || data.length === 0) {
+            const blob = new Blob([''], { type: 'text/csv;charset=utf-8' });
+            return blob;
+        }
+        
         let csvContent = '';
+        const BOM = '\uFEFF'; // UTF-8 BOM for Excel compatibility
+        csvContent += BOM;
         
         data.forEach((row, index) => {
             if (index === 0 && !includeHeaders) return;
             
             const csvRow = row.map(cell => {
-                const cellStr = String(cell || '');
-                // Escape quotes and wrap in quotes if contains delimiter, newline, or quote
-                if (cellStr.includes(delimiter) || cellStr.includes('\n') || cellStr.includes('"')) {
-                    return `"${cellStr.replace(/"/g, '""')}"`;
-                }
-                return cellStr;
+                const cellStr = String(cell || '').trim();
+                // Always wrap in quotes for better compatibility
+                return `"${cellStr.replace(/"/g, '""')}"`;
             }).join(delimiter);
             
             csvContent += csvRow + '\n';
