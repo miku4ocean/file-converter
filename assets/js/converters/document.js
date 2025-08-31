@@ -850,7 +850,10 @@ class DocumentConverter {
 
     // Load jsPDF library dynamically
     static async loadJsPdf() {
-        if (typeof jsPDF !== 'undefined') {
+        // Check multiple possible global names for jsPDF
+        if (typeof jsPDF !== 'undefined' || 
+            typeof window.jsPDF !== 'undefined' ||
+            (typeof window.jspdf !== 'undefined' && window.jspdf.jsPDF)) {
             return Promise.resolve();
         }
         
@@ -858,19 +861,34 @@ class DocumentConverter {
             console.log('📚 載入 jsPDF 函式庫...');
             const script = document.createElement('script');
             script.src = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js';
+            
             script.onload = () => {
-                if (typeof jsPDF !== 'undefined') {
-                    console.log('✅ jsPDF 載入成功');
-                    resolve();
-                } else {
-                    console.error('❌ jsPDF 載入後無法使用');
-                    reject(new Error('jsPDF 載入失敗'));
-                }
+                // Wait a bit for the script to initialize
+                setTimeout(() => {
+                    if (typeof jsPDF !== 'undefined') {
+                        console.log('✅ jsPDF 載入成功 (全域變數 jsPDF)');
+                        resolve();
+                    } else if (typeof window.jsPDF !== 'undefined') {
+                        console.log('✅ jsPDF 載入成功 (window.jsPDF)');
+                        window.jsPDF = window.jsPDF;
+                        resolve();
+                    } else if (typeof window.jspdf !== 'undefined' && window.jspdf.jsPDF) {
+                        console.log('✅ jsPDF 載入成功 (window.jspdf.jsPDF)');
+                        window.jsPDF = window.jspdf.jsPDF;
+                        resolve();
+                    } else {
+                        console.error('❌ jsPDF 載入後無法找到可用的 jsPDF 物件');
+                        console.log('可用的全域變數:', Object.keys(window).filter(key => key.toLowerCase().includes('pdf')));
+                        reject(new Error('jsPDF 載入失敗：無法找到 jsPDF 物件'));
+                    }
+                }, 100);
             };
-            script.onerror = () => {
-                console.error('❌ jsPDF 載入失敗');
+            
+            script.onerror = (error) => {
+                console.error('❌ jsPDF 腳本載入失敗:', error);
                 reject(new Error('無法載入 jsPDF 函式庫'));
             };
+            
             document.head.appendChild(script);
         });
     }

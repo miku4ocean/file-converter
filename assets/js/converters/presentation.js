@@ -117,7 +117,6 @@ class PresentationConverter {
                     }
                 ];
             }
-            ];
             
             return {
                 title: fileName,
