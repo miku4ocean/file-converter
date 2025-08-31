@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>轉換器功能診斷</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { border: 1px solid #ccc; margin: 15px 0; padding: 20px; border-radius: 8px; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        input[type="file"] { margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>🔧 轉換器功能診斷</h1>
+    
+    <div class="test-section">
+        <h3>📋 轉換器載入狀態</h3>
+        <div id="loadStatus"></div>
+        <button onclick="checkConverters()">檢查轉換器</button>
+    </div>
+
+    <div class="test-section">
+        <h3>📄 文書轉檔測試</h3>
+        <input type="file" id="documentFile" accept=".docx,.doc,.txt,.html,.md">
+        <button onclick="testDocumentUpload()">測試文書上傳</button>
+        <button onclick="testPDFConversion()">測試 PDF 轉換</button>
+        <div id="documentResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>🎯 簡報轉檔測試</h3>
+        <input type="file" id="presentationFile" accept=".pptx,.ppt,.pdf">
+        <button onclick="testPresentationUpload()">測試簡報上傳</button>
+        <div id="presentationResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>📊 表單轉檔測試</h3>
+        <input type="file" id="spreadsheetFile" accept=".xlsx,.csv">
+        <button onclick="testSpreadsheetUpload()">測試表單上傳</button>
+        <div id="spreadsheetResult"></div>
+    </div>
+
+    <!-- 載入所有轉換器 -->
+    <script src="assets/js/converters/document.js"></script>
+    <script src="assets/js/converters/presentation.js"></script>
+    <script src="assets/js/converters/spreadsheet.js"></script>
+    <script src="assets/js/lib-loader.js"></script>
+
+    <script>
+        function logResult(elementId, success, message) {
+            const element = document.getElementById(elementId);
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `result ${success ? 'success' : 'error'}`;
+            resultDiv.innerHTML = `${success ? '✅' : '❌'} ${message}`;
+            element.appendChild(resultDiv);
+        }
+
+        function checkConverters() {
+            const statusDiv = document.getElementById('loadStatus');
+            statusDiv.innerHTML = '';
+
+            // 檢查各個轉換器是否載入
+            const converters = [
+                { name: 'DocumentConverter', obj: window.DocumentConverter },
+                { name: 'PresentationConverter', obj: window.PresentationConverter },
+                { name: 'SpreadsheetConverter', obj: window.SpreadsheetConverter }
+            ];
+
+            converters.forEach(converter => {
+                if (converter.obj) {
+                    logResult('loadStatus', true, `${converter.name} 已載入`);
+                    
+                    // 檢查關鍵方法
+                    const methods = ['isValidDocumentFile', 'isValidPresentationFile', 'isValidSpreadsheetFile'];
+                    const relevantMethod = methods.find(method => 
+                        typeof converter.obj[method] === 'function'
+                    );
+                    
+                    if (relevantMethod) {
+                        logResult('loadStatus', true, `${converter.name}.${relevantMethod} 方法可用`);
+                    }
+                } else {
+                    logResult('loadStatus', false, `${converter.name} 未載入`);
+                }
+            });
+
+            // 檢查 PDF 轉換方法
+            if (window.DocumentConverter && typeof window.DocumentConverter.convertToPdf === 'function') {
+                logResult('loadStatus', true, 'PDF 轉換方法已實現');
+            } else {
+                logResult('loadStatus', false, 'PDF 轉換方法缺失');
+            }
+        }
+
+        function testDocumentUpload() {
+            const fileInput = document.getElementById('documentFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                logResult('documentResult', false, '請先選擇檔案');
+                return;
+            }
+
+            document.getElementById('documentResult').innerHTML = '';
+
+            try {
+                if (window.DocumentConverter) {
+                    const isValid = DocumentConverter.isValidDocumentFile(file);
+                    logResult('documentResult', isValid, 
+                        `檔案驗證: ${file.name} (${file.type}) - ${isValid ? '有效' : '無效'}`);
+                    
+                    if (isValid) {
+                        logResult('documentResult', true, `檔案大小: ${(file.size/1024).toFixed(2)} KB`);
+                    }
+                } else {
+                    logResult('documentResult', false, 'DocumentConverter 未載入');
+                }
+            } catch (error) {
+                logResult('documentResult', false, `測試失敗: ${error.message}`);
+            }
+        }
+
+        async function testPDFConversion() {
+            try {
+                document.getElementById('documentResult').innerHTML = '';
+                
+                if (!window.DocumentConverter || typeof DocumentConverter.convertToPdf !== 'function') {
+                    logResult('documentResult', false, 'PDF 轉換功能不可用');
+                    return;
+                }
+
+                const testContent = "測試 PDF 轉換功能\n\n這是一個測試文件，用來驗證 PDF 轉換是否正常工作。\n\n包含中文字符測試。";
+                const testTitle = "PDF 測試文件";
+
+                logResult('documentResult', true, '開始 PDF 轉換測試...');
+                
+                const pdfBlob = await DocumentConverter.convertToPdf(testContent, testTitle);
+                
+                if (pdfBlob && pdfBlob.size > 0) {
+                    logResult('documentResult', true, `PDF 轉換成功！檔案大小: ${pdfBlob.size} bytes`);
+                    
+                    // 自動下載測試
+                    const url = URL.createObjectURL(pdfBlob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'test-conversion.pdf';
+                    a.click();
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                    
+                    logResult('documentResult', true, 'PDF 已自動下載');
+                } else {
+                    logResult('documentResult', false, 'PDF 轉換失敗：產生空檔案');
+                }
+            } catch (error) {
+                logResult('documentResult', false, `PDF 轉換錯誤: ${error.message}`);
+                console.error('PDF conversion error:', error);
+            }
+        }
+
+        function testPresentationUpload() {
+            const fileInput = document.getElementById('presentationFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                logResult('presentationResult', false, '請先選擇檔案');
+                return;
+            }
+
+            document.getElementById('presentationResult').innerHTML = '';
+
+            try {
+                if (window.PresentationConverter) {
+                    const isValid = PresentationConverter.isValidPresentationFile(file);
+                    logResult('presentationResult', isValid, 
+                        `檔案驗證: ${file.name} (${file.type}) - ${isValid ? '有效' : '無效'}`);
+                    
+                    if (isValid) {
+                        logResult('presentationResult', true, `檔案大小: ${(file.size/1024).toFixed(2)} KB`);
+                        
+                        // 嘗試提取內容
+                        testPresentationExtraction(file);
+                    }
+                } else {
+                    logResult('presentationResult', false, 'PresentationConverter 未載入');
+                }
+            } catch (error) {
+                logResult('presentationResult', false, `測試失敗: ${error.message}`);
+            }
+        }
+
+        async function testPresentationExtraction(file) {
+            try {
+                logResult('presentationResult', true, '嘗試提取簡報內容...');
+                
+                const content = await PresentationConverter.extractPresentationContent(file);
+                
+                if (content && content.slides && content.slides.length > 0) {
+                    logResult('presentationResult', true, `成功提取 ${content.slides.length} 張投影片`);
+                } else {
+                    logResult('presentationResult', false, '無法提取簡報內容');
+                }
+            } catch (error) {
+                logResult('presentationResult', false, `內容提取失敗: ${error.message}`);
+                console.error('Presentation extraction error:', error);
+            }
+        }
+
+        function testSpreadsheetUpload() {
+            const fileInput = document.getElementById('spreadsheetFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                logResult('spreadsheetResult', false, '請先選擇檔案');
+                return;
+            }
+
+            document.getElementById('spreadsheetResult').innerHTML = '';
+
+            try {
+                if (window.SpreadsheetConverter) {
+                    const isValid = SpreadsheetConverter.isValidSpreadsheetFile(file);
+                    logResult('spreadsheetResult', isValid, 
+                        `檔案驗證: ${file.name} (${file.type}) - ${isValid ? '有效' : '無效'}`);
+                    
+                    if (isValid) {
+                        logResult('spreadsheetResult', true, `檔案大小: ${(file.size/1024).toFixed(2)} KB`);
+                    }
+                } else {
+                    logResult('spreadsheetResult', false, 'SpreadsheetConverter 未載入');
+                }
+            } catch (error) {
+                logResult('spreadsheetResult', false, `測試失敗: ${error.message}`);
+            }
+        }
+
+        // 頁面載入時自動檢查
+        window.addEventListener('load', function() {
+            setTimeout(checkConverters, 500);
+        });
+    </script>
+</body>
+</html>

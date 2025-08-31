@@ -756,6 +756,218 @@ class DocumentConverter {
             .replace(/\n/g, '\\par ')
             .replace(/\r/g, '');
     }
+
+    // Convert document content to PDF format
+    static async convertToPdf(content, title = '文件', options = {}) {
+        try {
+            console.log('🔄 開始 PDF 轉換...');
+            
+            // Load jsPDF if not already loaded
+            if (typeof jsPDF === 'undefined') {
+                await DocumentConverter.loadJsPdf();
+            }
+            
+            // Create new PDF document
+            const doc = new jsPDF.jsPDF('p', 'mm', 'a4');
+            
+            // Configure font and basic settings
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const margin = 20;
+            const contentWidth = pageWidth - 2 * margin;
+            let yPosition = margin;
+            
+            // Add title if provided
+            if (title && title.trim()) {
+                doc.setFontSize(18);
+                doc.setFont('helvetica', 'bold');
+                const titleLines = doc.splitTextToSize(title.trim(), contentWidth);
+                
+                titleLines.forEach((line, index) => {
+                    if (yPosition > pageHeight - margin) {
+                        doc.addPage();
+                        yPosition = margin;
+                    }
+                    doc.text(line, margin, yPosition);
+                    yPosition += 8;
+                });
+                
+                yPosition += 10; // Add extra space after title
+            }
+            
+            // Process content
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'normal');
+            
+            const processedContent = content || '(無內容)';
+            const paragraphs = processedContent.split(/\n\s*\n/); // Split by double newlines
+            
+            paragraphs.forEach((paragraph, index) => {
+                const trimmedParagraph = paragraph.trim();
+                if (!trimmedParagraph) return;
+                
+                // Handle line breaks within paragraphs
+                const lines = trimmedParagraph.split('\n');
+                
+                lines.forEach(line => {
+                    if (!line.trim()) {
+                        yPosition += 6; // Add space for empty lines
+                        return;
+                    }
+                    
+                    // Split long lines to fit page width
+                    const wrappedLines = doc.splitTextToSize(line.trim(), contentWidth);
+                    
+                    wrappedLines.forEach(wrappedLine => {
+                        // Check if we need a new page
+                        if (yPosition > pageHeight - margin - 10) {
+                            doc.addPage();
+                            yPosition = margin;
+                        }
+                        
+                        doc.text(wrappedLine, margin, yPosition);
+                        yPosition += 6;
+                    });
+                });
+                
+                // Add space between paragraphs
+                if (index < paragraphs.length - 1) {
+                    yPosition += 4;
+                }
+            });
+            
+            // Generate PDF blob
+            const pdfBlob = doc.output('blob');
+            
+            console.log(`✅ PDF 轉換完成 - 檔案大小: ${pdfBlob.size} bytes`);
+            return pdfBlob;
+            
+        } catch (error) {
+            console.error('❌ PDF 轉換失敗:', error);
+            throw new Error(`PDF 轉換失敗: ${error.message}`);
+        }
+    }
+
+    // Load jsPDF library dynamically
+    static async loadJsPdf() {
+        if (typeof jsPDF !== 'undefined') {
+            return Promise.resolve();
+        }
+        
+        return new Promise((resolve, reject) => {
+            console.log('📚 載入 jsPDF 函式庫...');
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js';
+            script.onload = () => {
+                if (typeof jsPDF !== 'undefined') {
+                    console.log('✅ jsPDF 載入成功');
+                    resolve();
+                } else {
+                    console.error('❌ jsPDF 載入後無法使用');
+                    reject(new Error('jsPDF 載入失敗'));
+                }
+            };
+            script.onerror = () => {
+                console.error('❌ jsPDF 載入失敗');
+                reject(new Error('無法載入 jsPDF 函式庫'));
+            };
+            document.head.appendChild(script);
+        });
+    }
+
+    // Main conversion method that routes to specific converters
+    static async convert(content, outputFormat, title = '', options = {}) {
+        try {
+            console.log(`🔄 轉換為 ${outputFormat.toUpperCase()} 格式...`);
+            
+            switch (outputFormat.toLowerCase()) {
+                case 'pdf':
+                    return await DocumentConverter.convertToPdf(content, title, options);
+                case 'docx':
+                    return await DocumentConverter.convertToDocx(content, title, options);
+                case 'rtf':
+                    return DocumentConverter.convertToRtf(content, title, options);
+                case 'html':
+                    return DocumentConverter.convertToHtml(content, title, options);
+                case 'txt':
+                    return DocumentConverter.convertToText(content, title, options);
+                case 'md':
+                    return DocumentConverter.convertToMarkdown(content, title, options);
+                default:
+                    throw new Error(`不支援的輸出格式: ${outputFormat}`);
+            }
+        } catch (error) {
+            console.error(`❌ 轉換失敗 (${outputFormat}):`, error);
+            throw error;
+        }
+    }
+
+    // Convert to HTML format
+    static convertToHtml(content, title = '', options = {}) {
+        const documentTitle = title || '文件';
+        const processedContent = content || '';
+        
+        // Convert paragraphs to HTML
+        const paragraphs = processedContent.split(/\n\s*\n/)
+            .filter(p => p.trim())
+            .map(p => `<p>${DocumentConverter.escapeXml(p.trim().replace(/\n/g, '<br>'))}</p>`)
+            .join('\n');
+        
+        const htmlContent = `<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${DocumentConverter.escapeXml(documentTitle)}</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; margin: 40px; }
+        h1 { color: #333; border-bottom: 2px solid #333; padding-bottom: 10px; }
+        p { margin: 16px 0; }
+    </style>
+</head>
+<body>
+    <h1>${DocumentConverter.escapeXml(documentTitle)}</h1>
+    ${paragraphs}
+</body>
+</html>`;
+        
+        return new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+    }
+
+    // Convert to plain text
+    static convertToText(content, title = '', options = {}) {
+        const documentTitle = title || '文件';
+        const processedContent = content || '';
+        
+        let textContent = '';
+        if (title && title.trim()) {
+            textContent += `${documentTitle}\n${'='.repeat(documentTitle.length)}\n\n`;
+        }
+        textContent += processedContent;
+        
+        return new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+    }
+
+    // Convert to Markdown format
+    static convertToMarkdown(content, title = '', options = {}) {
+        const documentTitle = title || '文件';
+        const processedContent = content || '';
+        
+        let markdownContent = '';
+        if (title && title.trim()) {
+            markdownContent += `# ${documentTitle}\n\n`;
+        }
+        
+        // Convert paragraphs to markdown (simple conversion)
+        const paragraphs = processedContent.split(/\n\s*\n/)
+            .filter(p => p.trim())
+            .map(p => p.trim().replace(/\n/g, '  \n')) // Preserve line breaks in markdown
+            .join('\n\n');
+        
+        markdownContent += paragraphs;
+        
+        return new Blob([markdownContent], { type: 'text/markdown;charset=utf-8' });
+    }
 }
 
 // Export for use in main application
