@@ -72,6 +72,7 @@ class FileConverter {
     }
 
     switchFileType(fileType) {
+        console.log('Switching file type from', this.currentFileType, 'to', fileType);
         this.currentFileType = fileType;
         
         // Update active tab
@@ -79,6 +80,7 @@ class FileConverter {
             tab.classList.remove('active');
             if (tab.dataset.type === fileType) {
                 tab.classList.add('active');
+                console.log('Activated tab for:', fileType);
             }
         });
         
@@ -87,6 +89,8 @@ class FileConverter {
         
         // Clear current files if switching type
         this.reset();
+        
+        console.log('File type switched successfully to:', this.currentFileType);
     }
 
     updateUploadInterface(fileType) {
@@ -239,19 +243,8 @@ ${error.message}
         this.showConversionOptions();
     }
 
-    isValidImageFile(file) {
-        const validTypes = [
-            'image/jpeg',
-            'image/jpg', 
-            'image/png',
-            'image/gif',
-            'image/bmp',
-            'image/webp'
-        ];
-        return validTypes.includes(file.type);
-    }
-
     displayFileList() {
+        console.log('Displaying file list. Current file type:', this.currentFileType, 'Files count:', this.uploadedFiles.length);
         this.fileList.innerHTML = '';
         
         this.uploadedFiles.forEach((file, index) => {
@@ -361,9 +354,11 @@ ${error.message}
         const formatGroup = this.createOptionGroup('輸出格式', 'select', 'outputFormat', [
             { value: '', label: '請選擇格式' },
             { value: 'txt', label: '純文字 (TXT)' },
+            { value: 'docx', label: 'Word 文件 (DOCX)' },
             { value: 'html', label: 'HTML 網頁' },
             { value: 'md', label: 'Markdown' },
-            { value: 'pdf', label: 'PDF 文件' }
+            { value: 'pdf', label: 'PDF 文件' },
+            { value: 'rtf', label: 'RTF 文件' }
         ]);
         
         // Compression level
@@ -698,11 +693,8 @@ ${error.message}
             const downloadItem = document.createElement('div');
             downloadItem.className = 'download-item';
             
-            // Create preview
-            const preview = document.createElement('img');
-            preview.className = 'download-preview';
-            preview.src = URL.createObjectURL(file.blob);
-            preview.onload = () => URL.revokeObjectURL(preview.src);
+            // Create preview based on file type
+            const preview = this.createDownloadPreview(file);
             
             // Download info
             const downloadInfo = document.createElement('div');
@@ -783,6 +775,8 @@ ${error.message}
     }
 
     createFilePreview(file) {
+        console.log('Creating file preview for:', file.name, 'Type:', this.currentFileType);
+        
         const preview = document.createElement('div');
         preview.className = 'file-preview';
         
@@ -797,6 +791,7 @@ ${error.message}
                 img.src = URL.createObjectURL(file);
                 img.onload = () => URL.revokeObjectURL(img.src);
                 preview.appendChild(img);
+                console.log('Created image preview');
             }
         } else {
             // For documents, spreadsheets, presentations - show type icon
@@ -806,7 +801,55 @@ ${error.message}
                 presentation: '🎯',
                 audio: '🎧'
             };
-            preview.textContent = icons[this.currentFileType] || '📁';
+            const icon = icons[this.currentFileType] || '📁';
+            preview.textContent = icon;
+            preview.classList.add('icon-preview');
+            
+            // Apply styles to ensure proper display
+            preview.style.display = 'flex';
+            preview.style.alignItems = 'center';
+            preview.style.justifyContent = 'center';
+            preview.style.fontSize = '2rem';
+            preview.style.backgroundColor = '#f8f9fa';
+            
+            console.log('Created icon preview with icon:', icon, 'for type:', this.currentFileType);
+        }
+        
+        return preview;
+    }
+
+    createDownloadPreview(file) {
+        // Get file extension to determine icon
+        const extension = file.name.toLowerCase().split('.').pop();
+        
+        // Check if it's an image file that can be previewed
+        const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
+        
+        if (imageExtensions.includes(extension)) {
+            // Show actual image preview for image files
+            const preview = document.createElement('img');
+            preview.className = 'download-preview';
+            preview.src = URL.createObjectURL(file.blob);
+            preview.onload = () => URL.revokeObjectURL(preview.src);
+            return preview;
+        } else {
+            // Show file type icon for other files
+            const preview = document.createElement('div');
+            preview.className = 'download-preview file-preview icon-preview';
+            
+            const icons = {
+                // Document formats
+                'pdf': '📄', 'doc': '📄', 'docx': '📄', 'txt': '📄', 'rtf': '📄', 'md': '📄',
+                // Spreadsheet formats  
+                'xlsx': '📊', 'xls': '📊', 'csv': '📊', 'tsv': '📊',
+                // Presentation formats
+                'pptx': '🎯', 'ppt': '🎯', 'html': '🎯',
+                // Other formats
+                'json': '📋', 'xml': '📋'
+            };
+            
+            const icon = icons[extension] || '📁';
+            preview.textContent = icon;
             preview.style.display = 'flex';
             preview.style.alignItems = 'center';
             preview.style.justifyContent = 'center';
@@ -816,9 +859,9 @@ ${error.message}
             preview.style.borderRadius = '8px';
             preview.style.width = '50px';
             preview.style.height = '50px';
+            
+            return preview;
         }
-        
-        return preview;
     }
 
     formatFileSize(bytes) {

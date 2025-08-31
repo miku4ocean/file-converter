@@ -23,6 +23,11 @@ class LibraryLoader {
             globalName: 'jsPDF',
             description: 'PDF 文件生成'
         },
+        jszip: {
+            url: 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js',
+            globalName: 'JSZip',
+            description: 'ZIP 檔案處理 (用於 DOCX/XLSX 創建)'
+        },
         html2canvas: {
             url: 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
             globalName: 'html2canvas',

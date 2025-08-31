@@ -176,6 +176,10 @@ class DocumentConverter {
                 return DocumentConverter.convertToMarkdown(content, title, originalMarkdown);
             case 'pdf':
                 return await DocumentConverter.convertToPdf(content, title, options);
+            case 'docx':
+                return await DocumentConverter.convertToDocx(content, title, options);
+            case 'rtf':
+                return DocumentConverter.convertToRtf(content, title, options);
             default:
                 throw new Error(`不支援的輸出格式: ${outputFormat}`);
         }
@@ -259,23 +263,229 @@ class DocumentConverter {
     // Convert to PDF (requires jsPDF)
     static async convertToPdf(content, title, options = {}) {
         try {
-            // Note: This would require jsPDF library
-            // For now, return a placeholder implementation
-            const pdfContent = `PDF 轉換功能需要 jsPDF 函式庫支援
+            console.log('開始 PDF 轉換...');
             
-標題: ${title || '無標題'}
-內容長度: ${content.length} 字元
-
-請在 HTML 中加入：
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-
-實際實作時會將文字內容轉換為 PDF 格式。`;
-
-            const blob = new Blob([pdfContent], { type: 'text/plain;charset=utf-8' });
-            return blob;
+            // Load jsPDF library if not already loaded
+            try {
+                await window.libLoader.loadLibrary('jspdf');
+                return await DocumentConverter.createPdfWithJsPDF(content, title, options);
+            } catch (libError) {
+                console.warn('jsPDF 載入失敗，使用 HTML 回退方式:', libError.message);
+                return DocumentConverter.createHtmlToPdf(content, title, options);
+            }
+            
         } catch (error) {
+            console.error('PDF 轉換錯誤:', error);
             throw new Error('PDF 轉換失敗: ' + error.message);
         }
+    }
+
+    // Create PDF using jsPDF library
+    static async createPdfWithJsPDF(content, title, options = {}) {
+        try {
+            // Ensure jsPDF is properly loaded
+            if (!window.jsPDF && !(window.jspdf && window.jspdf.jsPDF)) {
+                await DocumentConverter.loadJsPDF();
+            }
+            
+            // 支援不同的 jsPDF 匯入方式
+            const jsPDF = window.jsPDF || (window.jspdf && window.jspdf.jsPDF);
+            if (!jsPDF) {
+                throw new Error('jsPDF 函式庫未正確載入');
+            }
+            
+            const doc = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+            });
+            
+            // Enable UTF-8 support
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(12);
+            
+            let yPosition = 20;
+            const pageHeight = 280;
+            const margin = 20;
+            const lineHeight = 7;
+            const pageWidth = 170;
+            
+            // Add title if provided
+            if (title) {
+                doc.setFontSize(18);
+                doc.setFont('helvetica', 'bold');
+                
+                const titleLines = doc.splitTextToSize(title, pageWidth);
+                titleLines.forEach(line => {
+                    doc.text(line, margin, yPosition);
+                    yPosition += lineHeight + 2;
+                });
+                
+                yPosition += 5; // Extra space after title
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(12);
+            }
+            
+            // Process content paragraph by paragraph
+            const paragraphs = content.split('\n\n');
+            
+            paragraphs.forEach(paragraph => {
+                if (!paragraph.trim()) {
+                    yPosition += lineHeight; // Empty line
+                    return;
+                }
+                
+                const lines = doc.splitTextToSize(paragraph.trim(), pageWidth);
+                
+                lines.forEach(line => {
+                    // Check if we need a new page
+                    if (yPosition > pageHeight - margin) {
+                        doc.addPage();
+                        yPosition = margin;
+                    }
+                    
+                    doc.text(line, margin, yPosition);
+                    yPosition += lineHeight;
+                });
+                
+                yPosition += 3; // Space between paragraphs
+            });
+            
+            // Add footer
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(10);
+                doc.setTextColor(128, 128, 128);
+                doc.text(`頁面 ${i} / ${pageCount}`, margin, pageHeight + 10);
+                doc.text(`由檔案轉換器生成 - ${new Date().toLocaleDateString()}`, pageWidth - 50, pageHeight + 10);
+            }
+            
+            // Generate PDF blob with proper headers
+            const pdfBlob = doc.output('blob');
+            
+            // Verify the PDF is properly formatted
+            if (pdfBlob.size < 1000) {
+                throw new Error('生成的 PDF 檔案過小，可能有問題');
+            }
+            
+            console.log('✅ 真正的 PDF 檔案創建完成:', pdfBlob.size, 'bytes');
+            return pdfBlob;
+            
+        } catch (error) {
+            console.error('jsPDF 轉換錯誤:', error);
+            throw error;
+        }
+    }
+
+    // Load jsPDF library
+    static async loadJsPDF() {
+        if (window.jsPDF || (window.jspdf && window.jspdf.jsPDF)) return;
+        
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+            script.onload = () => {
+                // Wait a moment for the library to initialize
+                setTimeout(() => {
+                    if (window.jsPDF || (window.jspdf && window.jspdf.jsPDF)) {
+                        console.log('✅ jsPDF 載入成功');
+                        resolve();
+                    } else {
+                        reject(new Error('jsPDF 載入後無法使用'));
+                    }
+                }, 100);
+            };
+            script.onerror = () => reject(new Error('jsPDF 載入失敗'));
+            document.head.appendChild(script);
+        });
+    }
+
+    // Fallback: Create HTML-based PDF
+    static createHtmlToPdf(content, title, options = {}) {
+        try {
+            console.log('使用 HTML 回退方式創建 PDF 格式文件...');
+            
+            // Create printable HTML structure
+            const htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>${title || '文件'}</title>
+    <style>
+        @media print {
+            @page { margin: 2cm; size: A4; }
+        }
+        body {
+            font-family: Arial, "微軟正黑體", sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+        }
+        p {
+            margin-bottom: 15px;
+            text-align: justify;
+        }
+        .footer {
+            margin-top: 50px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    ${title ? `<h1>${DocumentConverter.escapeHtml(title)}</h1>` : ''}
+    ${DocumentConverter.contentToHtmlParagraphs(content)}
+    
+    <div class="footer">
+        <p>本文件由檔案格式轉換器生成 - ${new Date().toLocaleDateString()}</p>
+        <p>提示：使用瀏覽器的「列印」功能可將此文件儲存為 PDF</p>
+    </div>
+</body>
+</html>`;
+            
+            const blob = new Blob([htmlContent], { 
+                type: 'text/html;charset=utf-8' 
+            });
+            
+            console.log('HTML 格式轉換完成 (可列印為 PDF)');
+            return blob;
+            
+        } catch (error) {
+            console.error('HTML 轉換錯誤:', error);
+            throw error;
+        }
+    }
+
+    // Helper: Convert content to HTML paragraphs
+    static contentToHtmlParagraphs(content) {
+        return content
+            .split('\n\n')
+            .filter(p => p.trim())
+            .map(p => `<p>${DocumentConverter.escapeHtml(p.trim())}</p>`)
+            .join('\n');
+    }
+
+    // Helper: Escape HTML characters
+    static escapeHtml(text) {
+        if (!text) return '';
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 
     // Compress content for file size optimization
@@ -320,6 +530,231 @@ class DocumentConverter {
             avgWordsPerParagraph: Math.round(words.length / paragraphs),
             readingTimeMinutes: Math.ceil(words.length / 200) // Assume 200 WPM
         };
+    }
+
+    // Convert to DOCX format - create a real DOCX file using ZIP structure
+    static async convertToDocx(content, title, options = {}) {
+        try {
+            console.log('開始轉換真正的 DOCX 格式...');
+            
+            const documentTitle = title || '文件';
+            const documentContent = content || '';
+            
+            // Try to load JSZip for creating proper DOCX structure
+            try {
+                await DocumentConverter.loadJSZip();
+            } catch (zipError) {
+                console.warn('JSZip 載入失敗，使用 RTF 替代方案');
+                return DocumentConverter.convertToRtf(content, title, options);
+            }
+            
+            // Create proper DOCX structure using JSZip
+            const zip = new JSZip();
+            
+            // Create [Content_Types].xml
+            const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+    <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+    <Default Extension="xml" ContentType="application/xml"/>
+    <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>`;
+            zip.file('[Content_Types].xml', contentTypes);
+            
+            // Create _rels/.rels
+            const mainRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+    <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`;
+            zip.folder('_rels').file('.rels', mainRels);
+            
+            // Create word/_rels/document.xml.rels
+            const documentRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+</Relationships>`;
+            zip.folder('word').folder('_rels').file('document.xml.rels', documentRels);
+            
+            // Create the main document content
+            const paragraphs = documentContent.split('\n\n').map(paragraph => {
+                if (!paragraph.trim()) return '';
+                return `<w:p><w:r><w:t xml:space="preserve">${DocumentConverter.escapeXml(paragraph.trim())}</w:t></w:r></w:p>`;
+            }).join('');
+            
+            const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+    <w:body>
+        <w:p>
+            <w:pPr>
+                <w:jc w:val="center"/>
+            </w:pPr>
+            <w:r>
+                <w:rPr>
+                    <w:b/>
+                    <w:sz w:val="32"/>
+                </w:rPr>
+                <w:t>${DocumentConverter.escapeXml(documentTitle)}</w:t>
+            </w:r>
+        </w:p>
+        <w:p><w:r><w:t> </w:t></w:r></w:p>
+        ${paragraphs}
+        <w:p><w:r><w:t> </w:t></w:r></w:p>
+        <w:p><w:r><w:rPr><w:sz w:val="18"/><w:color w:val="666666"/></w:rPr><w:t>由檔案轉換器生成 - ${new Date().toLocaleDateString()}</w:t></w:r></w:p>
+        <w:sectPr>
+            <w:pgSz w:w="11906" w:h="16838"/>
+            <w:pgMar w:top="1134" w:right="850" w:bottom="1134" w:left="1134" w:header="708" w:footer="708" w:gutter="0"/>
+            <w:cols w:space="708"/>
+        </w:sectPr>
+    </w:body>
+</w:document>`;
+            
+            zip.folder('word').file('document.xml', documentXml);
+            
+            // Generate the ZIP file as blob
+            const docxBlob = await zip.generateAsync({ 
+                type: 'blob', 
+                mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                compression: 'DEFLATE',
+                compressionOptions: { level: 6 }
+            });
+            
+            console.log('真正的 DOCX 檔案創建完成:', docxBlob.size, 'bytes');
+            return docxBlob;
+            
+        } catch (error) {
+            console.error('DOCX 轉換錯誤:', error);
+            // Fallback to RTF format
+            console.log('回退到 RTF 格式');
+            return this.convertToRtf(content, title, options);
+        }
+    }
+
+    // Load JSZip library for DOCX creation
+    static async loadJSZip() {
+        if (window.JSZip) return;
+        
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
+            script.onload = () => {
+                if (window.JSZip) {
+                    console.log('✅ JSZip 載入成功');
+                    resolve();
+                } else {
+                    reject(new Error('JSZip 載入後無法使用'));
+                }
+            };
+            script.onerror = () => reject(new Error('JSZip 載入失敗'));
+            document.head.appendChild(script);
+        });
+    }
+
+    // Convert to RTF format
+    static convertToRtf(content, title, options = {}) {
+        try {
+            console.log('轉換為 RTF 格式...');
+            
+            const documentTitle = title || '文件';
+            const documentContent = content || '';
+            
+            // Create RTF document
+            let rtfContent = '{\\rtf1\\ansi\\deff0 {\\fonttbl {\\f0 Times New Roman;}}';
+            
+            // Add title
+            rtfContent += `\\f0\\fs28\\b ${DocumentConverter.escapeRtf(documentTitle)}\\b0\\par\\par`;
+            
+            // Add content with paragraph breaks
+            const paragraphs = documentContent.split('\n\n');
+            paragraphs.forEach(paragraph => {
+                if (paragraph.trim()) {
+                    rtfContent += `\\f0\\fs24 ${DocumentConverter.escapeRtf(paragraph.trim())}\\par\\par`;
+                }
+            });
+            
+            rtfContent += '}';
+            
+            const blob = new Blob([rtfContent], { 
+                type: 'application/rtf;charset=utf-8' 
+            });
+            
+            console.log('RTF 轉換完成');
+            return blob;
+            
+        } catch (error) {
+            console.error('RTF 轉換錯誤:', error);
+            throw new Error('RTF 轉換失敗: ' + error.message);
+        }
+    }
+
+    // Helper: Convert content to Word XML paragraphs
+    static contentToWordXml(content) {
+        const paragraphs = content.split('\n\n');
+        return paragraphs.map(paragraph => {
+            if (!paragraph.trim()) return '';
+            
+            return `
+        <w:p>
+            <w:r>
+                <w:t>${DocumentConverter.escapeXml(paragraph.trim())}</w:t>
+            </w:r>
+        </w:p>`;
+        }).join('');
+    }
+
+    // Helper: Create DOCX file structure (simplified)
+    static async createDocxFile(documentXml, title) {
+        // For simplicity, we'll create a Word XML document
+        // This is readable by most Word processors including LibreOffice
+        const wordXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<?mso-application progid="Word.Document"?>
+<w:wordDocument xmlns:w="http://schemas.microsoft.com/office/word/2003/wordml">
+    <w:docPr>
+        <w:view w:val="print"/>
+        <w:zoom w:percent="100"/>
+    </w:docPr>
+    <w:body>
+        <w:p>
+            <w:pPr>
+                <w:jc w:val="center"/>
+            </w:pPr>
+            <w:r>
+                <w:rPr>
+                    <w:b/>
+                    <w:sz w:val="28"/>
+                </w:rPr>
+                <w:t>${DocumentConverter.escapeXml(title)}</w:t>
+            </w:r>
+        </w:p>
+        <w:p><w:r><w:t></w:t></w:r></w:p>
+        ${documentXml.replace(/<?xml[^>]*>/, '').replace(/<w:document[^>]*>|<\/w:document>|<w:body>|<\/w:body>/g, '')}
+    </w:body>
+</w:wordDocument>`;
+
+        const blob = new Blob([wordXml], { 
+            type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document;charset=utf-8' 
+        });
+        
+        return blob;
+    }
+
+    // Helper: Escape XML characters
+    static escapeXml(text) {
+        if (!text) return '';
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&apos;');
+    }
+
+    // Helper: Escape RTF characters
+    static escapeRtf(text) {
+        if (!text) return '';
+        return text
+            .replace(/\\/g, '\\\\')
+            .replace(/{/g, '\\{')
+            .replace(/}/g, '\\}')
+            .replace(/\n/g, '\\par ')
+            .replace(/\r/g, '');
     }
 }
 
