@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>快速修復測試</title>
+</head>
+<body>
+    <h1>🔧 快速修復驗證</h1>
+    <div id="results"></div>
+
+    <script src="assets/js/converters/document.js"></script>
+    <script src="assets/js/converters/presentation.js"></script>
+    <script src="assets/js/converters/spreadsheet.js"></script>
+
+    <script>
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.style.margin = '10px 0';
+            div.style.padding = '10px';
+            div.style.borderRadius = '5px';
+            div.style.background = type === 'success' ? '#d4edda' : type === 'error' ? '#f8d7da' : '#d1ecf1';
+            div.style.color = type === 'success' ? '#155724' : type === 'error' ? '#721c24' : '#0c5460';
+            div.innerHTML = `${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'} ${message}`;
+            document.getElementById('results').appendChild(div);
+        }
+
+        // 測試轉換器載入
+        setTimeout(() => {
+            log('開始轉換器載入測試...');
+
+            // 1. 測試 DocumentConverter
+            if (typeof DocumentConverter !== 'undefined') {
+                log('DocumentConverter 載入成功');
+                
+                // 測試 PDF 轉換方法
+                if (typeof DocumentConverter.convertToPdf === 'function') {
+                    log('PDF 轉換方法可用', 'success');
+                } else {
+                    log('PDF 轉換方法不可用', 'error');
+                }
+            } else {
+                log('DocumentConverter 載入失敗', 'error');
+            }
+
+            // 2. 測試 PresentationConverter  
+            if (typeof PresentationConverter !== 'undefined') {
+                log('PresentationConverter 載入成功', 'success');
+                
+                // 測試關鍵方法
+                if (typeof PresentationConverter.isValidPresentationFile === 'function') {
+                    log('簡報檔案驗證方法可用', 'success');
+                } else {
+                    log('簡報檔案驗證方法不可用', 'error');
+                }
+            } else {
+                log('PresentationConverter 載入失敗', 'error');
+            }
+
+            // 3. 測試 SpreadsheetConverter
+            if (typeof SpreadsheetConverter !== 'undefined') {
+                log('SpreadsheetConverter 載入成功', 'success');
+            } else {
+                log('SpreadsheetConverter 載入失敗', 'error');
+            }
+
+            // 4. 測試 PDF 轉換功能
+            testPDFConversion();
+
+        }, 500);
+
+        async function testPDFConversion() {
+            try {
+                log('開始測試 PDF 轉換功能...');
+                
+                if (!DocumentConverter || typeof DocumentConverter.convertToPdf !== 'function') {
+                    log('PDF 轉換功能不可用', 'error');
+                    return;
+                }
+
+                const testContent = "快速修復測試\n\n這是一個測試文件。\n包含中文字符。";
+                const pdfBlob = await DocumentConverter.convertToPdf(testContent, '測試文件');
+                
+                if (pdfBlob && pdfBlob.size > 0) {
+                    log(`PDF 轉換成功！檔案大小: ${pdfBlob.size} bytes`, 'success');
+                    
+                    // 自動下載
+                    const url = URL.createObjectURL(pdfBlob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'quick-test.pdf';
+                    a.click();
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                    
+                    log('PDF 已自動下載', 'success');
+                } else {
+                    log('PDF 轉換失敗：產生空檔案', 'error');
+                }
+
+            } catch (error) {
+                log(`PDF 轉換錯誤: ${error.message}`, 'error');
+                console.error('詳細錯誤:', error);
+            }
+        }
+    </script>
+</body>
+</html>

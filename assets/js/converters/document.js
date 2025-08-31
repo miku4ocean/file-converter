@@ -767,8 +767,17 @@ class DocumentConverter {
                 await DocumentConverter.loadJsPdf();
             }
             
-            // Create new PDF document
-            const doc = new jsPDF.jsPDF('p', 'mm', 'a4');
+            // Create new PDF document - handle different jsPDF structures
+            let doc;
+            if (typeof jsPDF === 'function') {
+                doc = new jsPDF('p', 'mm', 'a4');
+            } else if (typeof jsPDF !== 'undefined' && typeof jsPDF.jsPDF === 'function') {
+                doc = new jsPDF.jsPDF('p', 'mm', 'a4');
+            } else if (typeof window.jspdf !== 'undefined' && typeof window.jspdf.jsPDF === 'function') {
+                doc = new window.jspdf.jsPDF('p', 'mm', 'a4');
+            } else {
+                throw new Error('無法找到可用的 jsPDF 構造函數');
+            }
             
             // Configure font and basic settings
             const pageWidth = doc.internal.pageSize.getWidth();
