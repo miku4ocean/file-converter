@@ -76,29 +76,29 @@ class PresentationConverter {
                 throw new Error(`不支援的檔案格式或檔案損壞：${fileType.toUpperCase()}`);
             }
             
-            // Create basic slide structure
             let slides = [];
             
-            // Create default slides based on file analysis
-            slides = [
-                {
-                    slideNumber: 1,
-                    title: '簡報摘要',
-                    content: [
-                        `檔案名稱: ${fileName}`,
-                        `檔案格式: ${fileType.toUpperCase()}`,
-                        `檔案大小: ${PresentationConverter.formatFileSize(arrayBuffer.byteLength)}`,
-                        '',
-                        '✨ 檔案已成功載入',
-                        '📊 支援的輸出格式:',
-                        '• PDF 文件',
-                        '• HTML 網頁',
-                        '• 純文字內容',
-                        '• Markdown 格式'
-                    ],
-                    notes: '此投影片說明支援的轉換格式'
-                }
-            ];
+            if (isZip && fileType === 'pptx') {
+                // Try to parse PPTX file structure
+                slides = await PresentationConverter.parsePPTXContent(arrayBuffer, fileName);
+            } else {
+                // Fallback for unsupported formats
+                slides = [
+                    {
+                        slideNumber: 1,
+                        title: '檔案資訊',
+                        content: [
+                            `檔案名稱: ${fileName}`,
+                            `檔案格式: ${fileType.toUpperCase()}`,
+                            `檔案大小: ${PresentationConverter.formatFileSize(arrayBuffer.byteLength)}`,
+                            '',
+                            '⚠️ 此格式需要進階解析支援',
+                            '建議轉換為支援的格式進行檢視'
+                        ],
+                        notes: `無法完整解析 ${fileType.toUpperCase()} 格式的內容`
+                    }
+                ];
+            }
             
             return {
                 title: fileName,
@@ -132,26 +132,35 @@ class PresentationConverter {
                 throw new Error('無效的 PDF 檔案格式');
             }
             
-            // Create default slide for PDF
-            const slides = [
-                {
-                    slideNumber: 1,
-                    title: 'PDF 文件內容',
-                    content: [
-                        `來源檔案: ${fileName}.pdf`,
-                        `檔案大小: ${PresentationConverter.formatFileSize(arrayBuffer.byteLength)}`,
-                        '',
-                        '📄 PDF 檔案已載入',
-                        '⚠️ PDF 內容解析需要額外的函式庫支援',
-                        '',
-                        '建議的轉換選項:',
-                        '• 轉換為 HTML 格式以便瀏覽',
-                        '• 轉換為純文字格式',
-                        '• 保持原始 PDF 格式'
-                    ],
-                    notes: 'PDF 檔案需要專門的解析工具'
-                }
-            ];
+            let slides = [];
+            
+            try {
+                // Try to parse PDF content using PDF.js
+                slides = await PresentationConverter.parsePDFContent(arrayBuffer, fileName);
+            } catch (pdfError) {
+                console.warn('PDF 內容解析失敗，使用基本資訊:', pdfError);
+                // Fallback to basic info
+                slides = [
+                    {
+                        slideNumber: 1,
+                        title: 'PDF 文件資訊',
+                        content: [
+                            `來源檔案: ${fileName}.pdf`,
+                            `檔案大小: ${PresentationConverter.formatFileSize(arrayBuffer.byteLength)}`,
+                            '',
+                            '📄 PDF 檔案已載入',
+                            '⚠️ 無法完全解析 PDF 內容',
+                            '可能原因：',
+                            '• PDF 包含複雜格式',
+                            '• 需要更強大的解析工具',
+                            '• 檔案可能有密碼保護',
+                            '',
+                            '建議: 仍可嘗試轉換為其他格式'
+                        ],
+                        notes: `PDF 解析錯誤: ${pdfError.message}`
+                    }
+                ];
+            }
             
             return {
                 title: fileName,
@@ -519,6 +528,270 @@ class PresentationConverter {
                 }, 100);
             };
             script.onerror = () => reject(new Error('html2canvas 載入失敗'));
+            document.head.appendChild(script);
+        });
+    }
+
+    // Parse PPTX content using basic ZIP structure analysis
+    static async parsePPTXContent(arrayBuffer, fileName) {
+        try {
+            // Load JSZip if not available
+            await PresentationConverter.loadJSZip();
+            
+            const zip = new JSZip();
+            const zipContent = await zip.loadAsync(arrayBuffer);
+            
+            // Extract presentation structure
+            const slides = [];
+            let slideCount = 0;
+            
+            // Look for slide files
+            const slideFiles = [];
+            zipContent.forEach((relativePath, file) => {
+                if (relativePath.includes('ppt/slides/slide') && relativePath.endsWith('.xml')) {
+                    slideFiles.push({ path: relativePath, file: file });
+                }
+            });
+            
+            // Sort slide files by number
+            slideFiles.sort((a, b) => {
+                const aNum = parseInt(a.path.match(/slide(\d+)\.xml/)?.[1] || '0');
+                const bNum = parseInt(b.path.match(/slide(\d+)\.xml/)?.[1] || '0');
+                return aNum - bNum;
+            });
+            
+            // Process each slide
+            for (let i = 0; i < slideFiles.length; i++) {
+                const slideFile = slideFiles[i];
+                try {
+                    const slideXml = await slideFile.file.async('text');
+                    const slideContent = PresentationConverter.parseSlideXML(slideXml, i + 1);
+                    if (slideContent) {
+                        slides.push(slideContent);
+                        slideCount++;
+                    }
+                } catch (error) {
+                    console.warn(`無法解析投影片 ${i + 1}:`, error);
+                    // 添加錯誤投影片
+                    slides.push({
+                        slideNumber: i + 1,
+                        title: `投影片 ${i + 1}`,
+                        content: ['⚠️ 此投影片內容無法正確解析'],
+                        notes: `解析錯誤: ${error.message}`
+                    });
+                    slideCount++;
+                }
+            }
+            
+            // If no slides found, create a summary slide
+            if (slides.length === 0) {
+                slides.push({
+                    slideNumber: 1,
+                    title: '簡報摘要',
+                    content: [
+                        `檔案名稱: ${fileName}`,
+                        '📊 PPTX 檔案結構分析:',
+                        `• 檔案中包含 ${slideFiles.length} 張投影片`,
+                        '• 已嘗試解析內容結構',
+                        '• 部分內容可能需要進階解析器',
+                        '',
+                        '✨ 檔案格式驗證通過',
+                        '🔧 支援轉換為多種輸出格式'
+                    ],
+                    notes: '基於 PPTX 檔案結構分析產生的摘要'
+                });
+            }
+            
+            return slides;
+            
+        } catch (error) {
+            console.error('PPTX 解析錯誤:', error);
+            // 回退到基本資訊
+            return [
+                {
+                    slideNumber: 1,
+                    title: '檔案資訊',
+                    content: [
+                        `檔案名稱: ${fileName}`,
+                        '⚠️ PPTX 內容解析遇到困難',
+                        '可能的原因:',
+                        '• 檔案結構複雜',
+                        '• 包含特殊元素',
+                        '• 需要更強大的解析工具',
+                        '',
+                        '建議: 仍可轉換為其他格式進行檢視'
+                    ],
+                    notes: `解析錯誤: ${error.message}`
+                }
+            ];
+        }
+    }
+
+    // Parse individual slide XML content
+    static parseSlideXML(xmlContent, slideNumber) {
+        try {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlContent, 'text/xml');
+            
+            // Extract text content from the slide
+            const textElements = xmlDoc.querySelectorAll('a\\:t, t');
+            const textContent = [];
+            
+            textElements.forEach(element => {
+                const text = element.textContent?.trim();
+                if (text && text.length > 0) {
+                    textContent.push(text);
+                }
+            });
+            
+            // Try to identify title (usually the first or largest text element)
+            let title = `投影片 ${slideNumber}`;
+            if (textContent.length > 0) {
+                // Use first text as title if it's short enough
+                if (textContent[0].length <= 50) {
+                    title = textContent[0];
+                    textContent.shift(); // Remove title from content
+                } else {
+                    title = `投影片 ${slideNumber}`;
+                }
+            }
+            
+            // Create slide object
+            return {
+                slideNumber: slideNumber,
+                title: title || `投影片 ${slideNumber}`,
+                content: textContent.length > 0 ? textContent : ['此投影片包含非文字內容或無法解析的元素'],
+                notes: textContent.length > 0 ? `成功提取 ${textContent.length} 個文字元素` : '未找到文字內容'
+            };
+            
+        } catch (error) {
+            console.error(`解析投影片 ${slideNumber} XML 時發生錯誤:`, error);
+            return {
+                slideNumber: slideNumber,
+                title: `投影片 ${slideNumber}`,
+                content: ['⚠️ 投影片內容解析失敗'],
+                notes: `XML 解析錯誤: ${error.message}`
+            };
+        }
+    }
+
+    // Load JSZip library
+    static async loadJSZip() {
+        if (window.JSZip) return;
+        
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/jszip@3.10.1/dist/jszip.min.js';
+            script.onload = () => {
+                setTimeout(() => {
+                    if (window.JSZip) {
+                        console.log('✅ JSZip 載入成功');
+                        resolve();
+                    } else {
+                        reject(new Error('JSZip 載入後無法使用'));
+                    }
+                }, 100);
+            };
+            script.onerror = () => reject(new Error('JSZip 載入失敗'));
+            document.head.appendChild(script);
+        });
+    }
+
+    // Parse PDF content using PDF.js
+    static async parsePDFContent(arrayBuffer, fileName) {
+        try {
+            // Load PDF.js if not available
+            await PresentationConverter.loadPDFJS();
+            
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            const slides = [];
+            
+            console.log(`PDF 包含 ${pdf.numPages} 頁`);
+            
+            // Extract text from each page
+            for (let pageNum = 1; pageNum <= Math.min(pdf.numPages, 20); pageNum++) { // Limit to 20 pages
+                try {
+                    const page = await pdf.getPage(pageNum);
+                    const textContent = await page.getTextContent();
+                    
+                    // Extract text items
+                    const textItems = textContent.items.map(item => item.str.trim()).filter(str => str.length > 0);
+                    
+                    // Try to identify title (first significant text)
+                    let title = `第 ${pageNum} 頁`;
+                    if (textItems.length > 0) {
+                        const firstLine = textItems[0];
+                        if (firstLine.length <= 100) {
+                            title = firstLine;
+                        }
+                    }
+                    
+                    // Group remaining text as content
+                    const content = textItems.length > 1 ? textItems.slice(1) : textItems;
+                    
+                    slides.push({
+                        slideNumber: pageNum,
+                        title: title || `第 ${pageNum} 頁`,
+                        content: content.length > 0 ? content : ['此頁面沒有可提取的文字內容'],
+                        notes: `從 PDF 第 ${pageNum} 頁提取了 ${textItems.length} 個文字元素`
+                    });
+                    
+                } catch (pageError) {
+                    console.warn(`解析第 ${pageNum} 頁時發生錯誤:`, pageError);
+                    slides.push({
+                        slideNumber: pageNum,
+                        title: `第 ${pageNum} 頁`,
+                        content: ['⚠️ 此頁面內容無法解析'],
+                        notes: `頁面解析錯誤: ${pageError.message}`
+                    });
+                }
+            }
+            
+            // If more than 20 pages, add a summary
+            if (pdf.numPages > 20) {
+                slides.push({
+                    slideNumber: slides.length + 1,
+                    title: '文件摘要',
+                    content: [
+                        `此 PDF 文件共包含 ${pdf.numPages} 頁`,
+                        `為了效能考慮，僅顯示前 20 頁內容`,
+                        '',
+                        '如需查看完整內容：',
+                        '• 請使用專業的 PDF 閱讀器',
+                        '• 或將檔案分割為較小的部分'
+                    ],
+                    notes: `完整文件包含 ${pdf.numPages} 頁，已略過 ${pdf.numPages - 20} 頁`
+                });
+            }
+            
+            return slides;
+            
+        } catch (error) {
+            console.error('PDF.js 解析錯誤:', error);
+            throw error;
+        }
+    }
+
+    // Load PDF.js library
+    static async loadPDFJS() {
+        if (window.pdfjsLib) return;
+        
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js';
+            script.onload = () => {
+                setTimeout(() => {
+                    if (window.pdfjsLib) {
+                        // Configure PDF.js worker
+                        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+                        console.log('✅ PDF.js 載入成功');
+                        resolve();
+                    } else {
+                        reject(new Error('PDF.js 載入後無法使用'));
+                    }
+                }, 100);
+            };
+            script.onerror = () => reject(new Error('PDF.js 載入失敗'));
             document.head.appendChild(script);
         });
     }
