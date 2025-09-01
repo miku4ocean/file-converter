@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Simple English PDF Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .btn { padding: 15px 30px; font-size: 16px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 10px; }
+        .btn:hover { background: #218838; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 5px; background: #d4edda; color: #155724; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Pure English PDF Test</h1>
+    <p>Testing PDF generation with ONLY English text to eliminate encoding issues</p>
+    
+    <button class="btn" onclick="testEnglishPDF()">Generate English PDF</button>
+    
+    <div id="results"></div>
+
+    <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+    <script>
+        function log(message) {
+            const div = document.createElement('div');
+            div.className = 'result';
+            div.textContent = new Date().toLocaleTimeString() + ' - ' + message;
+            document.getElementById('results').appendChild(div);
+        }
+
+        async function testEnglishPDF() {
+            log('Starting pure English PDF test...');
+            
+            try {
+                // Use jsPDF directly with ONLY English text
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                // Pure English content
+                const title = 'Final Verification Test Document';
+                const content = `This is a test document for verifying PDF conversion functionality.
+
+Function Verification Items:
+* Chinese character support test
+* Special character processing: & < > " '
+* Multi-paragraph format verification  
+* Long text processing capability test
+
+Test time: ${new Date().toLocaleString()}
+
+This test will verify whether the new ASCII conversion system can:
+1. Correctly convert Chinese text to English
+2. Handle punctuation and special characters
+3. Maintain text format and structure
+4. Generate readable PDF files`;
+
+                // Set font
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(12);
+                
+                let yPosition = 20;
+                const pageHeight = 280;
+                const margin = 20;
+                const lineHeight = 6;
+                const pageWidth = 170;
+                
+                // Add title
+                doc.setFontSize(16);
+                doc.setFont('helvetica', 'bold');
+                doc.text(title, margin, yPosition);
+                yPosition += 10;
+                
+                // Add content
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(12);
+                
+                const paragraphs = content.split('\n\n');
+                
+                paragraphs.forEach(paragraph => {
+                    if (!paragraph.trim()) {
+                        yPosition += lineHeight;
+                        return;
+                    }
+                    
+                    const lines = doc.splitTextToSize(paragraph.trim(), pageWidth);
+                    
+                    lines.forEach(line => {
+                        if (yPosition > pageHeight - margin) {
+                            doc.addPage();
+                            yPosition = margin;
+                        }
+                        
+                        doc.text(line, margin, yPosition);
+                        yPosition += lineHeight;
+                    });
+                    
+                    yPosition += 3;
+                });
+                
+                // Add footer
+                doc.setFontSize(10);
+                doc.setTextColor(100, 100, 100);
+                doc.text('Page 1 of 1', margin, pageHeight + 5);
+                doc.text('Generated: ' + new Date().toLocaleDateString(), pageWidth - 40, pageHeight + 5);
+                
+                // Generate and download
+                const pdfBlob = doc.output('blob');
+                log('English PDF generated successfully: ' + pdfBlob.size + ' bytes');
+                
+                const url = URL.createObjectURL(pdfBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'pure-english-test.pdf';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                log('PDF downloaded successfully - please check if content is readable!');
+                
+            } catch (error) {
+                log('Error: ' + error.message);
+                console.error('PDF generation error:', error);
+            }
+        }
+    </script>
+</body>
+</html>
