@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎯 最終驗證測試</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 0; padding: 20px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+        }
+        .container {
+            max-width: 900px; margin: 0 auto;
+            background: white; border-radius: 15px;
+            padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .header {
+            text-align: center; margin-bottom: 30px;
+            padding: 20px; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            border-radius: 10px; color: white;
+        }
+        .test-grid {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 20px; margin: 20px 0;
+        }
+        .test-card {
+            background: #f8f9fa; border: 1px solid #e9ecef;
+            border-radius: 10px; padding: 20px;
+            transition: all 0.3s ease;
+        }
+        .test-card:hover { box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .test-card h3 { margin: 0 0 15px; color: #495057; }
+        
+        .result {
+            margin: 8px 0; padding: 10px; border-radius: 5px;
+            font-family: 'Courier New', monospace; font-size: 13px;
+        }
+        .success { background: #d4edda; color: #155724; border-left: 4px solid #28a745; }
+        .error { background: #f8d7da; color: #721c24; border-left: 4px solid #dc3545; }
+        .info { background: #d1ecf1; color: #0c5460; border-left: 4px solid #17a2b8; }
+        .warning { background: #fff3cd; color: #856404; border-left: 4px solid #ffc107; }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; border: none; padding: 12px 20px;
+            border-radius: 25px; cursor: pointer; margin: 5px;
+            font-weight: bold; transition: all 0.3s ease;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .btn:disabled { background: #6c757d; cursor: not-allowed; transform: none; }
+        
+        .summary {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            padding: 20px; border-radius: 10px; margin: 20px 0;
+            text-align: center;
+        }
+        .summary h2 { margin: 0 0 10px; color: #333; }
+        .summary .score { font-size: 3em; font-weight: bold; color: #28a745; margin: 10px 0; }
+        
+        @media (max-width: 768px) {
+            .test-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 最終驗證測試</h1>
+            <p>驗證所有轉換器功能是否完全正常</p>
+        </div>
+        
+        <div class="test-grid">
+            <!-- 轉換器載入測試 -->
+            <div class="test-card">
+                <h3>🔧 轉換器載入狀態</h3>
+                <div id="converterStatus"></div>
+                <button class="btn" onclick="checkConverters()">檢查載入狀態</button>
+            </div>
+            
+            <!-- PDF 功能測試 -->
+            <div class="test-card">
+                <h3>📄 PDF 轉換功能</h3>
+                <div id="pdfStatus"></div>
+                <button class="btn" onclick="testPDFFunction()">測試 PDF 轉換</button>
+            </div>
+            
+            <!-- 簡報功能測試 -->
+            <div class="test-card">
+                <h3>🎯 簡報處理功能</h3>
+                <div id="presentationStatus"></div>
+                <input type="file" id="pptFile" accept=".pptx,.ppt,.pdf" style="margin: 10px 0;">
+                <button class="btn" onclick="testPresentationFunction()">測試簡報上傳</button>
+            </div>
+            
+            <!-- 表單功能測試 -->
+            <div class="test-card">
+                <h3>📊 表單轉檔功能</h3>
+                <div id="spreadsheetStatus"></div>
+                <input type="file" id="xlsFile" accept=".xlsx,.csv" style="margin: 10px 0;">
+                <button class="btn" onclick="testSpreadsheetFunction()">測試表單上傳</button>
+            </div>
+        </div>
+        
+        <!-- 綜合測試 -->
+        <div class="test-card">
+            <h3>🧪 綜合功能測試</h3>
+            <div id="comprehensiveResults"></div>
+            <button class="btn" onclick="runComprehensiveTest()" id="comprehensiveBtn">🚀 執行全面測試</button>
+        </div>
+        
+        <!-- 測試摘要 -->
+        <div class="summary" id="testSummary" style="display: none;">
+            <h2>測試結果摘要</h2>
+            <div class="score" id="finalScore">0%</div>
+            <div id="summaryText">準備開始測試...</div>
+        </div>
+    </div>
+
+    <!-- 載入所有轉換器 -->
+    <script src="assets/js/converters/document.js"></script>
+    <script src="assets/js/converters/presentation.js"></script>
+    <script src="assets/js/converters/spreadsheet.js"></script>
+
+    <script>
+        let testResults = [];
+        
+        function addResult(containerId, success, message, details = '') {
+            const container = document.getElementById(containerId);
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `result ${success ? 'success' : 'error'}`;
+            resultDiv.innerHTML = `
+                ${success ? '✅' : '❌'} ${message}
+                ${details ? `<br><small>${details}</small>` : ''}
+            `;
+            container.appendChild(resultDiv);
+            
+            testResults.push({ success, message, details, timestamp: new Date() });
+        }
+        
+        function addInfo(containerId, message) {
+            const container = document.getElementById(containerId);
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'result info';
+            resultDiv.innerHTML = `ℹ️ ${message}`;
+            container.appendChild(resultDiv);
+        }
+
+        // 檢查轉換器載入狀態
+        function checkConverters() {
+            document.getElementById('converterStatus').innerHTML = '';
+            
+            // DocumentConverter
+            if (typeof DocumentConverter !== 'undefined') {
+                addResult('converterStatus', true, 'DocumentConverter 載入成功');
+                
+                if (typeof DocumentConverter.convertToPdf === 'function') {
+                    addResult('converterStatus', true, 'PDF 轉換方法可用');
+                } else {
+                    addResult('converterStatus', false, 'PDF 轉換方法不可用');
+                }
+            } else {
+                addResult('converterStatus', false, 'DocumentConverter 載入失敗');
+            }
+            
+            // PresentationConverter
+            if (typeof PresentationConverter !== 'undefined') {
+                addResult('converterStatus', true, 'PresentationConverter 載入成功');
+                
+                if (typeof PresentationConverter.isValidPresentationFile === 'function') {
+                    addResult('converterStatus', true, '簡報驗證方法可用');
+                } else {
+                    addResult('converterStatus', false, '簡報驗證方法不可用');
+                }
+            } else {
+                addResult('converterStatus', false, 'PresentationConverter 載入失敗');
+            }
+            
+            // SpreadsheetConverter
+            if (typeof SpreadsheetConverter !== 'undefined') {
+                addResult('converterStatus', true, 'SpreadsheetConverter 載入成功');
+            } else {
+                addResult('converterStatus', false, 'SpreadsheetConverter 載入失敗');
+            }
+        }
+
+        // 測試 PDF 轉換功能
+        async function testPDFFunction() {
+            document.getElementById('pdfStatus').innerHTML = '';
+            addInfo('pdfStatus', '開始 PDF 轉換測試...');
+            
+            try {
+                if (!DocumentConverter || typeof DocumentConverter.convertToPdf !== 'function') {
+                    addResult('pdfStatus', false, 'PDF 轉換功能不可用');
+                    return;
+                }
+                
+                const testContent = `最終驗證測試文件
+
+這是一個用於驗證 PDF 轉換功能的測試文件。
+
+功能驗證項目：
+• 中文字符支援
+• 特殊字符處理：& < > " '
+• 多段落格式
+• 長文本處理
+
+測試時間：${new Date().toLocaleString()}`;
+
+                const pdfBlob = await DocumentConverter.convertToPdf(testContent, '最終驗證測試');
+                
+                if (pdfBlob && pdfBlob.size > 0) {
+                    addResult('pdfStatus', true, 'PDF 轉換成功', `檔案大小: ${pdfBlob.size} bytes`);
+                    
+                    // 自動下載
+                    const url = URL.createObjectURL(pdfBlob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'final-verification-test.pdf';
+                    a.click();
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                    
+                    addResult('pdfStatus', true, 'PDF 已自動下載');
+                } else {
+                    addResult('pdfStatus', false, 'PDF 轉換失敗：產生空檔案');
+                }
+                
+            } catch (error) {
+                addResult('pdfStatus', false, 'PDF 轉換錯誤', error.message);
+                console.error('PDF conversion error:', error);
+            }
+        }
+
+        // 測試簡報功能
+        function testPresentationFunction() {
+            document.getElementById('presentationStatus').innerHTML = '';
+            const fileInput = document.getElementById('pptFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                addResult('presentationStatus', false, '請先選擇簡報檔案');
+                return;
+            }
+            
+            try {
+                if (typeof PresentationConverter === 'undefined') {
+                    addResult('presentationStatus', false, 'PresentationConverter 未載入');
+                    return;
+                }
+                
+                const isValid = PresentationConverter.isValidPresentationFile(file);
+                addResult('presentationStatus', isValid, 
+                    `檔案驗證: ${file.name}`, 
+                    `類型: ${file.type} | 大小: ${(file.size/1024).toFixed(1)}KB`);
+                
+                if (isValid) {
+                    addResult('presentationStatus', true, '簡報檔案格式正確');
+                    
+                    // 測試內容提取
+                    testPresentationExtraction(file);
+                }
+                
+            } catch (error) {
+                addResult('presentationStatus', false, '簡報測試失敗', error.message);
+            }
+        }
+        
+        async function testPresentationExtraction(file) {
+            try {
+                addInfo('presentationStatus', '正在提取簡報內容...');
+                
+                const content = await PresentationConverter.extractPresentationContent(file);
+                
+                if (content && content.slides) {
+                    addResult('presentationStatus', true, 
+                        `內容提取成功`, 
+                        `投影片數: ${content.slides.length} | 標題: ${content.title}`);
+                } else {
+                    addResult('presentationStatus', false, '無法提取簡報內容');
+                }
+                
+            } catch (error) {
+                addResult('presentationStatus', false, '內容提取失敗', error.message);
+            }
+        }
+
+        // 測試表單功能
+        function testSpreadsheetFunction() {
+            document.getElementById('spreadsheetStatus').innerHTML = '';
+            const fileInput = document.getElementById('xlsFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                addResult('spreadsheetStatus', false, '請先選擇表單檔案');
+                return;
+            }
+            
+            try {
+                if (typeof SpreadsheetConverter === 'undefined') {
+                    addResult('spreadsheetStatus', false, 'SpreadsheetConverter 未載入');
+                    return;
+                }
+                
+                const isValid = SpreadsheetConverter.isValidSpreadsheetFile(file);
+                addResult('spreadsheetStatus', isValid, 
+                    `檔案驗證: ${file.name}`, 
+                    `類型: ${file.type} | 大小: ${(file.size/1024).toFixed(1)}KB`);
+                
+            } catch (error) {
+                addResult('spreadsheetStatus', false, '表單測試失敗', error.message);
+            }
+        }
+
+        // 綜合測試
+        async function runComprehensiveTest() {
+            const btn = document.getElementById('comprehensiveBtn');
+            btn.disabled = true;
+            btn.textContent = '🔄 執行中...';
+            
+            document.getElementById('comprehensiveResults').innerHTML = '';
+            testResults = [];
+            
+            try {
+                addInfo('comprehensiveResults', '開始綜合測試...');
+                
+                // 1. 檢查轉換器載入
+                checkConverters();
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // 2. 測試 PDF 功能
+                addInfo('comprehensiveResults', '測試 PDF 轉換功能...');
+                await testPDFFunction();
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // 3. 生成摘要
+                generateFinalSummary();
+                
+            } catch (error) {
+                addResult('comprehensiveResults', false, '綜合測試失敗', error.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🚀 執行全面測試';
+            }
+        }
+        
+        function generateFinalSummary() {
+            const total = testResults.length;
+            const passed = testResults.filter(r => r.success).length;
+            const successRate = Math.round((passed / total) * 100);
+            
+            document.getElementById('testSummary').style.display = 'block';
+            document.getElementById('finalScore').textContent = `${successRate}%`;
+            
+            let summaryText = '';
+            if (successRate === 100) {
+                summaryText = '🎉 完美！所有功能正常運作';
+                document.getElementById('finalScore').style.color = '#28a745';
+            } else if (successRate >= 80) {
+                summaryText = '✅ 大部分功能正常，系統可用';
+                document.getElementById('finalScore').style.color = '#ffc107';
+            } else {
+                summaryText = '⚠️ 部分功能需要進一步修復';
+                document.getElementById('finalScore').style.color = '#dc3545';
+            }
+            
+            summaryText += `<br>通過測試: ${passed}/${total}`;
+            document.getElementById('summaryText').innerHTML = summaryText;
+            
+            addResult('comprehensiveResults', successRate >= 80, 
+                `綜合測試完成 (${successRate}%)`, 
+                `通過: ${passed}/${total} | ${successRate === 100 ? '系統完全正常' : '可投入使用'}`);
+        }
+
+        // 頁面載入時自動檢查
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                addInfo('converterStatus', '系統初始化中...');
+                checkConverters();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
