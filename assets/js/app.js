@@ -654,10 +654,26 @@ ${error.message}
         try {
             const presentationData = await PresentationConverter.extractPresentationContent(file);
             const includeNotes = document.getElementById('includeNotes')?.checked || true;
+            const title = file.name.replace(/\.[^/.]+$/, '');
             
-            return await PresentationConverter.convertToFormat(presentationData, outputFormat, {
-                includeNotes
-            });
+            // Use the specific conversion methods based on output format
+            let blob;
+            switch (outputFormat.toLowerCase()) {
+                case 'pdf':
+                    blob = await PresentationConverter.convertToPdf(presentationData, title, { includeNotes });
+                    break;
+                case 'html':
+                    blob = PresentationConverter.convertToHtml(presentationData, title, { includeNotes });
+                    break;
+                case 'txt':
+                case 'text':
+                    blob = PresentationConverter.convertToText(presentationData, title, { includeNotes });
+                    break;
+                default:
+                    throw new Error(`不支援的輸出格式: ${outputFormat}`);
+            }
+            
+            return blob;
         } catch (error) {
             throw new Error(`簡報轉換失敗: ${error.message}`);
         }
