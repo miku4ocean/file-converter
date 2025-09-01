@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>格式轉換驗證測試</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; margin: 20px; }
+        .test-card { background: white; padding: 20px; margin: 15px 0; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        button { padding: 12px 24px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <div class="test-card">
+        <h1>🔍 格式轉換驗證測試</h1>
+        <p>測試所有輸出格式是否正常工作，確認不會只輸出 TXT 格式</p>
+        
+        <button onclick="testAllFormats()">🚀 測試所有格式</button>
+        <button onclick="clearResults()">🧹 清除結果</button>
+        
+        <div id="results"></div>
+    </div>
+    
+    <!-- 載入最新版本的 PresentationConverter -->
+    <script>
+        const timestamp = new Date().getTime();
+        const script = document.createElement('script');
+        script.src = `assets/js/converters/presentation.js?v=${timestamp}`;
+        document.head.appendChild(script);
+    </script>
+    
+    <script>
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong> - ${message}`;
+            document.getElementById('results').appendChild(div);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        async function testAllFormats() {
+            clearResults();
+            log('🔍 開始格式轉換驗證測試...', 'info');
+
+            // 等待 PresentationConverter 載入
+            if (typeof PresentationConverter === 'undefined') {
+                log('⏳ 等待 PresentationConverter 載入...', 'info');
+                await new Promise(resolve => {
+                    const checkInterval = setInterval(() => {
+                        if (typeof PresentationConverter !== 'undefined') {
+                            clearInterval(checkInterval);
+                            resolve();
+                        }
+                    }, 100);
+                });
+            }
+
+            log('✅ PresentationConverter 已載入', 'success');
+
+            // 檢查方法是否存在
+            const methods = ['convertToPdf', 'convertToHtml', 'convertToText'];
+            let allMethodsExist = true;
+            
+            methods.forEach(method => {
+                if (typeof PresentationConverter[method] === 'function') {
+                    log(`✅ ${method} 方法存在`, 'success');
+                } else {
+                    log(`❌ ${method} 方法不存在`, 'error');
+                    allMethodsExist = false;
+                }
+            });
+
+            if (!allMethodsExist) {
+                log('❌ 部分轉換方法不存在，無法進行測試', 'error');
+                return;
+            }
+
+            // 建立測試資料
+            const testContent = {
+                title: '格式測試簡報',
+                slides: [
+                    {
+                        slideNumber: 1,
+                        title: '測試投影片 1',
+                        content: ['這是測試內容', '用於驗證格式轉換功能', '中文字符：你好世界'],
+                        notes: '測試備註 1'
+                    },
+                    {
+                        slideNumber: 2,
+                        title: '測試投影片 2',
+                        content: ['第二張投影片', '包含更多內容', '數字：123456'],
+                        notes: '測試備註 2'
+                    }
+                ],
+                totalSlides: 2
+            };
+
+            const title = '格式轉換測試';
+            const testResults = {};
+
+            // 測試 PDF 轉換
+            try {
+                log('📄 測試 PDF 轉換...', 'info');
+                const pdfBlob = await PresentationConverter.convertToPdf(testContent, title);
+                
+                if (pdfBlob instanceof Blob && pdfBlob.type === 'application/pdf' && pdfBlob.size > 0) {
+                    testResults.pdf = { success: true, size: pdfBlob.size, type: pdfBlob.type };
+                    log(`✅ PDF 轉換成功！大小: ${(pdfBlob.size/1024).toFixed(1)} KB, 類型: ${pdfBlob.type}`, 'success');
+                    
+                    // 驗證 PDF 內容
+                    const arrayBuffer = await pdfBlob.arrayBuffer();
+                    const header = new Uint8Array(arrayBuffer.slice(0, 4));
+                    const headerString = String.fromCharCode(...header);
+                    if (headerString === '%PDF') {
+                        log('✅ PDF 檔案格式驗證通過', 'success');
+                    } else {
+                        log('❌ PDF 檔案格式驗證失敗', 'error');
+                    }
+                } else {
+                    testResults.pdf = { success: false, error: '產生的不是有效的 PDF Blob' };
+                    log('❌ PDF 轉換失敗：產生的不是有效的 PDF', 'error');
+                }
+            } catch (error) {
+                testResults.pdf = { success: false, error: error.message };
+                log(`❌ PDF 轉換錯誤: ${error.message}`, 'error');
+            }
+
+            // 測試 HTML 轉換
+            try {
+                log('🌐 測試 HTML 轉換...', 'info');
+                const htmlBlob = PresentationConverter.convertToHtml(testContent, title);
+                
+                if (htmlBlob instanceof Blob && htmlBlob.type === 'text/html;charset=utf-8' && htmlBlob.size > 0) {
+                    testResults.html = { success: true, size: htmlBlob.size, type: htmlBlob.type };
+                    log(`✅ HTML 轉換成功！大小: ${htmlBlob.size} bytes, 類型: ${htmlBlob.type}`, 'success');
+                    
+                    // 驗證 HTML 內容
+                    const htmlText = await htmlBlob.text();
+                    if (htmlText.includes('<!DOCTYPE html>') && htmlText.includes(title)) {
+                        log('✅ HTML 內容驗證通過', 'success');
+                    } else {
+                        log('❌ HTML 內容驗證失敗', 'error');
+                    }
+                } else {
+                    testResults.html = { success: false, error: '產生的不是有效的 HTML Blob' };
+                    log('❌ HTML 轉換失敗：產生的不是有效的 HTML', 'error');
+                }
+            } catch (error) {
+                testResults.html = { success: false, error: error.message };
+                log(`❌ HTML 轉換錯誤: ${error.message}`, 'error');
+            }
+
+            // 測試 TXT 轉換
+            try {
+                log('📝 測試 TXT 轉換...', 'info');
+                const txtBlob = PresentationConverter.convertToText(testContent, title);
+                
+                if (txtBlob instanceof Blob && txtBlob.type === 'text/plain;charset=utf-8' && txtBlob.size > 0) {
+                    testResults.txt = { success: true, size: txtBlob.size, type: txtBlob.type };
+                    log(`✅ TXT 轉換成功！大小: ${txtBlob.size} bytes, 類型: ${txtBlob.type}`, 'success');
+                    
+                    // 驗證 TXT 內容
+                    const txtText = await txtBlob.text();
+                    if (txtText.includes(title) && txtText.includes('測試投影片 1')) {
+                        log('✅ TXT 內容驗證通過', 'success');
+                    } else {
+                        log('❌ TXT 內容驗證失敗', 'error');
+                    }
+                } else {
+                    testResults.txt = { success: false, error: '產生的不是有效的 TXT Blob' };
+                    log('❌ TXT 轉換失敗：產生的不是有效的 TXT', 'error');
+                }
+            } catch (error) {
+                testResults.txt = { success: false, error: error.message };
+                log(`❌ TXT 轉換錯誤: ${error.message}`, 'error');
+            }
+
+            // 總結報告
+            log('', 'info'); // 空行
+            log('📊 測試結果總結:', 'info');
+            
+            const successCount = Object.values(testResults).filter(r => r.success).length;
+            const totalTests = Object.keys(testResults).length;
+            
+            Object.entries(testResults).forEach(([format, result]) => {
+                if (result.success) {
+                    log(`✅ ${format.toUpperCase()}: 成功 (大小: ${result.size} bytes, 類型: ${result.type})`, 'success');
+                } else {
+                    log(`❌ ${format.toUpperCase()}: 失敗 - ${result.error}`, 'error');
+                }
+            });
+
+            if (successCount === totalTests) {
+                log(`🎉 所有 ${totalTests} 項轉換測試都成功！簡報轉換器格式功能已修復。`, 'success');
+                log('✅ 確認不會只輸出 TXT 格式，所有格式都能正確轉換', 'success');
+            } else {
+                log(`⚠️ ${totalTests} 項測試中有 ${successCount} 項成功，${totalTests - successCount} 項失敗。`, 'error');
+                
+                if (testResults.pdf && !testResults.pdf.success && testResults.html && !testResults.html.success && testResults.txt && testResults.txt.success) {
+                    log('⚠️ 檢測到只有 TXT 格式成功，PDF 和 HTML 轉換可能仍有問題', 'error');
+                }
+            }
+        }
+
+        // 頁面載入完成後的初始檢查
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                log('🚀 格式轉換驗證頁面載入完成', 'info');
+                log('⚡ 使用時間戳確保載入最新版本的程式碼', 'info');
+            }, 500);
+        });
+    </script>
+</body>
+</html>
