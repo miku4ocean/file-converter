@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>修復版 PDF 測試</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .btn { padding: 15px 30px; font-size: 16px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 10px; }
+        .btn:hover { background: #c82333; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <h1>🔧 修復版 PDF 中文轉換測試</h1>
+    <p>直接使用修復的轉換邏輯生成PDF</p>
+    
+    <button class="btn" onclick="testFixedPDF()">🚀 測試修復版 PDF</button>
+    
+    <div id="results"></div>
+
+    <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+    <script>
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = `
+                <strong>${new Date().toLocaleTimeString()}</strong> - ${message}
+            `;
+            document.getElementById('results').appendChild(div);
+        }
+
+        // 修復版的 ASCII 轉換函數
+        function convertToASCII(text) {
+            if (!text) return text;
+            
+            log('開始轉換文字: ' + text.substring(0, 50) + '...');
+            
+            try {
+                const translationMap = {
+                    // 完整短語優先
+                    '最終驗證測試文件': 'Final Verification Test Document',
+                    '最終驗證測試': 'Final Verification Test',
+                    '這是一個用於驗證 PDF 轉換功能的測試文件': 'This is a test document for verifying PDF conversion functionality',
+                    '功能驗證項目': 'Function Verification Items',
+                    '中文字符支援測試': 'Chinese character support test',
+                    '特殊字符處理': 'Special character processing',
+                    '多段落格式驗證': 'Multi-paragraph format verification',
+                    '長文本處理能力測試': 'Long text processing capability test',
+                    '測試時間': 'Test time',
+                    
+                    // 個別詞彙
+                    '測試': 'test',
+                    '文件': 'document',
+                    '轉換': 'convert',
+                    '功能': 'function',
+                    '驗證': 'verify',
+                    '支援': 'support',
+                    '處理': 'process',
+                    '格式': 'format',
+                    '時間': 'time',
+                    '的': ' ',
+                    '和': ' and ',
+                    '：': ': ',
+                    '，': ', ',
+                    '。': '. ',
+                    '•': '* ',
+                    '（': ' (',
+                    '）': ') '
+                };
+                
+                let result = text;
+                
+                // 按長度排序，先處理長短語
+                const sortedKeys = Object.keys(translationMap).sort((a, b) => b.length - a.length);
+                
+                for (const chinese of sortedKeys) {
+                    const before = result;
+                    result = result.split(chinese).join(translationMap[chinese]);
+                    if (before !== result) {
+                        log(`✅ 轉換: "${chinese}" → "${translationMap[chinese]}"`);
+                    }
+                }
+                
+                // 移除剩餘中文字符
+                result = result.replace(/[\u4e00-\u9fff]/g, ' ');
+                
+                // 清理多餘空格
+                result = result.replace(/\s+/g, ' ').trim();
+                
+                log('✅ 轉換完成: ' + result.substring(0, 100) + '...');
+                return result;
+                
+            } catch (error) {
+                log('❌ 轉換錯誤: ' + error.message, 'error');
+                return text.replace(/[^\x00-\x7F]/g, ' ').replace(/\s+/g, ' ').trim();
+            }
+        }
+
+        async function testFixedPDF() {
+            log('🔄 開始修復版PDF測試...');
+            
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                // 測試內容（中文）
+                const originalTitle = '最終驗證測試文件';
+                const originalContent = `這是一個用於驗證 PDF 轉換功能的測試文件。
+
+功能驗證項目：
+• 中文字符支援測試
+• 特殊字符處理：& < > " '
+• 多段落格式驗證
+• 長文本處理能力測試
+
+測試時間：${new Date().toLocaleString()}`;
+
+                log('📝 原始標題: ' + originalTitle);
+                
+                // 轉換為ASCII
+                const asciiTitle = convertToASCII(originalTitle);
+                const asciiContent = convertToASCII(originalContent);
+                
+                log('📄 轉換後標題: ' + asciiTitle, 'success');
+                
+                // 生成PDF
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(12);
+                
+                let yPosition = 20;
+                const pageHeight = 280;
+                const margin = 20;
+                const lineHeight = 6;
+                const pageWidth = 170;
+                
+                // 添加標題
+                doc.setFontSize(16);
+                doc.setFont('helvetica', 'bold');
+                doc.text(asciiTitle, margin, yPosition);
+                yPosition += 10;
+                
+                // 添加內容
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(12);
+                
+                const paragraphs = asciiContent.split('\n\n');
+                
+                paragraphs.forEach(paragraph => {
+                    if (!paragraph.trim()) return;
+                    
+                    const lines = doc.splitTextToSize(paragraph.trim(), pageWidth);
+                    
+                    lines.forEach(line => {
+                        if (yPosition > pageHeight - margin) {
+                            doc.addPage();
+                            yPosition = margin;
+                        }
+                        
+                        doc.text(line, margin, yPosition);
+                        yPosition += lineHeight;
+                    });
+                    
+                    yPosition += 3;
+                });
+                
+                // 頁腳
+                doc.setFontSize(10);
+                doc.setTextColor(100, 100, 100);
+                doc.text('Page 1 of 1', margin, pageHeight + 5);
+                doc.text('Generated: ' + new Date().toLocaleDateString(), pageWidth - 40, pageHeight + 5);
+                
+                // 生成並下載
+                const pdfBlob = doc.output('blob');
+                log('✅ 修復版PDF生成成功: ' + pdfBlob.size + ' bytes', 'success');
+                
+                const url = URL.createObjectURL(pdfBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'fixed-conversion-test.pdf';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                log('📥 修復版PDF已下載 - 請檢查內容是否為正常英文!', 'success');
+                
+            } catch (error) {
+                log('❌ 錯誤: ' + error.message, 'error');
+                console.error('PDF生成錯誤:', error);
+            }
+        }
+    </script>
+</body>
+</html>
