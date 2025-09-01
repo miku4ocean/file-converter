@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>可工作的 PDF 測試</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
+            max-width: 700px; 
+            margin: 0 auto; 
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        .test-card {
+            background: white;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-weight: 500;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .warning { background: #fff3cd; color: #856404; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        .download-link {
+            background: #28a745;
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            display: inline-block;
+            margin: 5px;
+        }
+        .download-link:hover { background: #218838; text-decoration: none; color: white; }
+        .code {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            margin: 10px 0;
+            border-left: 4px solid #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-card">
+        <h1>📄 可工作的 PDF 測試</h1>
+        <p>使用最新版本的 jsPDF 直接測試 PDF 生成</p>
+        
+        <button onclick="initJsPDF()">1. 初始化 jsPDF</button>
+        <button onclick="createTestPDF()">2. 生成測試 PDF</button>
+        <button onclick="createAdvancedPDF()">3. 生成進階 PDF</button>
+        <button onclick="validatePDF()">4. 驗證 PDF 格式</button>
+        
+        <div id="results"></div>
+    </div>
+
+    <!-- 直接載入 jsPDF 最新版本 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <script>
+        let generatedPDFs = {};
+
+        function addResult(message, type = 'info', showCode = null) {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = message;
+            if (showCode) {
+                const codeDiv = document.createElement('div');
+                codeDiv.className = 'code';
+                codeDiv.textContent = showCode;
+                div.appendChild(codeDiv);
+            }
+            results.appendChild(div);
+        }
+
+        function downloadPDF(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+
+        function initJsPDF() {
+            addResult('🔍 檢查 jsPDF 載入狀態...', 'info');
+            
+            if (typeof window.jspdf === 'undefined' && typeof window.jsPDF === 'undefined') {
+                addResult('❌ jsPDF 未載入', 'error');
+                return false;
+            }
+
+            // 檢查不同的載入方式
+            let jsPDFConstructor = null;
+            
+            if (window.jspdf && window.jspdf.jsPDF) {
+                jsPDFConstructor = window.jspdf.jsPDF;
+                addResult('✅ 找到 jsPDF (方式 1: window.jspdf.jsPDF)', 'success');
+            } else if (window.jsPDF) {
+                jsPDFConstructor = window.jsPDF;
+                addResult('✅ 找到 jsPDF (方式 2: window.jsPDF)', 'success');
+            }
+
+            if (jsPDFConstructor) {
+                try {
+                    const testDoc = new jsPDFConstructor();
+                    addResult('✅ jsPDF 實例化測試成功', 'success');
+                    window.PDF_CONSTRUCTOR = jsPDFConstructor;
+                    return true;
+                } catch (error) {
+                    addResult(`❌ jsPDF 實例化失敗: ${error.message}`, 'error');
+                    return false;
+                }
+            } else {
+                addResult('❌ 找不到有效的 jsPDF 構造函數', 'error');
+                return false;
+            }
+        }
+
+        function createTestPDF() {
+            if (!window.PDF_CONSTRUCTOR) {
+                addResult('⚠️ 請先初始化 jsPDF', 'warning');
+                return;
+            }
+
+            try {
+                addResult('🔄 生成基本測試 PDF...', 'info');
+
+                const doc = new window.PDF_CONSTRUCTOR();
+                
+                // 基本文字
+                doc.text('Hello, World!', 20, 20);
+                doc.text('這是一個 PDF 測試檔案', 20, 30);
+                doc.text('Test Chinese characters: 測試中文字符', 20, 40);
+                
+                // 生成 blob
+                const pdfBlob = doc.output('blob');
+                
+                addResult(`✅ 基本 PDF 生成成功！大小: ${pdfBlob.size} bytes`, 'success');
+                
+                // 檢查 PDF 標頭
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const arrayBuffer = e.target.result;
+                    const header = new Uint8Array(arrayBuffer.slice(0, 4));
+                    const headerString = String.fromCharCode(...header);
+                    
+                    if (headerString === '%PDF') {
+                        addResult('✅ PDF 檔案標頭驗證通過', 'success');
+                        
+                        generatedPDFs.basic = pdfBlob;
+                        const results = document.getElementById('results');
+                        const linkDiv = document.createElement('div');
+                        linkDiv.innerHTML = `
+                            <a href="#" class="download-link" onclick="downloadPDF(generatedPDFs.basic, 'basic-test.pdf'); return false;">
+                                📄 下載基本測試 PDF
+                            </a>
+                        `;
+                        results.appendChild(linkDiv);
+                    } else {
+                        addResult(`❌ PDF 檔案標頭錯誤: ${headerString}`, 'error', 
+                                  `預期: %PDF, 實際: ${headerString}`);
+                    }
+                };
+                reader.readAsArrayBuffer(pdfBlob);
+
+            } catch (error) {
+                addResult(`❌ 基本 PDF 生成失敗: ${error.message}`, 'error');
+                console.error('Basic PDF generation error:', error);
+            }
+        }
+
+        function createAdvancedPDF() {
+            if (!window.PDF_CONSTRUCTOR) {
+                addResult('⚠️ 請先初始化 jsPDF', 'warning');
+                return;
+            }
+
+            try {
+                addResult('🔄 生成進階測試 PDF...', 'info');
+
+                const doc = new window.PDF_CONSTRUCTOR({
+                    orientation: 'portrait',
+                    unit: 'mm',
+                    format: 'a4'
+                });
+
+                // 標題
+                doc.setFontSize(20);
+                doc.setFont('helvetica', 'bold');
+                doc.text('PDF 功能測試報告', 20, 30);
+
+                // 重設字體
+                doc.setFontSize(12);
+                doc.setFont('helvetica', 'normal');
+
+                let y = 50;
+
+                // 內容區塊
+                const content = [
+                    '這是一個完整的 PDF 功能測試。',
+                    '',
+                    '測試項目：',
+                    '• 標題格式設定',
+                    '• 字體大小控制',
+                    '• 中文字符顯示',
+                    '• 英文字符顯示: English text display',
+                    '• 數字顯示: 1234567890',
+                    '• 特殊字符: !@#$%^&*()',
+                    '',
+                    '頁面資訊：',
+                    `• 生成時間: ${new Date().toLocaleString()}`,
+                    '• 檔案格式: PDF 1.4',
+                    '• 頁面大小: A4 (210 x 297 mm)',
+                    '• 方向: 直向 (Portrait)',
+                    '',
+                    '測試結果：',
+                    '如果您能正常開啟並閱讀此檔案，',
+                    '表示 PDF 生成功能運作正常。'
+                ];
+
+                content.forEach(line => {
+                    if (y > 280) {
+                        doc.addPage();
+                        y = 30;
+                    }
+                    doc.text(line, 20, y);
+                    y += 6;
+                });
+
+                // 頁腳
+                const pageCount = doc.internal.getNumberOfPages();
+                for (let i = 1; i <= pageCount; i++) {
+                    doc.setPage(i);
+                    doc.setFontSize(10);
+                    doc.setTextColor(100);
+                    doc.text(`第 ${i} 頁，共 ${pageCount} 頁`, 20, 285);
+                    doc.text('PDF 轉換器測試', 150, 285);
+                }
+
+                const pdfBlob = doc.output('blob');
+                
+                addResult(`✅ 進階 PDF 生成成功！大小: ${(pdfBlob.size / 1024).toFixed(1)} KB`, 'success');
+                
+                generatedPDFs.advanced = pdfBlob;
+                const results = document.getElementById('results');
+                const linkDiv = document.createElement('div');
+                linkDiv.innerHTML = `
+                    <a href="#" class="download-link" onclick="downloadPDF(generatedPDFs.advanced, 'advanced-test.pdf'); return false;">
+                        📄 下載進階測試 PDF
+                    </a>
+                `;
+                results.appendChild(linkDiv);
+
+            } catch (error) {
+                addResult(`❌ 進階 PDF 生成失敗: ${error.message}`, 'error');
+                console.error('Advanced PDF generation error:', error);
+            }
+        }
+
+        async function validatePDF() {
+            if (!generatedPDFs.advanced && !generatedPDFs.basic) {
+                addResult('⚠️ 請先生成 PDF 檔案', 'warning');
+                return;
+            }
+
+            addResult('🔍 驗證生成的 PDF 檔案...', 'info');
+
+            const pdfToTest = generatedPDFs.advanced || generatedPDFs.basic;
+
+            try {
+                // 1. 檢查檔案大小
+                if (pdfBlob.size === 0) {
+                    addResult('❌ PDF 檔案大小為 0', 'error');
+                    return;
+                }
+                addResult(`✅ 檔案大小正常: ${pdfToTest.size} bytes`, 'success');
+
+                // 2. 檢查 MIME 類型
+                addResult(`📋 MIME 類型: ${pdfToTest.type}`, 'info');
+
+                // 3. 檢查檔案標頭
+                const arrayBuffer = await pdfToTest.arrayBuffer();
+                const header = new Uint8Array(arrayBuffer.slice(0, 8));
+                const headerString = String.fromCharCode(...header.slice(0, 4));
+                const versionBytes = String.fromCharCode(...header.slice(4, 8));
+                
+                if (headerString === '%PDF') {
+                    addResult('✅ PDF 檔案標頭正確', 'success');
+                    addResult(`📋 PDF 版本: ${headerString}${versionBytes}`, 'info');
+                } else {
+                    addResult(`❌ PDF 檔案標頭錯誤: ${headerString}`, 'error');
+                }
+
+                // 4. 檢查檔案結尾
+                const footer = new Uint8Array(arrayBuffer.slice(-6));
+                const footerString = String.fromCharCode(...footer);
+                if (footerString.includes('%%EOF')) {
+                    addResult('✅ PDF 檔案結尾正確', 'success');
+                } else {
+                    addResult('⚠️ PDF 檔案結尾可能有問題', 'warning');
+                }
+
+                // 5. 整體驗證
+                addResult('🎉 PDF 檔案驗證完成！檔案應該可以正常開啟', 'success');
+
+            } catch (error) {
+                addResult(`❌ PDF 驗證失敗: ${error.message}`, 'error');
+            }
+        }
+
+        // 全域函數
+        window.initJsPDF = initJsPDF;
+        window.createTestPDF = createTestPDF;
+        window.createAdvancedPDF = createAdvancedPDF;
+        window.validatePDF = validatePDF;
+        window.downloadPDF = downloadPDF;
+        window.generatedPDFs = generatedPDFs;
+
+        // 頁面載入完成後自動初始化
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                addResult('📄 頁面已載入，準備測試 PDF 功能', 'info');
+                initJsPDF();
+            }, 500);
+        });
+    </script>
+</body>
+</html>

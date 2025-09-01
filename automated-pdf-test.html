@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>自動化 PDF 轉檔測試</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-section { 
+            border: 1px solid #ddd; 
+            padding: 20px; 
+            margin: 15px 0; 
+            border-radius: 5px;
+            background: #fafafa;
+        }
+        .result { 
+            margin: 10px 0; 
+            padding: 15px; 
+            border-radius: 5px;
+            font-family: monospace;
+        }
+        .error { background: #ffebee; color: #c62828; border-left: 4px solid #c62828; }
+        .success { background: #e8f5e8; color: #2e7d32; border-left: 4px solid #4caf50; }
+        .info { background: #e3f2fd; color: #1976d2; border-left: 4px solid #2196f3; }
+        .warning { background: #fff3e0; color: #f57c00; border-left: 4px solid #ff9800; }
+        
+        button { 
+            padding: 12px 20px; 
+            margin: 5px; 
+            cursor: pointer; 
+            border: none;
+            border-radius: 4px;
+            background: #1976d2;
+            color: white;
+            font-size: 14px;
+        }
+        button:hover { background: #1565c0; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        
+        .progress {
+            width: 100%;
+            height: 20px;
+            background: #ddd;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #4caf50, #2e7d32);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .test-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .test-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 自動化 PDF 轉檔測試</h1>
+        
+        <div class="test-section">
+            <h3>📊 測試進度</h3>
+            <div class="progress">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <div id="progressText">準備開始測試...</div>
+            <button onclick="runAllTests()" id="runTestsBtn">🚀 執行所有測試</button>
+            <button onclick="clearResults()" id="clearBtn">🧹 清除結果</button>
+        </div>
+
+        <div class="test-grid">
+            <div class="test-section">
+                <h3>📝 文字轉 PDF 測試</h3>
+                <div id="textTestResult" class="result info">等待測試...</div>
+                <button onclick="testTextToPdf()" id="textTestBtn">測試文字轉換</button>
+            </div>
+
+            <div class="test-section">
+                <h3>📄 文件轉 PDF 測試</h3>
+                <div id="fileTestResult" class="result info">等待測試...</div>
+                <button onclick="testFileToPdf()" id="fileTestBtn">測試文件轉換</button>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>🔍 詳細測試結果</h3>
+            <div id="detailedResults"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📋 測試摘要</h3>
+            <div id="testSummary" class="result info">尚未開始測試</div>
+        </div>
+    </div>
+
+    <script src="assets/js/lib-loader.js"></script>
+    <script>
+        let documentConverter;
+        let testResults = [];
+        let currentTestIndex = 0;
+        let totalTests = 4;
+
+        // 測試資料
+        const testData = {
+            simpleText: "Hello World!\n這是一個簡單的 PDF 測試。",
+            complexText: `複雜文字測試
+這是第一段落。包含中文和英文 mixed content。
+
+第二段落：
+- 特殊字符: & < > " '
+- 數字: 12345
+- 符號: !@#$%^&*()
+
+第三段落包含更多內容來測試多段落處理。
+`,
+            htmlContent: "<h1>HTML 標題</h1><p>段落內容 &amp; 特殊字符</p>"
+        };
+
+        // 等待 libraries 載入
+        window.addEventListener('librariesLoaded', function() {
+            console.log('📚 Libraries loaded, initializing converter');
+            documentConverter = new DocumentConverter();
+            updateProgress(0, '✅ 函式庫載入完成，準備測試...');
+        });
+
+        function updateProgress(percent, text) {
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            progressBar.style.width = percent + '%';
+            progressText.textContent = text;
+        }
+
+        function logResult(testName, success, message, details = null) {
+            const result = {
+                testName,
+                success,
+                message,
+                details,
+                timestamp: new Date().toLocaleString()
+            };
+            testResults.push(result);
+            
+            // 更新詳細結果
+            const detailedResults = document.getElementById('detailedResults');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `result ${success ? 'success' : 'error'}`;
+            resultDiv.innerHTML = `
+                <strong>${success ? '✅' : '❌'} ${testName}</strong><br>
+                ${message}<br>
+                <small>時間: ${result.timestamp}</small>
+                ${details ? `<br><small>詳細: ${details}</small>` : ''}
+            `;
+            detailedResults.appendChild(resultDiv);
+        }
+
+        async function testTextToPdf() {
+            const resultDiv = document.getElementById('textTestResult');
+            
+            if (!documentConverter) {
+                logResult('文字轉 PDF', false, 'DocumentConverter 尚未初始化');
+                resultDiv.innerHTML = '<span class="error">❌ DocumentConverter 尚未初始化</span>';
+                return false;
+            }
+
+            try {
+                resultDiv.innerHTML = '<span class="info">🔄 正在測試文字轉 PDF...</span>';
+                
+                // 測試簡單文字
+                console.log('🧪 開始簡單文字測試');
+                const simpleBlob = await documentConverter.convertTextToPdf(testData.simpleText, 'simple-test.pdf');
+                
+                if (!simpleBlob || simpleBlob.size === 0) {
+                    throw new Error('簡單文字轉換產生空檔案');
+                }
+
+                // 測試複雜文字
+                console.log('🧪 開始複雜文字測試');
+                const complexBlob = await documentConverter.convertTextToPdf(testData.complexText, 'complex-test.pdf');
+                
+                if (!complexBlob || complexBlob.size === 0) {
+                    throw new Error('複雜文字轉換產生空檔案');
+                }
+
+                const message = `✅ 文字轉 PDF 測試通過！\n簡單文字: ${simpleBlob.size} bytes\n複雜文字: ${complexBlob.size} bytes`;
+                resultDiv.innerHTML = `<span class="success">${message.replace(/\n/g, '<br>')}</span>`;
+                logResult('文字轉 PDF', true, message);
+                
+                // 自動下載測試檔案
+                downloadBlob(simpleBlob, 'test-simple.pdf');
+                downloadBlob(complexBlob, 'test-complex.pdf');
+                
+                return true;
+                
+            } catch (error) {
+                console.error('❌ 文字轉 PDF 測試失敗:', error);
+                const message = `文字轉 PDF 測試失敗: ${error.message}`;
+                resultDiv.innerHTML = `<span class="error">❌ ${message}</span>`;
+                logResult('文字轉 PDF', false, message, error.stack);
+                return false;
+            }
+        }
+
+        async function testFileToPdf() {
+            const resultDiv = document.getElementById('fileTestResult');
+            
+            if (!documentConverter) {
+                logResult('文件轉 PDF', false, 'DocumentConverter 尚未初始化');
+                resultDiv.innerHTML = '<span class="error">❌ DocumentConverter 尚未初始化</span>';
+                return false;
+            }
+
+            try {
+                resultDiv.innerHTML = '<span class="info">🔄 正在測試文件轉 PDF...</span>';
+                
+                // 創建模擬 TXT 檔案
+                const txtBlob = new Blob([testData.complexText], { type: 'text/plain' });
+                const txtFile = new File([txtBlob], 'test.txt', { type: 'text/plain' });
+                
+                console.log('🧪 開始 TXT 轉 PDF 測試');
+                const content = await txtFile.text();
+                const pdfBlob = await documentConverter.convertTextToPdf(content, 'test-from-file.pdf');
+                
+                if (!pdfBlob || pdfBlob.size === 0) {
+                    throw new Error('TXT 文件轉換產生空檔案');
+                }
+
+                const message = `✅ 文件轉 PDF 測試通過！\n檔案大小: ${pdfBlob.size} bytes`;
+                resultDiv.innerHTML = `<span class="success">${message.replace(/\n/g, '<br>')}</span>`;
+                logResult('文件轉 PDF', true, message);
+                
+                // 自動下載測試檔案
+                downloadBlob(pdfBlob, 'test-from-file.pdf');
+                
+                return true;
+                
+            } catch (error) {
+                console.error('❌ 文件轉 PDF 測試失敗:', error);
+                const message = `文件轉 PDF 測試失敗: ${error.message}`;
+                resultDiv.innerHTML = `<span class="error">❌ ${message}</span>`;
+                logResult('文件轉 PDF', false, message, error.stack);
+                return false;
+            }
+        }
+
+        function downloadBlob(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+
+        async function runAllTests() {
+            const runBtn = document.getElementById('runTestsBtn');
+            runBtn.disabled = true;
+            runBtn.textContent = '🔄 測試中...';
+            
+            testResults = [];
+            currentTestIndex = 0;
+            document.getElementById('detailedResults').innerHTML = '';
+            
+            updateProgress(10, '開始執行所有測試...');
+            
+            try {
+                // 等待一下確保 DocumentConverter 準備就緒
+                if (!documentConverter) {
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+                
+                updateProgress(25, '執行文字轉 PDF 測試...');
+                const textResult = await testTextToPdf();
+                
+                updateProgress(50, '執行文件轉 PDF 測試...');
+                const fileResult = await testFileToPdf();
+                
+                updateProgress(75, '驗證測試結果...');
+                
+                // 生成測試摘要
+                const passedTests = testResults.filter(r => r.success).length;
+                const totalTests = testResults.length;
+                const successRate = totalTests > 0 ? Math.round((passedTests / totalTests) * 100) : 0;
+                
+                updateProgress(100, `測試完成！成功率: ${successRate}%`);
+                
+                const summaryDiv = document.getElementById('testSummary');
+                if (passedTests === totalTests && totalTests > 0) {
+                    summaryDiv.innerHTML = `
+                        <div class="success">
+                            🎉 <strong>所有測試通過！</strong><br>
+                            通過: ${passedTests}/${totalTests} (${successRate}%)<br>
+                            PDF 轉檔功能正常運作 ✅
+                        </div>
+                    `;
+                } else {
+                    summaryDiv.innerHTML = `
+                        <div class="warning">
+                            ⚠️ <strong>部分測試失敗</strong><br>
+                            通過: ${passedTests}/${totalTests} (${successRate}%)<br>
+                            請檢查詳細結果了解問題
+                        </div>
+                    `;
+                }
+                
+            } catch (error) {
+                console.error('❌ 測試執行錯誤:', error);
+                updateProgress(100, '測試執行出現錯誤');
+                document.getElementById('testSummary').innerHTML = `
+                    <div class="error">
+                        ❌ <strong>測試執行失敗</strong><br>
+                        錯誤: ${error.message}
+                    </div>
+                `;
+            } finally {
+                runBtn.disabled = false;
+                runBtn.textContent = '🚀 執行所有測試';
+            }
+        }
+
+        function clearResults() {
+            testResults = [];
+            document.getElementById('detailedResults').innerHTML = '';
+            document.getElementById('testSummary').innerHTML = '<div class="info">尚未開始測試</div>';
+            document.getElementById('textTestResult').innerHTML = '<div class="info">等待測試...</div>';
+            document.getElementById('fileTestResult').innerHTML = '<div class="info">等待測試...</div>';
+            updateProgress(0, '結果已清除，準備重新測試...');
+        }
+
+        // 頁面載入完成後的初始化
+        window.addEventListener('load', function() {
+            console.log('📄 測試頁面載入完成');
+            updateProgress(5, '頁面載入完成，等待函式庫載入...');
+        });
+    </script>
+</body>
+</html>

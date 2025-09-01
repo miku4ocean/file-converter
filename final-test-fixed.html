@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>最終修復測試</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            background: rgba(255,255,255,0.95);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            color: #333;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-weight: bold;
+        }
+        .success { 
+            background: linear-gradient(135deg, #a8e6cf 0%, #7fcdcd 100%); 
+            color: #155724; 
+        }
+        .error { 
+            background: linear-gradient(135deg, #ffd3a5 0%, #fd9853 100%); 
+            color: #721c24; 
+        }
+        .warning { 
+            background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%); 
+            color: #856404; 
+        }
+        .loading {
+            background: linear-gradient(135deg, #ddd6fe 0%, #c4b5fd 100%);
+            color: #553c9a;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin: 10px 5px;
+            transition: transform 0.2s;
+        }
+        button:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .download-link {
+            display: inline-block;
+            background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+            color: #333;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            margin: 10px 5px;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+        .download-link:hover {
+            transform: translateY(-2px);
+        }
+        h1 { 
+            text-align: center; 
+            color: #333;
+            margin-bottom: 10px;
+        }
+        h2 { 
+            color: #667eea; 
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 8px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 檔案轉換器 - 最終修復測試</h1>
+        <p class="subtitle">驗證所有修復是否成功，檔案是否可正常開啟</p>
+
+        <div class="test-section">
+            <h2>🔧 基礎功能測試</h2>
+            <button onclick="runBasicTests()">運行基礎測試</button>
+            <div id="basic-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>📊 Excel 檔案產生</h2>
+            <button onclick="generateExcel()">產生 Excel 測試檔案</button>
+            <div id="excel-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>📄 CSV 檔案產生</h2>
+            <button onclick="generateCSV()">產生 CSV 測試檔案</button>
+            <div id="csv-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>📋 完整轉換測試</h2>
+            <button onclick="runFullConversionTest()">運行完整轉換測試</button>
+            <div id="full-results"></div>
+        </div>
+    </div>
+
+    <script src="assets/js/lib-loader.js"></script>
+    <script src="assets/js/converters/spreadsheet.js"></script>
+
+    <script>
+        function addResult(containerId, message, type = 'info', isHtml = false) {
+            const container = document.getElementById(containerId);
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            if (isHtml) {
+                div.innerHTML = message;
+            } else {
+                div.textContent = message;
+            }
+            container.appendChild(div);
+            return div;
+        }
+
+        async function waitForConverter(timeout = 5000) {
+            const start = Date.now();
+            while (typeof SpreadsheetConverter === 'undefined') {
+                if (Date.now() - start > timeout) {
+                    throw new Error('SpreadsheetConverter 載入逾時');
+                }
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        }
+
+        async function runBasicTests() {
+            const container = document.getElementById('basic-results');
+            container.innerHTML = '';
+            
+            try {
+                addResult('basic-results', '🔄 等待 SpreadsheetConverter 載入...', 'loading');
+                await waitForConverter();
+                
+                addResult('basic-results', '✅ SpreadsheetConverter 已載入成功', 'success');
+                
+                // Test escapeHtml function
+                const htmlTest = '<script>alert("test")</script>';
+                const escaped = SpreadsheetConverter.escapeHtml(htmlTest);
+                addResult('basic-results', `✅ escapeHtml 測試: ${escaped}`, 'success');
+                
+                // Test formatFileSize function  
+                const sizeTest = SpreadsheetConverter.formatFileSize(1024 * 1024);
+                addResult('basic-results', `✅ formatFileSize 測試: ${sizeTest}`, 'success');
+                
+                // Test data conversion
+                const testData = [
+                    ['姓名', '年齡', '職業'],
+                    ['張三', '25', '工程師'],
+                    ['李四', '30', '設計師']
+                ];
+                
+                const csvBlob = SpreadsheetConverter.convertToCsv(testData);
+                addResult('basic-results', `✅ CSV 轉換成功: ${csvBlob.size} bytes`, 'success');
+                
+                const jsonBlob = SpreadsheetConverter.convertToJson(testData);
+                addResult('basic-results', `✅ JSON 轉換成功: ${jsonBlob.size} bytes`, 'success');
+                
+                addResult('basic-results', '🎉 所有基礎測試通過！', 'success');
+                
+            } catch (error) {
+                addResult('basic-results', `❌ 基礎測試失敗: ${error.message}`, 'error');
+            }
+        }
+
+        async function generateExcel() {
+            const container = document.getElementById('excel-results');
+            container.innerHTML = '';
+            
+            try {
+                await waitForConverter();
+                
+                addResult('excel-results', '🔄 正在產生 Excel 檔案...', 'loading');
+                
+                const salesData = [
+                    ['月份', '銷售額', '成長率', '備註'],
+                    ['1月', 150000, '5%', '開年好業績'],
+                    ['2月', 180000, '20%', '情人節促銷'],
+                    ['3月', 220000, '22%', '春季新品發布'],
+                    ['4月', 190000, '-14%', '市場調整'],
+                    ['5月', 250000, '32%', '母親節熱銷'],
+                    ['6月', 280000, '12%', '年中促銷']
+                ];
+                
+                const excelBlob = await SpreadsheetConverter.convertToExcel(salesData, 'sales-report');
+                
+                if (excelBlob.size < 1000) {
+                    throw new Error('Excel 檔案大小異常，可能產生失敗');
+                }
+                
+                addResult('excel-results', `✅ Excel 檔案產生成功！檔案大小: ${(excelBlob.size / 1024).toFixed(1)} KB`, 'success');
+                
+                const url = URL.createObjectURL(excelBlob);
+                const resultDiv = addResult('excel-results', '', 'success', true);
+                resultDiv.innerHTML = `
+                    <div>
+                        <strong>📊 Excel 檔案已就緒</strong><br>
+                        <p>請下載並使用 Microsoft Excel、Google Sheets 或 Numbers 開啟測試</p>
+                        <a href="${url}" download="sales-report.xlsx" class="download-link">
+                            📊 下載 Excel 檔案 (.xlsx)
+                        </a>
+                    </div>
+                `;
+                
+            } catch (error) {
+                addResult('excel-results', `❌ Excel 產生失敗: ${error.message}`, 'error');
+                console.error('Excel generation error:', error);
+            }
+        }
+
+        async function generateCSV() {
+            const container = document.getElementById('csv-results');
+            container.innerHTML = '';
+            
+            try {
+                await waitForConverter();
+                
+                const employeeData = [
+                    ['員工編號', '姓名', '部門', '薪水', '入職日期'],
+                    ['E001', '王小明', '資訊部', '45000', '2023-01-15'],
+                    ['E002', '李美麗', '行銷部', '38000', '2023-02-01'],
+                    ['E003', '張志強', '業務部', '42000', '2023-01-20'],
+                    ['E004', '陳雅婷', '人事部', '40000', '2023-03-01'],
+                    ['E005', '林大華', '財務部', '48000', '2022-12-01']
+                ];
+                
+                const csvBlob = SpreadsheetConverter.convertToCsv(employeeData);
+                
+                addResult('csv-results', `✅ CSV 檔案產生成功！檔案大小: ${csvBlob.size} bytes`, 'success');
+                
+                const url = URL.createObjectURL(csvBlob);
+                const resultDiv = addResult('csv-results', '', 'success', true);
+                resultDiv.innerHTML = `
+                    <div>
+                        <strong>📈 CSV 檔案已就緒</strong><br>
+                        <p>請下載並使用 Excel、Google Sheets 或文字編輯器開啟測試</p>
+                        <a href="${url}" download="employee-data.csv" class="download-link">
+                            📈 下載 CSV 檔案 (.csv)
+                        </a>
+                    </div>
+                `;
+                
+            } catch (error) {
+                addResult('csv-results', `❌ CSV 產生失敗: ${error.message}`, 'error');
+            }
+        }
+
+        async function runFullConversionTest() {
+            const container = document.getElementById('full-results');
+            container.innerHTML = '';
+            
+            try {
+                await waitForConverter();
+                
+                addResult('full-results', '🔄 執行完整轉換測試...', 'loading');
+                
+                const inventoryData = [
+                    ['商品代碼', '商品名稱', '類別', '數量', '單價', '總價值'],
+                    ['P001', 'iPhone 15 Pro', '手機', 50, 35000, 1750000],
+                    ['P002', 'MacBook Air M2', '筆電', 30, 38000, 1140000],
+                    ['P003', 'AirPods Pro', '配件', 100, 7000, 700000],
+                    ['P004', 'iPad Pro', '平板', 25, 28000, 700000],
+                    ['P005', 'Apple Watch', '穿戴', 75, 12000, 900000]
+                ];
+                
+                // Test all conversion formats
+                const conversions = [
+                    { format: 'csv', name: 'CSV' },
+                    { format: 'json', name: 'JSON' },
+                    { format: 'html', name: 'HTML' },
+                    { format: 'txt', name: '純文字' }
+                ];
+                
+                const downloadLinks = [];
+                
+                for (const conv of conversions) {
+                    try {
+                        const blob = await SpreadsheetConverter.convertToFormat(
+                            { data: inventoryData, sheets: [{ name: 'inventory', data: inventoryData }] },
+                            conv.format
+                        );
+                        
+                        addResult('full-results', `✅ ${conv.name} 轉換成功: ${blob.size} bytes`, 'success');
+                        
+                        const url = URL.createObjectURL(blob);
+                        const extension = conv.format === 'txt' ? 'txt' : conv.format;
+                        downloadLinks.push({
+                            url: url,
+                            filename: `inventory.${extension}`,
+                            name: conv.name
+                        });
+                        
+                    } catch (convError) {
+                        addResult('full-results', `❌ ${conv.name} 轉換失敗: ${convError.message}`, 'error');
+                    }
+                }
+                
+                // Test Excel conversion separately
+                try {
+                    const excelBlob = await SpreadsheetConverter.convertToExcel(inventoryData, 'inventory');
+                    addResult('full-results', `✅ Excel 轉換成功: ${(excelBlob.size / 1024).toFixed(1)} KB`, 'success');
+                    
+                    const excelUrl = URL.createObjectURL(excelBlob);
+                    downloadLinks.push({
+                        url: excelUrl,
+                        filename: 'inventory.xlsx',
+                        name: 'Excel'
+                    });
+                } catch (excelError) {
+                    addResult('full-results', `❌ Excel 轉換失敗: ${excelError.message}`, 'error');
+                }
+                
+                // Show all download links
+                if (downloadLinks.length > 0) {
+                    const resultDiv = addResult('full-results', '', 'success', true);
+                    resultDiv.innerHTML = `
+                        <div>
+                            <strong>🎉 轉換測試完成！</strong><br>
+                            <p>以下檔案可供下載測試：</p>
+                            ${downloadLinks.map(link => 
+                                `<a href="${link.url}" download="${link.filename}" class="download-link">
+                                    📁 ${link.name} (${link.filename})
+                                </a>`
+                            ).join('')}
+                        </div>
+                    `;
+                }
+                
+                addResult('full-results', '✅ 完整轉換測試完成！請下載檔案驗證是否可正常開啟。', 'success');
+                
+            } catch (error) {
+                addResult('full-results', `❌ 完整測試失敗: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-run basic tests on load
+        window.addEventListener('load', () => {
+            console.log('頁面載入完成，開始自動測試...');
+            setTimeout(runBasicTests, 1000);
+        });
+
+        // Global functions for onclick
+        window.runBasicTests = runBasicTests;
+        window.generateExcel = generateExcel;
+        window.generateCSV = generateCSV;
+        window.runFullConversionTest = runFullConversionTest;
+    </script>
+</body>
+</html>

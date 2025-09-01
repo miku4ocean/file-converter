@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF 轉檔修復測試</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-area { border: 1px solid #ccc; padding: 20px; margin: 10px 0; }
+        .result { margin: 10px 0; padding: 10px; background: #f5f5f5; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e8; color: #2e7d32; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>PDF 轉檔修復測試</h1>
+    
+    <div class="test-area">
+        <h3>文字轉 PDF 測試</h3>
+        <textarea id="testContent" rows="10" cols="80" placeholder="輸入要轉換為 PDF 的文字內容...">測試文字內容
+這是第二段落
+
+包含中文字符測試：你好世界
+特殊字符測試：&lt; &gt; &amp; " '</textarea>
+        <br>
+        <button onclick="testTextToPdf()">轉換為 PDF</button>
+        <div id="textResult" class="result"></div>
+    </div>
+
+    <div class="test-area">
+        <h3>文件轉 PDF 測試</h3>
+        <input type="file" id="fileInput" accept=".txt,.docx">
+        <button onclick="testFileToPdf()">轉換文件為 PDF</button>
+        <div id="fileResult" class="result"></div>
+    </div>
+
+    <script src="assets/js/lib-loader.js"></script>
+    <script>
+        let documentConverter;
+
+        // 等待 libraries 載入完成
+        window.addEventListener('librariesLoaded', function() {
+            console.log('Libraries loaded, initializing converter');
+            documentConverter = new DocumentConverter();
+        });
+
+        async function testTextToPdf() {
+            const resultDiv = document.getElementById('textResult');
+            const content = document.getElementById('testContent').value;
+            
+            if (!documentConverter) {
+                resultDiv.innerHTML = '<span class="error">DocumentConverter 尚未初始化，請稍候再試</span>';
+                return;
+            }
+            
+            try {
+                resultDiv.innerHTML = '正在轉換...';
+                console.log('Starting text to PDF conversion');
+                
+                const pdfBlob = await documentConverter.convertTextToPdf(content, 'test-document.pdf');
+                
+                if (pdfBlob && pdfBlob.size > 0) {
+                    // 創建下載連結
+                    const url = URL.createObjectURL(pdfBlob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'test-converted.pdf';
+                    
+                    resultDiv.innerHTML = `
+                        <span class="success">✓ PDF 轉換成功！檔案大小: ${pdfBlob.size} bytes</span>
+                        <br><button onclick="window.open('${url}')">預覽 PDF</button>
+                        <button onclick="this.previousElementSibling.previousElementSibling.click()">下載 PDF</button>
+                    `;
+                    
+                    // 點擊下載按鈕
+                    a.click();
+                    
+                    // 清理 URL
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                } else {
+                    resultDiv.innerHTML = '<span class="error">✗ PDF 轉換失敗：產生的檔案為空</span>';
+                }
+            } catch (error) {
+                console.error('PDF conversion error:', error);
+                resultDiv.innerHTML = `<span class="error">✗ PDF 轉換失敗: ${error.message}</span>`;
+            }
+        }
+
+        async function testFileToPdf() {
+            const resultDiv = document.getElementById('fileResult');
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                resultDiv.innerHTML = '<span class="error">請選擇檔案</span>';
+                return;
+            }
+            
+            if (!documentConverter) {
+                resultDiv.innerHTML = '<span class="error">DocumentConverter 尚未初始化，請稍候再試</span>';
+                return;
+            }
+            
+            try {
+                resultDiv.innerHTML = '正在轉換檔案...';
+                console.log('Starting file to PDF conversion');
+                
+                let pdfBlob;
+                const fileExtension = file.name.split('.').pop().toLowerCase();
+                
+                if (fileExtension === 'txt') {
+                    const content = await file.text();
+                    pdfBlob = await documentConverter.convertTextToPdf(content, file.name.replace('.txt', '.pdf'));
+                } else if (fileExtension === 'docx') {
+                    pdfBlob = await documentConverter.convertDocxToPdf(file);
+                } else {
+                    throw new Error('不支援的檔案格式');
+                }
+                
+                if (pdfBlob && pdfBlob.size > 0) {
+                    const url = URL.createObjectURL(pdfBlob);
+                    const downloadName = file.name.replace(/\.[^/.]+$/, ".pdf");
+                    
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = downloadName;
+                    
+                    resultDiv.innerHTML = `
+                        <span class="success">✓ 檔案轉換成功！檔案大小: ${pdfBlob.size} bytes</span>
+                        <br><button onclick="window.open('${url}')">預覽 PDF</button>
+                        <button onclick="this.previousElementSibling.previousElementSibling.click()">下載 PDF</button>
+                    `;
+                    
+                    a.click();
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                } else {
+                    resultDiv.innerHTML = '<span class="error">✗ 檔案轉換失敗：產生的檔案為空</span>';
+                }
+            } catch (error) {
+                console.error('File conversion error:', error);
+                resultDiv.innerHTML = `<span class="error">✗ 檔案轉換失敗: ${error.message}</span>`;
+            }
+        }
+
+        // 增加除錯資訊
+        window.addEventListener('load', function() {
+            console.log('Page loaded');
+            setTimeout(() => {
+                if (!documentConverter) {
+                    console.log('DocumentConverter still not available after 2 seconds');
+                } else {
+                    console.log('DocumentConverter is ready');
+                }
+            }, 2000);
+        });
+    </script>
+</body>
+</html>

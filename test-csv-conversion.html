@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV Conversion Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-panel { background: #f5f5f5; padding: 20px; margin: 10px 0; border-radius: 8px; }
+        .test-btn { background: #007bff; color: white; border: none; padding: 10px 20px; margin: 5px; cursor: pointer; border-radius: 5px; }
+        .success { color: green; }
+        .error { color: red; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>CSV to XLSX Conversion Test</h1>
+    
+    <div class="test-panel">
+        <h3>Test Results</h3>
+        <div id="testResults"></div>
+        <button class="test-btn" onclick="runTests()">Run Tests</button>
+        <button class="test-btn" onclick="clearResults()">Clear Results</button>
+    </div>
+
+    <div class="test-panel">
+        <h3>Manual File Test</h3>
+        <input type="file" id="fileInput" accept=".csv" />
+        <button class="test-btn" onclick="testManualFile()">Test Manual File</button>
+        <div id="manualResults"></div>
+    </div>
+
+    <script src="assets/js/converters/spreadsheet.js"></script>
+    
+    <script>
+        function log(message, type = 'info') {
+            const results = document.getElementById('testResults');
+            const className = type === 'success' ? 'success' : type === 'error' ? 'error' : '';
+            results.innerHTML += `<div class="${className}">${new Date().toLocaleTimeString()}: ${message}</div>`;
+            console.log(message);
+        }
+        
+        function clearResults() {
+            document.getElementById('testResults').innerHTML = '';
+            document.getElementById('manualResults').innerHTML = '';
+        }
+        
+        async function runTests() {
+            log('Starting CSV conversion tests...');
+            
+            try {
+                // Test 1: Create test CSV data
+                log('Test 1: Creating test CSV data');
+                const csvData = 'Name,Age,City\nJohn,25,NYC\nJane,30,LA\nBob,35,Chicago';
+                const file = new File([csvData], 'test.csv', { type: 'text/csv' });
+                log('✓ Test CSV file created', 'success');
+                
+                // Test 2: Validate file
+                log('Test 2: Validating CSV file');
+                const isValid = SpreadsheetConverter.isValidSpreadsheetFile(file);
+                if (isValid) {
+                    log('✓ File validation passed', 'success');
+                } else {
+                    log('✗ File validation failed', 'error');
+                    return;
+                }
+                
+                // Test 3: Parse CSV
+                log('Test 3: Parsing CSV data');
+                const parsedData = await SpreadsheetConverter.parseSpreadsheetData(file);
+                log(`✓ CSV parsed successfully. Rows: ${parsedData.rowCount}, Columns: ${parsedData.columnCount}`, 'success');
+                log(`Parsed data preview:`, 'info');
+                log(`<pre>${JSON.stringify(parsedData.data.slice(0, 3), null, 2)}</pre>`);
+                
+                // Test 4: Convert to XLSX
+                log('Test 4: Converting to XLSX');
+                const xlsxBlob = await SpreadsheetConverter.convertToFormat(parsedData, 'xlsx', { includeHeaders: true });
+                log(`✓ XLSX conversion successful. Size: ${xlsxBlob.size} bytes`, 'success');
+                
+                if (xlsxBlob.size > 0) {
+                    // Create download link
+                    const url = URL.createObjectURL(xlsxBlob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = 'test-converted.xlsx';
+                    link.textContent = 'Download Test XLSX';
+                    link.style.display = 'inline-block';
+                    link.style.padding = '10px';
+                    link.style.backgroundColor = '#28a745';
+                    link.style.color = 'white';
+                    link.style.textDecoration = 'none';
+                    link.style.borderRadius = '4px';
+                    link.style.margin = '10px 0';
+                    
+                    const results = document.getElementById('testResults');
+                    results.appendChild(link);
+                    log('✓ Download link created', 'success');
+                } else {
+                    log('✗ XLSX file is empty', 'error');
+                }
+                
+                log('All tests completed successfully!', 'success');
+                
+            } catch (error) {
+                log(`✗ Test failed: ${error.message}`, 'error');
+                console.error('Test error:', error);
+            }
+        }
+        
+        async function testManualFile() {
+            const fileInput = document.getElementById('fileInput');
+            const results = document.getElementById('manualResults');
+            
+            if (!fileInput.files.length) {
+                results.innerHTML = '<div class="error">Please select a CSV file</div>';
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            results.innerHTML = `<div>Testing file: ${file.name} (${file.size} bytes)</div>`;
+            
+            try {
+                const parsedData = await SpreadsheetConverter.parseSpreadsheetData(file);
+                results.innerHTML += `<div class="success">✓ Parsed: ${parsedData.rowCount} rows, ${parsedData.columnCount} columns</div>`;
+                
+                const xlsxBlob = await SpreadsheetConverter.convertToFormat(parsedData, 'xlsx', { includeHeaders: true });
+                results.innerHTML += `<div class="success">✓ Converted to XLSX: ${xlsxBlob.size} bytes</div>`;
+                
+                const url = URL.createObjectURL(xlsxBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = file.name.replace('.csv', '.xlsx');
+                link.textContent = 'Download Converted XLSX';
+                link.style.display = 'inline-block';
+                link.style.padding = '10px';
+                link.style.backgroundColor = '#28a745';
+                link.style.color = 'white';
+                link.style.textDecoration = 'none';
+                link.style.borderRadius = '4px';
+                link.style.margin = '10px 0';
+                
+                results.appendChild(link);
+                
+            } catch (error) {
+                results.innerHTML += `<div class="error">✗ Error: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>

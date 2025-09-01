@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>自動化測試 - 檔案轉換器</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 1200px; margin: 0 auto; }
+        .test-results { background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .success { color: #28a745; font-weight: bold; }
+        .error { color: #dc3545; font-weight: bold; }
+        .warning { color: #ffc107; font-weight: bold; }
+        .info { color: #17a2b8; }
+        .test-section { border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; margin: 15px 0; }
+        .test-status { padding: 5px 10px; border-radius: 4px; display: inline-block; margin: 5px 0; }
+        .status-pass { background: #d4edda; color: #155724; }
+        .status-fail { background: #f8d7da; color: #721c24; }
+        .status-running { background: #d1ecf1; color: #0c5460; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 4px; font-size: 12px; overflow-x: auto; }
+        .progress-bar { width: 100%; height: 20px; background: #e9ecef; border-radius: 10px; overflow: hidden; margin: 10px 0; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #007bff, #28a745); transition: width 0.3s; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px; }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <h1>🧪 檔案轉換器自動化測試</h1>
+    
+    <div class="test-section">
+        <h2>🚀 測試控制</h2>
+        <button onclick="runAllTests()" id="runTestBtn">執行所有測試</button>
+        <button onclick="clearResults()">清除結果</button>
+        <button onclick="exportTestReport()">匯出測試報告</button>
+        
+        <div class="progress-bar">
+            <div class="progress-fill" id="testProgress" style="width: 0%"></div>
+        </div>
+        <div id="progressText">準備就緒</div>
+    </div>
+
+    <div id="testResults" class="test-results">
+        <h3>測試結果將顯示在這裡...</h3>
+    </div>
+
+    <!-- Load all necessary scripts -->
+    <script src="assets/js/lib-loader.js"></script>
+    <script src="assets/js/converters/image.js"></script>
+    <script src="assets/js/converters/document.js"></script>
+    <script src="assets/js/converters/spreadsheet.js"></script>
+    <script src="assets/js/converters/presentation.js"></script>
+    <script src="assets/js/app.js"></script>
+
+    <script>
+        let testResults = {
+            total: 0,
+            passed: 0,
+            failed: 0,
+            details: []
+        };
+
+        function updateProgress(current, total, message) {
+            const percentage = (current / total) * 100;
+            document.getElementById('testProgress').style.width = percentage + '%';
+            document.getElementById('progressText').textContent = `${message} (${current}/${total})`;
+        }
+
+        function log(message, type = 'info', category = 'general') {
+            const timestamp = new Date().toLocaleTimeString();
+            const result = {
+                timestamp,
+                message,
+                type,
+                category
+            };
+            
+            testResults.details.push(result);
+            
+            const className = type === 'success' ? 'success' : 
+                             type === 'error' ? 'error' : 
+                             type === 'warning' ? 'warning' : 'info';
+            
+            return `<div class="${className}">[${timestamp}] ${message}</div>`;
+        }
+
+        function createTestFile(name, content, type = 'text/plain') {
+            return new File([content], name, { type });
+        }
+
+        async function testSystemComponents() {
+            let output = '<div class="test-section"><h3>🔧 系統組件測試</h3>';
+            let componentsPassed = 0;
+            const totalComponents = 6;
+
+            // Test core classes
+            const coreClasses = {
+                'LibraryLoader': window.LibraryLoader,
+                'DocumentConverter': window.DocumentConverter,
+                'SpreadsheetConverter': window.SpreadsheetConverter,
+                'PresentationConverter': window.PresentationConverter,
+                'ImageConverter': window.ImageConverter,
+                'FileConverter': window.FileConverter
+            };
+
+            for (const [name, cls] of Object.entries(coreClasses)) {
+                if (cls && typeof cls === 'function') {
+                    output += log(`✅ ${name} 類別可用`, 'success', 'system');
+                    componentsPassed++;
+                } else {
+                    output += log(`❌ ${name} 類別不可用`, 'error', 'system');
+                }
+            }
+
+            const systemScore = (componentsPassed / totalComponents) * 100;
+            output += `<div class="status-${systemScore === 100 ? 'pass' : 'fail'} test-status">系統組件測試: ${componentsPassed}/${totalComponents} 通過 (${systemScore.toFixed(1)}%)</div>`;
+            output += '</div>';
+            
+            return { output, passed: componentsPassed === totalComponents };
+        }
+
+        async function testLibraryLoading() {
+            let output = '<div class="test-section"><h3>📚 函式庫載入測試</h3>';
+            let librariesLoaded = 0;
+            
+            if (!window.libLoader) {
+                output += log('❌ LibraryLoader 不可用', 'error', 'libraries');
+                output += '</div>';
+                return { output, passed: false };
+            }
+
+            const criticalLibs = ['jspdf', 'sheetjs'];
+            
+            for (const libName of criticalLibs) {
+                try {
+                    output += log(`📦 正在載入 ${libName}...`, 'info', 'libraries');
+                    await window.libLoader.loadLibrary(libName);
+                    output += log(`✅ ${libName} 載入成功`, 'success', 'libraries');
+                    librariesLoaded++;
+                } catch (error) {
+                    output += log(`❌ ${libName} 載入失敗: ${error.message}`, 'error', 'libraries');
+                }
+            }
+
+            const libScore = (librariesLoaded / criticalLibs.length) * 100;
+            output += `<div class="status-${libScore >= 50 ? 'pass' : 'fail'} test-status">函式庫測試: ${librariesLoaded}/${criticalLibs.length} 載入成功 (${libScore.toFixed(1)}%)</div>`;
+            output += '</div>';
+            
+            return { output, passed: librariesLoaded >= criticalLibs.length / 2 };
+        }
+
+        async function testDocumentConversion() {
+            let output = '<div class="test-section"><h3>📄 文書轉換測試</h3>';
+            let conversionsPassed = 0;
+            const formats = ['txt', 'html', 'pdf', 'docx'];
+
+            const testContent = {
+                title: '測試文件',
+                content: '這是一個測試文件，用來驗證文書轉換功能。\n\n包含中文字符和基本格式。',
+                originalHtml: '<h1>測試文件</h1><p>這是一個測試文件。</p>'
+            };
+
+            for (const format of formats) {
+                try {
+                    output += log(`🔄 測試轉換為 ${format.toUpperCase()}...`, 'info', 'document');
+                    const blob = await DocumentConverter.convertToFormat(testContent, format);
+                    
+                    if (blob && blob.size > 0) {
+                        output += log(`✅ ${format.toUpperCase()} 轉換成功 (${blob.size} bytes)`, 'success', 'document');
+                        conversionsPassed++;
+                    } else {
+                        output += log(`❌ ${format.toUpperCase()} 轉換產生空檔案`, 'error', 'document');
+                    }
+                } catch (error) {
+                    output += log(`❌ ${format.toUpperCase()} 轉換失敗: ${error.message}`, 'error', 'document');
+                }
+            }
+
+            const docScore = (conversionsPassed / formats.length) * 100;
+            output += `<div class="status-${docScore >= 75 ? 'pass' : 'fail'} test-status">文書轉換測試: ${conversionsPassed}/${formats.length} 成功 (${docScore.toFixed(1)}%)</div>`;
+            output += '</div>';
+
+            return { output, passed: conversionsPassed >= formats.length * 0.75 };
+        }
+
+        async function testSpreadsheetConversion() {
+            let output = '<div class="test-section"><h3>📊 表單轉換測試</h3>';
+            let conversionsPassed = 0;
+            const formats = ['csv', 'xlsx', 'json', 'html'];
+
+            // Create test CSV data
+            const csvContent = '姓名,年齡,城市\n張三,25,台北\n李四,30,台中\n王五,35,高雄';
+            const csvFile = createTestFile('test.csv', csvContent, 'text/csv');
+
+            try {
+                // First parse the CSV
+                output += log('📊 解析測試 CSV 檔案...', 'info', 'spreadsheet');
+                const parsedData = await SpreadsheetConverter.parseSpreadsheetData(csvFile);
+                
+                if (parsedData.rowCount > 0) {
+                    output += log(`✅ CSV 解析成功: ${parsedData.rowCount} 行`, 'success', 'spreadsheet');
+                    
+                    // Test conversions
+                    for (const format of formats) {
+                        try {
+                            output += log(`🔄 測試轉換為 ${format.toUpperCase()}...`, 'info', 'spreadsheet');
+                            const blob = await SpreadsheetConverter.convertToFormat(parsedData, format);
+                            
+                            if (blob && blob.size > 0) {
+                                output += log(`✅ ${format.toUpperCase()} 轉換成功 (${blob.size} bytes)`, 'success', 'spreadsheet');
+                                conversionsPassed++;
+                            } else {
+                                output += log(`❌ ${format.toUpperCase()} 轉換產生空檔案`, 'error', 'spreadsheet');
+                            }
+                        } catch (error) {
+                            output += log(`❌ ${format.toUpperCase()} 轉換失敗: ${error.message}`, 'error', 'spreadsheet');
+                        }
+                    }
+                } else {
+                    output += log('❌ CSV 解析失敗: 無資料', 'error', 'spreadsheet');
+                }
+            } catch (error) {
+                output += log(`❌ CSV 解析錯誤: ${error.message}`, 'error', 'spreadsheet');
+            }
+
+            const sheetScore = (conversionsPassed / formats.length) * 100;
+            output += `<div class="status-${sheetScore >= 75 ? 'pass' : 'fail'} test-status">表單轉換測試: ${conversionsPassed}/${formats.length} 成功 (${sheetScore.toFixed(1)}%)</div>`;
+            output += '</div>';
+
+            return { output, passed: conversionsPassed >= formats.length * 0.75 };
+        }
+
+        async function testPresentationConversion() {
+            let output = '<div class="test-section"><h3>🎯 簡報轉換測試</h3>';
+            let conversionsPassed = 0;
+            const formats = ['pdf', 'html', 'txt', 'md'];
+
+            const testPresentation = {
+                title: '測試簡報',
+                slides: [
+                    {
+                        slideNumber: 1,
+                        title: '簡報標題',
+                        content: ['這是第一張投影片', '包含測試內容'],
+                        notes: '這是備註'
+                    },
+                    {
+                        slideNumber: 2,
+                        title: '內容頁面',
+                        content: ['項目一', '項目二', '項目三'],
+                        notes: '第二張投影片的備註'
+                    }
+                ],
+                fileName: '測試簡報'
+            };
+
+            for (const format of formats) {
+                try {
+                    output += log(`🔄 測試簡報轉換為 ${format.toUpperCase()}...`, 'info', 'presentation');
+                    const blob = await PresentationConverter.convertToFormat(testPresentation, format);
+                    
+                    if (blob && blob.size > 0) {
+                        output += log(`✅ ${format.toUpperCase()} 轉換成功 (${blob.size} bytes)`, 'success', 'presentation');
+                        conversionsPassed++;
+                    } else {
+                        output += log(`❌ ${format.toUpperCase()} 轉換產生空檔案`, 'error', 'presentation');
+                    }
+                } catch (error) {
+                    output += log(`❌ ${format.toUpperCase()} 轉換失敗: ${error.message}`, 'error', 'presentation');
+                }
+            }
+
+            const presentationScore = (conversionsPassed / formats.length) * 100;
+            output += `<div class="status-${presentationScore >= 75 ? 'pass' : 'fail'} test-status">簡報轉換測試: ${conversionsPassed}/${formats.length} 成功 (${presentationScore.toFixed(1)}%)</div>`;
+            output += '</div>';
+
+            return { output, passed: conversionsPassed >= formats.length * 0.75 };
+        }
+
+        async function runAllTests() {
+            const resultsDiv = document.getElementById('testResults');
+            const runButton = document.getElementById('runTestBtn');
+            
+            runButton.disabled = true;
+            runButton.textContent = '測試進行中...';
+            
+            testResults = { total: 0, passed: 0, failed: 0, details: [] };
+            
+            let allOutput = `<h3>🧪 自動化測試報告</h3><p>開始時間: ${new Date().toLocaleString()}</p>`;
+            
+            const tests = [
+                { name: '系統組件測試', func: testSystemComponents },
+                { name: '函式庫載入測試', func: testLibraryLoading },
+                { name: '文書轉換測試', func: testDocumentConversion },
+                { name: '表單轉換測試', func: testSpreadsheetConversion },
+                { name: '簡報轉換測試', func: testPresentationConversion }
+            ];
+            
+            for (let i = 0; i < tests.length; i++) {
+                const test = tests[i];
+                updateProgress(i, tests.length, `執行 ${test.name}...`);
+                
+                try {
+                    const result = await test.func();
+                    allOutput += result.output;
+                    testResults.total++;
+                    if (result.passed) {
+                        testResults.passed++;
+                    } else {
+                        testResults.failed++;
+                    }
+                } catch (error) {
+                    allOutput += `<div class="error">❌ ${test.name} 執行失敗: ${error.message}</div>`;
+                    testResults.total++;
+                    testResults.failed++;
+                }
+                
+                // Update display
+                resultsDiv.innerHTML = allOutput;
+                
+                // Small delay for UI updates
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+            
+            updateProgress(tests.length, tests.length, '測試完成');
+            
+            // Add summary
+            const successRate = (testResults.passed / testResults.total) * 100;
+            const summaryClass = successRate >= 80 ? 'status-pass' : successRate >= 60 ? 'warning' : 'status-fail';
+            
+            allOutput += `<div class="test-section">
+                <h3>📊 測試總結</h3>
+                <div class="${summaryClass} test-status">
+                    總測試: ${testResults.total} | 通過: ${testResults.passed} | 失敗: ${testResults.failed} | 成功率: ${successRate.toFixed(1)}%
+                </div>
+                <p>結束時間: ${new Date().toLocaleString()}</p>
+            </div>`;
+            
+            resultsDiv.innerHTML = allOutput;
+            
+            runButton.disabled = false;
+            runButton.textContent = '重新執行測試';
+            
+            console.log('🎉 自動化測試完成', testResults);
+        }
+
+        function clearResults() {
+            document.getElementById('testResults').innerHTML = '<h3>測試結果將顯示在這裡...</h3>';
+            document.getElementById('testProgress').style.width = '0%';
+            document.getElementById('progressText').textContent = '準備就緒';
+            testResults = { total: 0, passed: 0, failed: 0, details: [] };
+        }
+
+        function exportTestReport() {
+            if (testResults.details.length === 0) {
+                alert('沒有測試結果可以匯出，請先執行測試。');
+                return;
+            }
+            
+            const report = `檔案轉換器測試報告
+生成時間: ${new Date().toLocaleString()}
+成功率: ${((testResults.passed / testResults.total) * 100).toFixed(1)}%
+總測試: ${testResults.total} | 通過: ${testResults.passed} | 失敗: ${testResults.failed}
+
+詳細結果:
+${testResults.details.map(detail => 
+    `[${detail.timestamp}] [${detail.category}] [${detail.type}] ${detail.message}`
+).join('\n')}
+
+測試環境:
+- 瀏覽器: ${navigator.userAgent}
+- 時間: ${new Date().toLocaleString()}
+`;
+            
+            const blob = new Blob([report], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `file-converter-test-report-${new Date().getTime()}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Auto-initialize
+        window.addEventListener('load', function() {
+            console.log('🚀 自動化測試系統就緒');
+        });
+    </script>
+</body>
+</html>

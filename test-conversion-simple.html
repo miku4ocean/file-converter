@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>檔案轉換器簡單測試</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+        .test-button { background: #4CAF50; color: white; border: none; padding: 10px 20px; margin: 10px 5px; cursor: pointer; border-radius: 4px; }
+        .test-button:hover { background: #45a049; }
+        .result { margin: 10px 0; padding: 10px; border: 1px solid #ddd; border-radius: 4px; min-height: 50px; }
+        .success { background: #d4edda; border-color: #c3e6cb; }
+        .error { background: #f8d7da; border-color: #f5c6cb; }
+        .download-link { display: inline-block; margin: 5px; padding: 8px 16px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>檔案轉換器測試</h1>
+    
+    <button class="test-button" onclick="testDocx()">測試 DOCX 轉換</button>
+    <button class="test-button" onclick="testPdf()">測試 PDF 轉換</button>
+    <button class="test-button" onclick="testXlsx()">測試 XLSX 轉換</button>
+    
+    <div id="result" class="result"></div>
+
+    <script src="assets/js/lib-loader.js"></script>
+    <script src="assets/js/converters/document.js"></script>
+    <script src="assets/js/converters/spreadsheet.js"></script>
+    
+    <script>
+        const testContent = "這是測試內容\n\n包含中文和英文\nTest with English\n數字：12345";
+        const testData = [
+            ['產品', '價格', '數量'],
+            ['蘋果', '10', '5'],
+            ['香蕉', '8', '3']
+        ];
+
+        async function testDocx() {
+            const result = document.getElementById('result');
+            result.innerHTML = '正在測試 DOCX 轉換...';
+            
+            try {
+                const blob = await DocumentConverter.convertToDocx(testContent, '測試文件');
+                
+                if (blob.size < 1000) {
+                    throw new Error('生成的 DOCX 檔案過小');
+                }
+                
+                // 檢查檔案簽名
+                const bytes = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
+                const signature = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+                
+                if (!signature.startsWith('504b')) {
+                    throw new Error('DOCX 檔案簽名不正確');
+                }
+                
+                const url = URL.createObjectURL(blob);
+                result.innerHTML = `
+                    <div class="success">
+                        ✅ DOCX 轉換成功！<br>
+                        檔案大小: ${(blob.size / 1024).toFixed(2)} KB<br>
+                        檔案簽名: 正確 (${signature})<br>
+                        <a href="${url}" download="test.docx" class="download-link">下載測試檔案</a>
+                    </div>
+                `;
+                
+            } catch (error) {
+                result.innerHTML = `<div class="error">❌ DOCX 轉換失敗: ${error.message}</div>`;
+                console.error('DOCX 轉換錯誤:', error);
+            }
+        }
+
+        async function testPdf() {
+            const result = document.getElementById('result');
+            result.innerHTML = '正在測試 PDF 轉換...';
+            
+            try {
+                const blob = await DocumentConverter.convertToPdf(testContent, '測試文件');
+                
+                if (blob.size < 1000) {
+                    throw new Error('生成的 PDF 檔案過小');
+                }
+                
+                // 檢查檔案簽名
+                const bytes = new Uint8Array(await blob.slice(0, 5).arrayBuffer());
+                const signature = new TextDecoder().decode(bytes);
+                
+                if (!signature.startsWith('%PDF')) {
+                    throw new Error('PDF 檔案簽名不正確');
+                }
+                
+                const url = URL.createObjectURL(blob);
+                result.innerHTML = `
+                    <div class="success">
+                        ✅ PDF 轉換成功！<br>
+                        檔案大小: ${(blob.size / 1024).toFixed(2)} KB<br>
+                        檔案簽名: 正確 (${signature})<br>
+                        <a href="${url}" download="test.pdf" class="download-link">下載測試檔案</a>
+                    </div>
+                `;
+                
+            } catch (error) {
+                result.innerHTML = `<div class="error">❌ PDF 轉換失敗: ${error.message}</div>`;
+                console.error('PDF 轉換錯誤:', error);
+            }
+        }
+
+        async function testXlsx() {
+            const result = document.getElementById('result');
+            result.innerHTML = '正在測試 XLSX 轉換...';
+            
+            try {
+                const blob = await SpreadsheetConverter.convertToExcel(testData, '測試表格');
+                
+                if (blob.size < 1000) {
+                    throw new Error('生成的 XLSX 檔案過小');
+                }
+                
+                // 檢查檔案簽名
+                const bytes = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
+                const signature = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+                
+                if (!signature.startsWith('504b')) {
+                    throw new Error('XLSX 檔案簽名不正確');
+                }
+                
+                const url = URL.createObjectURL(blob);
+                result.innerHTML = `
+                    <div class="success">
+                        ✅ XLSX 轉換成功！<br>
+                        檔案大小: ${(blob.size / 1024).toFixed(2)} KB<br>
+                        檔案簽名: 正確 (${signature})<br>
+                        <a href="${url}" download="test.xlsx" class="download-link">下載測試檔案</a>
+                    </div>
+                `;
+                
+            } catch (error) {
+                result.innerHTML = `<div class="error">❌ XLSX 轉換失敗: ${error.message}</div>`;
+                console.error('XLSX 轉換錯誤:', error);
+            }
+        }
+
+        // 自動載入函式庫
+        window.addEventListener('load', async () => {
+            console.log('開始載入函式庫...');
+            
+            // 等待 libLoader 可用
+            while (!window.libLoader) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            
+            try {
+                await window.libLoader.loadLibrary('jszip');
+                await window.libLoader.loadLibrary('jspdf');
+                await window.libLoader.loadLibrary('sheetjs');
+                console.log('函式庫載入完成');
+            } catch (error) {
+                console.warn('部分函式庫載入失敗:', error);
+            }
+        });
+    </script>
+</body>
+</html>

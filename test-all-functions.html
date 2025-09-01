@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>檔案轉換器功能測試</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 1200px; margin: 0 auto; }
+        .test-panel { background: #f5f5f5; padding: 20px; margin: 20px 0; border-radius: 8px; border: 1px solid #ddd; }
+        .test-btn { background: #007bff; color: white; border: none; padding: 10px 20px; margin: 5px; cursor: pointer; border-radius: 5px; }
+        .test-btn:hover { background: #0056b3; }
+        .success { color: #28a745; font-weight: bold; }
+        .error { color: #dc3545; font-weight: bold; }
+        .info { color: #17a2b8; }
+        .status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin: 20px 0; }
+        .status-card { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 15px; }
+        .status-header { font-weight: bold; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px solid #eee; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
+        .file-input { margin: 10px 0; }
+        .results { margin: 15px 0; padding: 15px; background: white; border-radius: 5px; border: 1px solid #ddd; }
+    </style>
+</head>
+<body>
+    <h1>📋 檔案轉換器功能完整測試</h1>
+    
+    <div class="test-panel">
+        <h2>🚀 系統狀態檢查</h2>
+        <button class="test-btn" onclick="checkSystemStatus()">檢查系統狀態</button>
+        <button class="test-btn" onclick="checkLibraryStatus()">檢查函式庫狀態</button>
+        <button class="test-btn" onclick="initializeConverter()">初始化轉換器</button>
+        
+        <div id="systemStatus" class="results"></div>
+    </div>
+
+    <div class="test-panel">
+        <h2>📄 文書轉檔測試</h2>
+        <div class="file-input">
+            <label>選擇文書檔案：</label>
+            <input type="file" id="documentFile" accept=".docx,.doc,.txt,.html,.md,.rtf" />
+        </div>
+        <button class="test-btn" onclick="testDocumentConversion('txt')">轉換為 TXT</button>
+        <button class="test-btn" onclick="testDocumentConversion('docx')">轉換為 DOCX</button>
+        <button class="test-btn" onclick="testDocumentConversion('pdf')">轉換為 PDF</button>
+        <button class="test-btn" onclick="testDocumentConversion('html')">轉換為 HTML</button>
+        <button class="test-btn" onclick="testDocumentConversion('rtf')">轉換為 RTF</button>
+        
+        <div id="documentResults" class="results"></div>
+    </div>
+
+    <div class="test-panel">
+        <h2>📊 表單轉檔測試</h2>
+        <div class="file-input">
+            <label>選擇表單檔案：</label>
+            <input type="file" id="spreadsheetFile" accept=".xlsx,.xls,.csv,.tsv" />
+        </div>
+        <button class="test-btn" onclick="testSpreadsheetConversion('csv')">轉換為 CSV</button>
+        <button class="test-btn" onclick="testSpreadsheetConversion('xlsx')">轉換為 XLSX</button>
+        <button class="test-btn" onclick="testSpreadsheetConversion('json')">轉換為 JSON</button>
+        <button class="test-btn" onclick="testSpreadsheetConversion('html')">轉換為 HTML</button>
+        
+        <div id="spreadsheetResults" class="results"></div>
+    </div>
+
+    <div class="test-panel">
+        <h2>🎯 簡報轉檔測試</h2>
+        <div class="file-input">
+            <label>選擇簡報檔案：</label>
+            <input type="file" id="presentationFile" accept=".pptx,.ppt,.pdf,.html" />
+        </div>
+        <button class="test-btn" onclick="testPresentationConversion('pdf')">轉換為 PDF</button>
+        <button class="test-btn" onclick="testPresentationConversion('pptx')">轉換為 PPTX</button>
+        <button class="test-btn" onclick="testPresentationConversion('html')">轉換為 HTML</button>
+        <button class="test-btn" onclick="testPresentationConversion('txt')">轉換為 TXT</button>
+        <button class="test-btn" onclick="testPresentationConversion('md')">轉換為 MD</button>
+        
+        <div id="presentationResults" class="results"></div>
+    </div>
+
+    <div class="test-panel">
+        <h2>🖼️ 圖片轉檔測試</h2>
+        <div class="file-input">
+            <label>選擇圖片檔案：</label>
+            <input type="file" id="imageFile" accept="image/*" />
+        </div>
+        <button class="test-btn" onclick="testImageConversion('png')">轉換為 PNG</button>
+        <button class="test-btn" onclick="testImageConversion('jpg')">轉換為 JPG</button>
+        <button class="test-btn" onclick="testImageConversion('webp')">轉換為 WebP</button>
+        
+        <div id="imageResults" class="results"></div>
+    </div>
+
+    <!-- Load all necessary scripts -->
+    <script src="assets/js/lib-loader.js"></script>
+    <script src="assets/js/converters/image.js"></script>
+    <script src="assets/js/converters/document.js"></script>
+    <script src="assets/js/converters/spreadsheet.js"></script>
+    <script src="assets/js/converters/presentation.js"></script>
+    <script src="assets/js/app.js"></script>
+
+    <script>
+        let testConverter = null;
+
+        function log(message, type = 'info') {
+            const className = type === 'success' ? 'success' : type === 'error' ? 'error' : 'info';
+            return `<div class="${className}">${new Date().toLocaleTimeString()}: ${message}</div>`;
+        }
+
+        async function checkSystemStatus() {
+            const statusDiv = document.getElementById('systemStatus');
+            let output = '<h3>系統狀態檢查</h3>';
+            
+            // Check if core classes are available
+            const coreClasses = {
+                'FileConverter': window.FileConverter,
+                'LibraryLoader': window.LibraryLoader,
+                'DocumentConverter': window.DocumentConverter,
+                'SpreadsheetConverter': window.SpreadsheetConverter,
+                'PresentationConverter': window.PresentationConverter,
+                'ImageConverter': window.ImageConverter
+            };
+            
+            output += '<h4>核心類別檢查：</h4>';
+            for (const [name, cls] of Object.entries(coreClasses)) {
+                if (cls) {
+                    output += log(`✅ ${name} - 可用`, 'success');
+                } else {
+                    output += log(`❌ ${name} - 不可用`, 'error');
+                }
+            }
+            
+            // Check DOM elements
+            const elements = ['uploadArea', 'fileInput', 'convertBtn', 'progressSection'];
+            output += '<h4>DOM 元素檢查：</h4>';
+            
+            elements.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    output += log(`✅ #${id} - 存在`, 'success');
+                } else {
+                    output += log(`❌ #${id} - 不存在`, 'error');
+                }
+            });
+            
+            statusDiv.innerHTML = output;
+        }
+
+        async function checkLibraryStatus() {
+            const statusDiv = document.getElementById('systemStatus');
+            let output = '<h3>函式庫狀態檢查</h3>';
+            
+            if (window.libLoader) {
+                const status = window.libLoader.getLibraryStatus();
+                output += '<h4>第三方函式庫：</h4>';
+                
+                Object.entries(status).forEach(([name, info]) => {
+                    const icon = info.loaded ? '✅' : '❌';
+                    const statusText = info.loaded ? '已載入' : '未載入';
+                    output += log(`${icon} ${name}: ${info.description} - ${statusText}`, info.loaded ? 'success' : 'error');
+                });
+            } else {
+                output += log('❌ LibraryLoader 不可用', 'error');
+            }
+            
+            statusDiv.innerHTML = output;
+        }
+
+        async function initializeConverter() {
+            const statusDiv = document.getElementById('systemStatus');
+            let output = '<h3>初始化轉換器</h3>';
+            
+            try {
+                if (window.FileConverter) {
+                    testConverter = new FileConverter();
+                    output += log('✅ FileConverter 初始化成功', 'success');
+                } else {
+                    throw new Error('FileConverter 類別不可用');
+                }
+            } catch (error) {
+                output += log(`❌ 初始化失敗: ${error.message}`, 'error');
+            }
+            
+            statusDiv.innerHTML = output;
+        }
+
+        async function testDocumentConversion(outputFormat) {
+            const fileInput = document.getElementById('documentFile');
+            const resultsDiv = document.getElementById('documentResults');
+            
+            if (!fileInput.files.length) {
+                resultsDiv.innerHTML = log('❌ 請先選擇一個文書檔案', 'error');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            let output = `<h4>測試文書轉檔：${file.name} → ${outputFormat.toUpperCase()}</h4>`;
+            
+            try {
+                // Extract content
+                output += log('📖 讀取文件內容...', 'info');
+                const extractedContent = await DocumentConverter.extractTextContent(file);
+                output += log(`✅ 內容讀取成功，文字長度: ${extractedContent.content.length} 字元`, 'success');
+                
+                // Convert to format
+                output += log(`🔄 轉換為 ${outputFormat.toUpperCase()} 格式...`, 'info');
+                const convertedBlob = await DocumentConverter.convertToFormat(extractedContent, outputFormat);
+                output += log(`✅ 轉換成功，檔案大小: ${convertedBlob.size} bytes`, 'success');
+                
+                // Create download link
+                const url = URL.createObjectURL(convertedBlob);
+                const fileName = file.name.replace(/\.[^/.]+$/, '') + '.' + outputFormat;
+                output += `<div><a href="${url}" download="${fileName}" style="display: inline-block; padding: 8px 16px; background: #28a745; color: white; text-decoration: none; border-radius: 4px; margin: 10px 0;">下載 ${fileName}</a></div>`;
+                
+            } catch (error) {
+                output += log(`❌ 轉換失敗: ${error.message}`, 'error');
+                console.error('文書轉檔錯誤:', error);
+            }
+            
+            resultsDiv.innerHTML = output;
+        }
+
+        async function testSpreadsheetConversion(outputFormat) {
+            const fileInput = document.getElementById('spreadsheetFile');
+            const resultsDiv = document.getElementById('spreadsheetResults');
+            
+            if (!fileInput.files.length) {
+                resultsDiv.innerHTML = log('❌ 請先選擇一個表單檔案', 'error');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            let output = `<h4>測試表單轉檔：${file.name} → ${outputFormat.toUpperCase()}</h4>`;
+            
+            try {
+                // Parse spreadsheet
+                output += log('📊 解析表單資料...', 'info');
+                const parsedData = await SpreadsheetConverter.parseSpreadsheetData(file);
+                output += log(`✅ 解析成功，${parsedData.rowCount} 行 × ${parsedData.columnCount} 列`, 'success');
+                
+                // Convert to format
+                output += log(`🔄 轉換為 ${outputFormat.toUpperCase()} 格式...`, 'info');
+                const convertedBlob = await SpreadsheetConverter.convertToFormat(parsedData, outputFormat);
+                output += log(`✅ 轉換成功，檔案大小: ${convertedBlob.size} bytes`, 'success');
+                
+                // Create download link
+                const url = URL.createObjectURL(convertedBlob);
+                const fileName = file.name.replace(/\.[^/.]+$/, '') + '.' + outputFormat;
+                output += `<div><a href="${url}" download="${fileName}" style="display: inline-block; padding: 8px 16px; background: #28a745; color: white; text-decoration: none; border-radius: 4px; margin: 10px 0;">下載 ${fileName}</a></div>`;
+                
+            } catch (error) {
+                output += log(`❌ 轉換失敗: ${error.message}`, 'error');
+                console.error('表單轉檔錯誤:', error);
+            }
+            
+            resultsDiv.innerHTML = output;
+        }
+
+        async function testPresentationConversion(outputFormat) {
+            const fileInput = document.getElementById('presentationFile');
+            const resultsDiv = document.getElementById('presentationResults');
+            
+            if (!fileInput.files.length) {
+                resultsDiv.innerHTML = log('❌ 請先選擇一個簡報檔案', 'error');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            let output = `<h4>測試簡報轉檔：${file.name} → ${outputFormat.toUpperCase()}</h4>`;
+            
+            try {
+                // Extract presentation content
+                output += log('🎯 解析簡報內容...', 'info');
+                const presentationData = await PresentationConverter.extractPresentationContent(file);
+                output += log(`✅ 解析成功，${presentationData.slides.length} 張投影片`, 'success');
+                
+                // Convert to format
+                output += log(`🔄 轉換為 ${outputFormat.toUpperCase()} 格式...`, 'info');
+                const convertedBlob = await PresentationConverter.convertToFormat(presentationData, outputFormat);
+                output += log(`✅ 轉換成功，檔案大小: ${convertedBlob.size} bytes`, 'success');
+                
+                // Create download link
+                const url = URL.createObjectURL(convertedBlob);
+                const fileName = file.name.replace(/\.[^/.]+$/, '') + '.' + outputFormat;
+                output += `<div><a href="${url}" download="${fileName}" style="display: inline-block; padding: 8px 16px; background: #28a745; color: white; text-decoration: none; border-radius: 4px; margin: 10px 0;">下載 ${fileName}</a></div>`;
+                
+            } catch (error) {
+                output += log(`❌ 轉換失敗: ${error.message}`, 'error');
+                console.error('簡報轉檔錯誤:', error);
+            }
+            
+            resultsDiv.innerHTML = output;
+        }
+
+        async function testImageConversion(outputFormat) {
+            const fileInput = document.getElementById('imageFile');
+            const resultsDiv = document.getElementById('imageResults');
+            
+            if (!fileInput.files.length) {
+                resultsDiv.innerHTML = log('❌ 請先選擇一個圖片檔案', 'error');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            let output = `<h4>測試圖片轉檔：${file.name} → ${outputFormat.toUpperCase()}</h4>`;
+            
+            try {
+                // Convert image
+                output += log(`🖼️ 轉換為 ${outputFormat.toUpperCase()} 格式...`, 'info');
+                const convertedBlob = await ImageConverter.convertImage(file, outputFormat);
+                output += log(`✅ 轉換成功，檔案大小: ${convertedBlob.size} bytes`, 'success');
+                
+                // Create download link
+                const url = URL.createObjectURL(convertedBlob);
+                const fileName = file.name.replace(/\.[^/.]+$/, '') + '.' + outputFormat;
+                output += `<div><a href="${url}" download="${fileName}" style="display: inline-block; padding: 8px 16px; background: #28a745; color: white; text-decoration: none; border-radius: 4px; margin: 10px 0;">下載 ${fileName}</a></div>`;
+                
+            } catch (error) {
+                output += log(`❌ 轉換失敗: ${error.message}`, 'error');
+                console.error('圖片轉檔錯誤:', error);
+            }
+            
+            resultsDiv.innerHTML = output;
+        }
+
+        // Auto-initialize on page load
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                checkSystemStatus();
+                if (window.libLoader) {
+                    checkLibraryStatus();
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

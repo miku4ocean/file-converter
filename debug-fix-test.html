@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>修復測試 - 檔案轉換器</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .warning {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #fileInput {
+            margin: 10px 0;
+        }
+        .log {
+            max-height: 300px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 檔案轉換器修復測試</h1>
+    
+    <div class="test-section">
+        <h2>1. 函式庫載入檢查</h2>
+        <button onclick="checkLibraryStatus()">檢查函式庫狀態</button>
+        <div id="libraryStatus" class="log"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. SpreadsheetConverter 語法測試</h2>
+        <button onclick="testSpreadsheetConverter()">測試 SpreadsheetConverter</button>
+        <div id="spreadsheetResult" class="log"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. 基本 Excel 轉換測試</h2>
+        <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+        <button onclick="testFileConversion()">測試檔案轉換</button>
+        <div id="conversionResult" class="log"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. 檔案產生測試</h2>
+        <button onclick="testFileGeneration()">產生測試 CSV</button>
+        <button onclick="testExcelGeneration()">產生測試 Excel</button>
+        <div id="generationResult" class="log"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>5. 控制台日誌</h2>
+        <div id="consoleLog" class="log"></div>
+    </div>
+
+    <!-- 載入必要的腳本 -->
+    <script src="assets/js/lib-loader.js"></script>
+    <script src="assets/js/converters/spreadsheet.js"></script>
+
+    <script>
+        // 攔截 console.log 並顯示在頁面上
+        const originalConsoleLog = console.log;
+        const originalConsoleError = console.error;
+        const originalConsoleWarn = console.warn;
+
+        function addToConsoleLog(message, type = 'log') {
+            const consoleDiv = document.getElementById('consoleLog');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.style.color = type === 'error' ? '#d32f2f' : type === 'warn' ? '#f57c00' : '#333';
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            consoleDiv.appendChild(logEntry);
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+
+        console.log = function(...args) {
+            originalConsoleLog.apply(console, args);
+            addToConsoleLog(args.join(' '), 'log');
+        };
+
+        console.error = function(...args) {
+            originalConsoleError.apply(console, args);
+            addToConsoleLog(args.join(' '), 'error');
+        };
+
+        console.warn = function(...args) {
+            originalConsoleWarn.apply(console, args);
+            addToConsoleLog(args.join(' '), 'warn');
+        };
+
+        // 等待載入完成
+        window.addEventListener('load', function() {
+            console.log('✅ 頁面載入完成');
+            addResult('libraryStatus', '頁面載入完成，可以開始測試', 'success');
+        });
+
+        function addResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${type}`;
+            resultDiv.textContent = message;
+            element.appendChild(resultDiv);
+        }
+
+        async function checkLibraryStatus() {
+            const statusDiv = document.getElementById('libraryStatus');
+            statusDiv.innerHTML = '';
+            
+            try {
+                // 檢查 libLoader 是否存在
+                if (typeof window.libLoader === 'undefined') {
+                    addResult('libraryStatus', '❌ libLoader 未載入', 'error');
+                    return;
+                }
+                
+                addResult('libraryStatus', '✅ libLoader 已載入', 'success');
+                
+                // 檢查 SpreadsheetConverter
+                if (typeof window.SpreadsheetConverter === 'undefined') {
+                    addResult('libraryStatus', '❌ SpreadsheetConverter 未載入', 'error');
+                    return;
+                }
+                
+                addResult('libraryStatus', '✅ SpreadsheetConverter 已載入', 'success');
+                
+                // 獲取函式庫狀態
+                const status = window.libLoader.getLibraryStatus();
+                addResult('libraryStatus', '函式庫狀態:', 'info');
+                
+                Object.entries(status).forEach(([name, info]) => {
+                    const icon = info.loaded ? '✅' : '❌';
+                    addResult('libraryStatus', `${icon} ${name}: ${info.description}`, info.loaded ? 'success' : 'warning');
+                });
+                
+            } catch (error) {
+                addResult('libraryStatus', `❌ 檢查錯誤: ${error.message}`, 'error');
+                console.error('Library status check error:', error);
+            }
+        }
+
+        function testSpreadsheetConverter() {
+            const resultDiv = document.getElementById('spreadsheetResult');
+            resultDiv.innerHTML = '';
+            
+            try {
+                // 測試 escapeHtml 方法
+                if (typeof SpreadsheetConverter.escapeHtml === 'function') {
+                    const testString = '<script>alert("test")</script>';
+                    const escaped = SpreadsheetConverter.escapeHtml(testString);
+                    addResult('spreadsheetResult', '✅ escapeHtml 方法正常工作', 'success');
+                    addResult('spreadsheetResult', `測試輸入: ${testString}`, 'info');
+                    addResult('spreadsheetResult', `轉換結果: ${escaped}`, 'success');
+                } else {
+                    addResult('spreadsheetResult', '❌ escapeHtml 方法不存在', 'error');
+                }
+                
+                // 測試其他核心方法
+                const methods = ['isValidSpreadsheetFile', 'convertToCsv', 'convertToJson'];
+                methods.forEach(method => {
+                    if (typeof SpreadsheetConverter[method] === 'function') {
+                        addResult('spreadsheetResult', `✅ ${method} 方法存在`, 'success');
+                    } else {
+                        addResult('spreadsheetResult', `❌ ${method} 方法不存在`, 'error');
+                    }
+                });
+                
+            } catch (error) {
+                addResult('spreadsheetResult', `❌ 測試錯誤: ${error.message}`, 'error');
+                console.error('SpreadsheetConverter test error:', error);
+            }
+        }
+
+        async function testFileConversion() {
+            const resultDiv = document.getElementById('conversionResult');
+            resultDiv.innerHTML = '';
+            
+            const fileInput = document.getElementById('fileInput');
+            if (!fileInput.files.length) {
+                addResult('conversionResult', '⚠️ 請先選擇一個檔案', 'warning');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            addResult('conversionResult', `開始測試檔案: ${file.name}`, 'info');
+            
+            try {
+                // 檢查檔案格式
+                const isValid = SpreadsheetConverter.isValidSpreadsheetFile(file);
+                addResult('conversionResult', `檔案格式驗證: ${isValid ? '✅ 有效' : '❌ 無效'}`, isValid ? 'success' : 'error');
+                
+                if (!isValid) {
+                    return;
+                }
+                
+                // 嘗試解析檔案
+                const parsedData = await SpreadsheetConverter.parseSpreadsheetData(file);
+                addResult('conversionResult', `✅ 檔案解析成功`, 'success');
+                addResult('conversionResult', `行數: ${parsedData.rowCount}, 列數: ${parsedData.columnCount}`, 'info');
+                
+                // 嘗試轉換為 CSV
+                const csvBlob = await SpreadsheetConverter.convertToFormat(parsedData, 'csv');
+                addResult('conversionResult', `✅ CSV 轉換成功，檔案大小: ${csvBlob.size} bytes`, 'success');
+                
+                // 嘗試轉換為 JSON
+                const jsonBlob = await SpreadsheetConverter.convertToFormat(parsedData, 'json');
+                addResult('conversionResult', `✅ JSON 轉換成功，檔案大小: ${jsonBlob.size} bytes`, 'success');
+                
+            } catch (error) {
+                addResult('conversionResult', `❌ 轉換錯誤: ${error.message}`, 'error');
+                console.error('File conversion error:', error);
+            }
+        }
+
+        async function testFileGeneration() {
+            const resultDiv = document.getElementById('generationResult');
+            resultDiv.innerHTML = '';
+            
+            try {
+                // 創建測試資料
+                const testData = [
+                    ['姓名', '年齡', '城市'],
+                    ['張三', '25', '台北'],
+                    ['李四', '30', '台中'],
+                    ['王五', '28', '高雄']
+                ];
+                
+                // 產生 CSV
+                const csvBlob = SpreadsheetConverter.convertToCsv(testData);
+                addResult('generationResult', `✅ CSV 產生成功，檔案大小: ${csvBlob.size} bytes`, 'success');
+                
+                // 創建下載連結
+                const csvUrl = URL.createObjectURL(csvBlob);
+                const csvLink = document.createElement('a');
+                csvLink.href = csvUrl;
+                csvLink.download = 'test.csv';
+                csvLink.textContent = '下載 CSV 檔案';
+                csvLink.style.display = 'block';
+                csvLink.style.margin = '10px 0';
+                resultDiv.appendChild(csvLink);
+                
+                // 產生 JSON
+                const jsonBlob = SpreadsheetConverter.convertToJson(testData);
+                addResult('generationResult', `✅ JSON 產生成功，檔案大小: ${jsonBlob.size} bytes`, 'success');
+                
+                // 創建下載連結
+                const jsonUrl = URL.createObjectURL(jsonBlob);
+                const jsonLink = document.createElement('a');
+                jsonLink.href = jsonUrl;
+                jsonLink.download = 'test.json';
+                jsonLink.textContent = '下載 JSON 檔案';
+                jsonLink.style.display = 'block';
+                jsonLink.style.margin = '10px 0';
+                resultDiv.appendChild(jsonLink);
+                
+            } catch (error) {
+                addResult('generationResult', `❌ 檔案產生錯誤: ${error.message}`, 'error');
+                console.error('File generation error:', error);
+            }
+        }
+
+        async function testExcelGeneration() {
+            const resultDiv = document.getElementById('generationResult');
+            
+            try {
+                // 創建測試資料
+                const testData = [
+                    ['產品名稱', '價格', '庫存', '備註'],
+                    ['筆記型電腦', '25000', '10', '熱門商品'],
+                    ['手機', '15000', '25', '新品上市'],
+                    ['平板電腦', '18000', '8', '限量版']
+                ];
+
+                addResult('generationResult', '開始產生 Excel 檔案...', 'info');
+                
+                // 嘗試產生 Excel 檔案
+                const excelBlob = await SpreadsheetConverter.convertToExcel(testData, 'test-excel');
+                addResult('generationResult', `✅ Excel 產生成功，檔案大小: ${excelBlob.size} bytes`, 'success');
+                
+                // 創建下載連結
+                const excelUrl = URL.createObjectURL(excelBlob);
+                const excelLink = document.createElement('a');
+                excelLink.href = excelUrl;
+                excelLink.download = 'test.xlsx';
+                excelLink.textContent = '下載 Excel 檔案';
+                excelLink.style.display = 'block';
+                excelLink.style.margin = '10px 0';
+                resultDiv.appendChild(excelLink);
+                
+                // 驗證檔案可以開啟
+                addResult('generationResult', '📝 請下載檔案並嘗試開啟，確認是否正常', 'info');
+                
+            } catch (error) {
+                addResult('generationResult', `❌ Excel 產生錯誤: ${error.message}`, 'error');
+                console.error('Excel generation error:', error);
+            }
+        }
+
+        // 錯誤處理
+        window.addEventListener('error', function(event) {
+            addResult('consoleLog', `JavaScript 錯誤: ${event.error?.message || event.message}`, 'error');
+        });
+        
+        window.addEventListener('unhandledrejection', function(event) {
+            addResult('consoleLog', `Promise 錯誤: ${event.reason}`, 'error');
+        });
+    </script>
+</body>
+</html>

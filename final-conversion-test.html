@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>檔案轉換器 - 最終格式驗證測試</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            color: #333;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+        }
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        .test-button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            margin: 10px 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+        .test-button:hover {
+            background: #45a049;
+        }
+        .test-button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 5px;
+            min-height: 50px;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background: #cce7ff;
+            border: 1px solid #b3d7ff;
+            color: #004085;
+        }
+        .download-links {
+            margin-top: 10px;
+        }
+        .download-link {
+            display: inline-block;
+            margin: 5px 10px;
+            padding: 8px 16px;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .download-link:hover {
+            background: #0056b3;
+        }
+        .file-info {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .status {
+            font-weight: bold;
+            padding: 5px 10px;
+            border-radius: 3px;
+            display: inline-block;
+            margin: 5px 0;
+        }
+        .status.loading { background: #ffeaa7; color: #856404; }
+        .status.success { background: #d4edda; color: #155724; }
+        .status.failed { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📄 檔案轉換器最終驗證</h1>
+        <p>確保所有轉換後的檔案都能被相應的應用程式正常開啟</p>
+    </div>
+
+    <!-- Document Conversion Tests -->
+    <div class="test-section">
+        <h2>📖 文件轉換測試 (DOCX/PDF)</h2>
+        <p>測試將文字轉換為 DOCX 和 PDF 格式，確保能被 Microsoft Word 和 PDF 閱讀器正常開啟</p>
+        
+        <button class="test-button" onclick="testDocumentConversions()">
+            🔄 測試文件轉換
+        </button>
+        <div id="doc-result" class="result"></div>
+    </div>
+
+    <!-- Spreadsheet Conversion Tests -->
+    <div class="test-section">
+        <h2>📊 試算表轉換測試 (XLSX/CSV)</h2>
+        <p>測試將 CSV 資料轉換為 XLSX 格式，確保能被 Microsoft Excel 正常開啟</p>
+        
+        <button class="test-button" onclick="testSpreadsheetConversions()">
+            🔄 測試試算表轉換
+        </button>
+        <div id="sheet-result" class="result"></div>
+    </div>
+
+    <!-- Library Status Check -->
+    <div class="test-section">
+        <h2>📚 函式庫載入狀態</h2>
+        <p>檢查所有必要的第三方函式庫是否正確載入</p>
+        
+        <button class="test-button" onclick="checkLibraryStatus()">
+            🔍 檢查函式庫狀態
+        </button>
+        <div id="lib-result" class="result"></div>
+    </div>
+
+    <!-- File Signature Verification -->
+    <div class="test-section">
+        <h2>🔍 檔案簽名驗證</h2>
+        <p>驗證生成的檔案是否具有正確的檔案格式簽名（magic bytes）</p>
+        
+        <button class="test-button" onclick="testFileSignatures()">
+            🔍 驗證檔案簽名
+        </button>
+        <div id="sig-result" class="result"></div>
+    </div>
+
+    <script src="assets/js/lib-loader.js"></script>
+    <script src="assets/js/auto-loader.js"></script>
+    <script src="assets/js/converters/document.js"></script>
+    <script src="assets/js/converters/spreadsheet.js"></script>
+    
+    <script>
+        // Test sample data
+        const testData = {
+            document: {
+                title: '檔案轉換器測試文件',
+                content: `這是一個測試文件，用來驗證檔案轉換器是否能正確生成各種格式的檔案。
+
+本測試包含以下內容：
+1. 中文字符測試
+2. 英文字符測試 (English characters)
+3. 數字測試：12345678901
+4. 特殊符號測試：!@#$%^&*()[]{}
+
+段落測試：
+這是第一個段落，用來測試段落格式是否正確。
+
+這是第二個段落，測試段落之間的間距。
+
+最後，我們測試一些特殊情況：
+- 長行測試：Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+- 空行測試
+
+
+- 列表項目1
+- 列表項目2
+
+結束。`
+            },
+            spreadsheet: [
+                ['產品名稱', '價格', '庫存', '分類'],
+                ['蘋果iPhone 14', '29900', '50', '電子產品'],
+                ['Samsung Galaxy S23', '28900', '30', '電子產品'],
+                ['Dell XPS 13', '45900', '15', '筆記型電腦'],
+                ['MacBook Pro M2', '59900', '25', '筆記型電腦'],
+                ['AirPods Pro', '7490', '100', '配件'],
+                ['總計', '=SUM(B2:B6)', '=SUM(C2:C6)', '']
+            ]
+        };
+
+        let downloadedFiles = new Map();
+
+        // Document conversion tests
+        async function testDocumentConversions() {
+            const resultDiv = document.getElementById('doc-result');
+            resultDiv.innerHTML = '<div class="status loading">🔄 正在測試文件轉換...</div>';
+
+            try {
+                // Test DOCX conversion
+                resultDiv.innerHTML += '<div class="file-info">正在生成 DOCX 檔案...</div>';
+                const docxBlob = await DocumentConverter.convertToDocx(
+                    testData.document.content, 
+                    testData.document.title
+                );
+                
+                if (docxBlob.size < 1000) {
+                    throw new Error('DOCX 檔案過小，可能生成失敗');
+                }
+
+                // Verify DOCX signature (PK header for ZIP-based files)
+                const docxBytes = new Uint8Array(await docxBlob.slice(0, 4).arrayBuffer());
+                const docxSignature = Array.from(docxBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+                if (!docxSignature.startsWith('504b')) {
+                    throw new Error('DOCX 檔案簽名不正確（應為 ZIP 格式）');
+                }
+
+                // Test PDF conversion
+                resultDiv.innerHTML += '<div class="file-info">正在生成 PDF 檔案...</div>';
+                const pdfBlob = await DocumentConverter.convertToPdf(
+                    testData.document.content, 
+                    testData.document.title
+                );
+
+                if (pdfBlob.size < 1000) {
+                    throw new Error('PDF 檔案過小，可能生成失敗');
+                }
+
+                // Verify PDF signature
+                const pdfBytes = new Uint8Array(await pdfBlob.slice(0, 5).arrayBuffer());
+                const pdfSignature = new TextDecoder().decode(pdfBytes);
+                if (!pdfSignature.startsWith('%PDF')) {
+                    throw new Error('PDF 檔案簽名不正確');
+                }
+
+                // Create download links
+                const docxUrl = URL.createObjectURL(docxBlob);
+                const pdfUrl = URL.createObjectURL(pdfBlob);
+                
+                downloadedFiles.set('test-document.docx', docxUrl);
+                downloadedFiles.set('test-document.pdf', pdfUrl);
+
+                resultDiv.innerHTML = `
+                    <div class="status success">✅ 文件轉換測試成功！</div>
+                    <div class="file-info">
+                        <strong>DOCX 檔案：</strong><br>
+                        - 大小: ${(docxBlob.size / 1024).toFixed(2)} KB<br>
+                        - 簽名: 正確 (ZIP 格式)<br>
+                        - 狀態: 可下載測試
+                    </div>
+                    <div class="file-info">
+                        <strong>PDF 檔案：</strong><br>
+                        - 大小: ${(pdfBlob.size / 1024).toFixed(2)} KB<br>
+                        - 簽名: 正確 (%PDF 標頭)<br>
+                        - 狀態: 可下載測試
+                    </div>
+                    <div class="download-links">
+                        <a href="${docxUrl}" download="test-document.docx" class="download-link">
+                            📄 下載 DOCX (用 Word 開啟測試)
+                        </a>
+                        <a href="${pdfUrl}" download="test-document.pdf" class="download-link">
+                            📋 下載 PDF (用 PDF 閱讀器開啟測試)
+                        </a>
+                    </div>
+                `;
+
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="status failed">❌ 文件轉換測試失敗</div>
+                    <div class="file-info">錯誤訊息: ${error.message}</div>
+                `;
+                console.error('文件轉換錯誤:', error);
+            }
+        }
+
+        // Spreadsheet conversion tests
+        async function testSpreadsheetConversions() {
+            const resultDiv = document.getElementById('sheet-result');
+            resultDiv.innerHTML = '<div class="status loading">🔄 正在測試試算表轉換...</div>';
+
+            // Wait for SpreadsheetConverter to be available
+            let attempts = 0;
+            while (typeof SpreadsheetConverter === 'undefined' && attempts < 50) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                attempts++;
+            }
+
+            if (typeof SpreadsheetConverter === 'undefined') {
+                resultDiv.innerHTML = '<div class="status failed">❌ SpreadsheetConverter 未載入</div>';
+                return;
+            }
+
+            try {
+                // Test XLSX conversion
+                resultDiv.innerHTML += '<div class="file-info">正在生成 XLSX 檔案...</div>';
+                const xlsxBlob = await SpreadsheetConverter.convertToExcel(
+                    testData.spreadsheet,
+                    '產品清單'
+                );
+
+                if (xlsxBlob.size < 1000) {
+                    throw new Error('XLSX 檔案過小，可能生成失敗');
+                }
+
+                // Verify XLSX signature (PK header for ZIP-based files)
+                const xlsxBytes = new Uint8Array(await xlsxBlob.slice(0, 4).arrayBuffer());
+                const xlsxSignature = Array.from(xlsxBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+                if (!xlsxSignature.startsWith('504b')) {
+                    throw new Error('XLSX 檔案簽名不正確（應為 ZIP 格式）');
+                }
+
+                // Test CSV conversion
+                resultDiv.innerHTML += '<div class="file-info">正在生成 CSV 檔案...</div>';
+                const csvBlob = SpreadsheetConverter.convertToCsv(testData.spreadsheet);
+
+                // Create download links
+                const xlsxUrl = URL.createObjectURL(xlsxBlob);
+                const csvUrl = URL.createObjectURL(csvBlob);
+                
+                downloadedFiles.set('test-spreadsheet.xlsx', xlsxUrl);
+                downloadedFiles.set('test-spreadsheet.csv', csvUrl);
+
+                resultDiv.innerHTML = `
+                    <div class="status success">✅ 試算表轉換測試成功！</div>
+                    <div class="file-info">
+                        <strong>XLSX 檔案：</strong><br>
+                        - 大小: ${(xlsxBlob.size / 1024).toFixed(2)} KB<br>
+                        - 簽名: 正確 (ZIP 格式)<br>
+                        - 資料行數: ${testData.spreadsheet.length}<br>
+                        - 狀態: 可下載測試
+                    </div>
+                    <div class="file-info">
+                        <strong>CSV 檔案：</strong><br>
+                        - 大小: ${(csvBlob.size / 1024).toFixed(2)} KB<br>
+                        - 編碼: UTF-8 with BOM<br>
+                        - 狀態: 可下載測試
+                    </div>
+                    <div class="download-links">
+                        <a href="${xlsxUrl}" download="test-spreadsheet.xlsx" class="download-link">
+                            📊 下載 XLSX (用 Excel 開啟測試)
+                        </a>
+                        <a href="${csvUrl}" download="test-spreadsheet.csv" class="download-link">
+                            📋 下載 CSV (用 Excel 開啟測試)
+                        </a>
+                    </div>
+                `;
+
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="status failed">❌ 試算表轉換測試失敗</div>
+                    <div class="file-info">錯誤訊息: ${error.message}</div>
+                `;
+                console.error('試算表轉換錯誤:', error);
+            }
+        }
+
+        // Check library loading status
+        function checkLibraryStatus() {
+            const resultDiv = document.getElementById('lib-result');
+            resultDiv.innerHTML = '<div class="status loading">🔄 正在檢查函式庫狀態...</div>';
+
+            setTimeout(() => {
+                try {
+                    const status = window.libLoader ? window.libLoader.getLibraryStatus() : {};
+                    
+                    let statusHtml = '<div class="status success">✅ 函式庫狀態檢查完成</div>';
+                    
+                    const requiredLibs = ['jszip', 'jspdf', 'sheetjs'];
+                    const optionalLibs = ['mammoth', 'pptxgenjs', 'html2canvas', 'pdfjslib'];
+                    
+                    statusHtml += '<div class="file-info"><strong>必要函式庫:</strong><br>';
+                    requiredLibs.forEach(lib => {
+                        const libStatus = status[lib];
+                        if (libStatus) {
+                            const icon = libStatus.loaded ? '✅' : '❌';
+                            const loadedText = libStatus.loaded ? '已載入' : '未載入';
+                            statusHtml += `${icon} ${lib}: ${libStatus.description} - ${loadedText}<br>`;
+                        } else {
+                            statusHtml += `❓ ${lib}: 狀態未知<br>`;
+                        }
+                    });
+                    statusHtml += '</div>';
+                    
+                    statusHtml += '<div class="file-info"><strong>可選函式庫:</strong><br>';
+                    optionalLibs.forEach(lib => {
+                        const libStatus = status[lib];
+                        if (libStatus) {
+                            const icon = libStatus.loaded ? '✅' : '⚪';
+                            const loadedText = libStatus.loaded ? '已載入' : '未載入';
+                            statusHtml += `${icon} ${lib}: ${libStatus.description} - ${loadedText}<br>`;
+                        } else {
+                            statusHtml += `❓ ${lib}: 狀態未知<br>`;
+                        }
+                    });
+                    statusHtml += '</div>';
+                    
+                    resultDiv.innerHTML = statusHtml;
+
+                } catch (error) {
+                    resultDiv.innerHTML = `
+                        <div class="status failed">❌ 函式庫狀態檢查失敗</div>
+                        <div class="file-info">錯誤訊息: ${error.message}</div>
+                    `;
+                    console.error('函式庫檢查錯誤:', error);
+                }
+            }, 1000);
+        }
+
+        // File signature verification tests
+        async function testFileSignatures() {
+            const resultDiv = document.getElementById('sig-result');
+            resultDiv.innerHTML = '<div class="status loading">🔄 正在驗證檔案簽名...</div>';
+
+            // Wait for converters to be available
+            let attempts = 0;
+            while ((typeof DocumentConverter === 'undefined' || typeof SpreadsheetConverter === 'undefined') && attempts < 50) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                attempts++;
+            }
+
+            if (typeof DocumentConverter === 'undefined') {
+                resultDiv.innerHTML = '<div class="status failed">❌ DocumentConverter 未載入</div>';
+                return;
+            }
+
+            if (typeof SpreadsheetConverter === 'undefined') {
+                resultDiv.innerHTML = '<div class="status failed">❌ SpreadsheetConverter 未載入</div>';
+                return;
+            }
+
+            try {
+                const signatures = {
+                    'PDF': { 
+                        expected: '%PDF',
+                        test: async () => {
+                            const pdfBlob = await DocumentConverter.convertToPdf('測試內容', '測試標題');
+                            const bytes = new Uint8Array(await pdfBlob.slice(0, 4).arrayBuffer());
+                            return new TextDecoder().decode(bytes);
+                        }
+                    },
+                    'DOCX': {
+                        expected: '504b' + '0304', // ZIP signature
+                        test: async () => {
+                            const docxBlob = await DocumentConverter.convertToDocx('測試內容', '測試標題');
+                            const bytes = new Uint8Array(await docxBlob.slice(0, 4).arrayBuffer());
+                            return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+                        }
+                    },
+                    'XLSX': {
+                        expected: '504b' + '0304', // ZIP signature  
+                        test: async () => {
+                            const xlsxBlob = await SpreadsheetConverter.convertToExcel([['A1', 'B1'], ['A2', 'B2']], '測試');
+                            const bytes = new Uint8Array(await xlsxBlob.slice(0, 4).arrayBuffer());
+                            return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+                        }
+                    }
+                };
+
+                let resultsHtml = '<div class="status success">✅ 檔案簽名驗證完成</div>';
+                
+                for (const [format, config] of Object.entries(signatures)) {
+                    try {
+                        const actualSignature = await config.test();
+                        const isValid = format === 'PDF' 
+                            ? actualSignature.startsWith(config.expected)
+                            : actualSignature.startsWith(config.expected);
+                            
+                        const icon = isValid ? '✅' : '❌';
+                        const status = isValid ? '正確' : '錯誤';
+                        
+                        resultsHtml += `
+                            <div class="file-info">
+                                <strong>${icon} ${format} 格式:</strong><br>
+                                期望簽名: ${config.expected}<br>
+                                實際簽名: ${actualSignature}<br>
+                                狀態: ${status}
+                            </div>
+                        `;
+                    } catch (error) {
+                        resultsHtml += `
+                            <div class="file-info">
+                                <strong>❌ ${format} 格式:</strong><br>
+                                錯誤: ${error.message}
+                            </div>
+                        `;
+                    }
+                }
+                
+                resultDiv.innerHTML = resultsHtml;
+
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="status failed">❌ 檔案簽名驗證失敗</div>
+                    <div class="file-info">錯誤訊息: ${error.message}</div>
+                `;
+                console.error('檔案簽名驗證錯誤:', error);
+            }
+        }
+
+        // Auto-run all tests when page loads
+        window.addEventListener('load', async () => {
+            // Wait for libraries to load
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            console.log('🚀 開始自動測試所有轉換功能...');
+            
+            // Run all tests
+            await testDocumentConversions();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            await testSpreadsheetConversions();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            checkLibraryStatus();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            await testFileSignatures();
+            
+            console.log('✅ 所有測試完成！');
+        });
+
+        // Clean up URLs on page unload
+        window.addEventListener('beforeunload', () => {
+            downloadedFiles.forEach(url => URL.revokeObjectURL(url));
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF 修復測試</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            padding: 20px;
+            background: #f0f2f5;
+        }
+        .card {
+            background: white;
+            padding: 25px;
+            margin: 20px 0;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .warning { background: #fff3cd; color: #856404; }
+        button {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 8px 4px;
+        }
+        button:hover { background: #c82333; }
+        .download-btn {
+            background: #28a745;
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            display: inline-block;
+            margin: 8px 4px;
+        }
+        .download-btn:hover { background: #218838; text-decoration: none; color: white; }
+        h2 { color: #495057; border-bottom: 2px solid #dc3545; padding-bottom: 8px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🔧 PDF 生成修復測試</h1>
+        <p>直接載入 jsPDF 並測試真正的 PDF 生成</p>
+        
+        <button onclick="loadJsPdfDirect()">直接載入 jsPDF</button>
+        <button onclick="testSimplePdf()">測試簡單 PDF</button>
+        <button onclick="testRealPdf()">測試完整 PDF</button>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        function addResult(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.textContent = message;
+            results.appendChild(div);
+        }
+
+        function safeDownload(blob, filename) {
+            try {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.style.display = 'none';
+                
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                return true;
+            } catch (error) {
+                addResult(`下載失敗: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        // 直接載入 jsPDF 函式庫
+        async function loadJsPdfDirect() {
+            addResult('🔄 直接從 CDN 載入 jsPDF...', 'info');
+            
+            try {
+                if (window.jsPDF) {
+                    addResult('✅ jsPDF 已經載入', 'success');
+                    return;
+                }
+
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js';
+                
+                script.onload = () => {
+                    setTimeout(() => {
+                        if (window.jsPDF) {
+                            addResult('✅ jsPDF 載入成功！', 'success');
+                            addResult(`版本: ${window.jsPDF.version || '未知'}`, 'info');
+                            
+                            // 測試基本功能
+                            try {
+                                const testDoc = new window.jsPDF();
+                                addResult('✅ jsPDF 實例化測試通過', 'success');
+                            } catch (testError) {
+                                addResult(`❌ jsPDF 實例化失敗: ${testError.message}`, 'error');
+                            }
+                        } else {
+                            addResult('❌ jsPDF 載入後無法使用', 'error');
+                        }
+                    }, 100);
+                };
+                
+                script.onerror = () => {
+                    addResult('❌ jsPDF 載入失敗', 'error');
+                };
+                
+                document.head.appendChild(script);
+                
+            } catch (error) {
+                addResult(`❌ 載入過程出錯: ${error.message}`, 'error');
+            }
+        }
+
+        // 測試最簡單的 PDF 生成
+        async function testSimplePdf() {
+            if (!window.jsPDF) {
+                addResult('⚠️ 請先載入 jsPDF', 'warning');
+                return;
+            }
+
+            try {
+                addResult('🔄 創建簡單 PDF...', 'info');
+                
+                const doc = new window.jsPDF();
+                doc.text('Hello World!', 10, 10);
+                doc.text('這是一個簡單的 PDF 測試', 10, 20);
+                
+                const pdfBlob = doc.output('blob');
+                
+                addResult(`✅ 簡單 PDF 創建成功！大小: ${pdfBlob.size} bytes`, 'success');
+                
+                if (pdfBlob.size > 0) {
+                    const results = document.getElementById('results');
+                    const btnDiv = document.createElement('div');
+                    btnDiv.innerHTML = `
+                        <a href="#" class="download-btn" onclick="safeDownload(window.simplePdfBlob, 'simple-test.pdf'); return false;">
+                            📄 下載簡單 PDF
+                        </a>
+                    `;
+                    results.appendChild(btnDiv);
+                    window.simplePdfBlob = pdfBlob;
+                } else {
+                    addResult('❌ PDF 檔案大小為 0', 'error');
+                }
+                
+            } catch (error) {
+                addResult(`❌ 簡單 PDF 創建失敗: ${error.message}`, 'error');
+                console.error('Simple PDF error:', error);
+            }
+        }
+
+        // 測試完整的 PDF 生成
+        async function testRealPdf() {
+            if (!window.jsPDF) {
+                addResult('⚠️ 請先載入 jsPDF', 'warning');
+                return;
+            }
+
+            try {
+                addResult('🔄 創建完整 PDF...', 'info');
+                
+                const doc = new window.jsPDF({
+                    orientation: 'portrait',
+                    unit: 'mm',
+                    format: 'a4'
+                });
+
+                // 設置字體
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(16);
+                
+                // 添加標題
+                doc.text('PDF 轉換功能測試報告', 20, 30);
+                
+                // 設置正文字體
+                doc.setFontSize(12);
+                let yPos = 50;
+                
+                const content = [
+                    '這是一個完整的 PDF 測試文件。',
+                    '',
+                    '測試項目：',
+                    '1. 基本文字顯示',
+                    '2. 中文字符支援測試',
+                    '3. 換行和段落功能',
+                    '4. 頁面格式設定',
+                    '',
+                    '技術規格：',
+                    '• 頁面格式：A4',
+                    '• 字體：Helvetica',
+                    '• 編碼：UTF-8',
+                    '',
+                    `生成時間：${new Date().toLocaleString()}`,
+                    '',
+                    '如果您能正常看到這些內容，',
+                    '表示 PDF 轉換功能工作正常。'
+                ];
+                
+                content.forEach(line => {
+                    if (yPos > 280) {
+                        doc.addPage();
+                        yPos = 30;
+                    }
+                    doc.text(line, 20, yPos);
+                    yPos += 7;
+                });
+                
+                // 添加頁腳
+                const pageCount = doc.internal.getNumberOfPages();
+                for (let i = 1; i <= pageCount; i++) {
+                    doc.setPage(i);
+                    doc.setFontSize(10);
+                    doc.text(`第 ${i} 頁，共 ${pageCount} 頁`, 20, 290);
+                }
+                
+                const pdfBlob = doc.output('blob');
+                
+                addResult(`✅ 完整 PDF 創建成功！大小: ${(pdfBlob.size / 1024).toFixed(1)} KB`, 'success');
+                
+                // 驗證 PDF 格式
+                const arrayBuffer = await pdfBlob.arrayBuffer();
+                const uint8Array = new Uint8Array(arrayBuffer);
+                const header = new TextDecoder().decode(uint8Array.slice(0, 4));
+                
+                if (header === '%PDF') {
+                    addResult('✅ PDF 檔案格式驗證通過', 'success');
+                } else {
+                    addResult(`❌ PDF 檔案格式錯誤，檔頭: ${header}`, 'error');
+                }
+                
+                if (pdfBlob.size > 100) {
+                    const results = document.getElementById('results');
+                    const btnDiv = document.createElement('div');
+                    btnDiv.innerHTML = `
+                        <a href="#" class="download-btn" onclick="safeDownload(window.realPdfBlob, 'complete-test.pdf'); return false;">
+                            📄 下載完整 PDF
+                        </a>
+                    `;
+                    results.appendChild(btnDiv);
+                    window.realPdfBlob = pdfBlob;
+                } else {
+                    addResult('❌ PDF 檔案大小異常', 'error');
+                }
+                
+            } catch (error) {
+                addResult(`❌ 完整 PDF 創建失敗: ${error.message}`, 'error');
+                console.error('Real PDF error:', error);
+            }
+        }
+
+        // 全域函數
+        window.loadJsPdfDirect = loadJsPdfDirect;
+        window.testSimplePdf = testSimplePdf;
+        window.testRealPdf = testRealPdf;
+
+        // 頁面載入時自動載入 jsPDF
+        window.addEventListener('load', () => {
+            setTimeout(loadJsPdfDirect, 500);
+        });
+    </script>
+</body>
+</html>

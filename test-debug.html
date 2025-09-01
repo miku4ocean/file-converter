@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Type Debug Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .debug-panel { background: #f5f5f5; padding: 20px; margin: 10px 0; border-radius: 8px; }
+        .file-preview { width: 50px; height: 50px; border-radius: 8px; border: 1px solid #ddd; display: flex; align-items: center; justify-content: center; overflow: hidden; font-size: 2rem; background-color: #f8f9fa; margin: 10px; }
+        .test-btn { background: #007bff; color: white; border: none; padding: 10px 20px; margin: 5px; cursor: pointer; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>File Type Switching Debug Test</h1>
+    
+    <div class="debug-panel">
+        <h3>Current File Type: <span id="currentType">image</span></h3>
+        <button class="test-btn" onclick="testSwitchType('document')">Switch to Document</button>
+        <button class="test-btn" onclick="testSwitchType('spreadsheet')">Switch to Spreadsheet</button>
+        <button class="test-btn" onclick="testSwitchType('presentation')">Switch to Presentation</button>
+        <button class="test-btn" onclick="testSwitchType('image')">Switch to Image</button>
+    </div>
+
+    <div class="debug-panel">
+        <h3>File Preview Test</h3>
+        <div id="previewContainer"></div>
+        <button class="test-btn" onclick="testCreatePreview()">Create Test Preview</button>
+    </div>
+
+    <div class="debug-panel">
+        <h3>Debug Output</h3>
+        <pre id="debugOutput"></pre>
+    </div>
+
+    <script>
+        let currentFileType = 'document';
+        
+        function log(message) {
+            const output = document.getElementById('debugOutput');
+            output.textContent += new Date().toLocaleTimeString() + ': ' + message + '\n';
+            console.log(message);
+        }
+        
+        function testSwitchType(type) {
+            currentFileType = type;
+            document.getElementById('currentType').textContent = type;
+            log(`Switched to file type: ${type}`);
+        }
+        
+        function createFilePreview() {
+            const preview = document.createElement('div');
+            preview.className = 'file-preview';
+            
+            log(`Creating preview for file type: ${currentFileType}`);
+            
+            // Only show thumbnails for images and videos
+            if (currentFileType === 'image' || currentFileType === 'video') {
+                log('Creating image preview (would show image thumbnail)');
+            } else {
+                // For documents, spreadsheets, presentations - show type icon
+                const icons = {
+                    document: '📄',
+                    spreadsheet: '📊',
+                    presentation: '🎯',
+                    audio: '🎧'
+                };
+                const icon = icons[currentFileType] || '📁';
+                preview.textContent = icon;
+                preview.style.display = 'flex';
+                preview.style.alignItems = 'center';
+                preview.style.justifyContent = 'center';
+                preview.style.fontSize = '2rem';
+                preview.style.backgroundColor = '#f8f9fa';
+                preview.style.border = '1px solid #ddd';
+                preview.style.borderRadius = '8px';
+                preview.style.width = '50px';
+                preview.style.height = '50px';
+                
+                log(`Created icon preview with icon: ${icon}`);
+            }
+            
+            return preview;
+        }
+        
+        function testCreatePreview() {
+            const container = document.getElementById('previewContainer');
+            container.innerHTML = ''; // Clear existing previews
+            
+            const preview = createFilePreview();
+            container.appendChild(preview);
+            
+            log(`Preview created successfully for type: ${currentFileType}`);
+        }
+        
+        // Test on page load
+        window.onload = function() {
+            log('Page loaded, testing initial preview');
+            testCreatePreview();
+        };
+    </script>
+</body>
+</html>

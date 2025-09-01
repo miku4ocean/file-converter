@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>檔案下載修復測試</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255,255,255,0.95);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            color: #333;
+        }
+        .test-section {
+            background: white;
+            padding: 25px;
+            margin: 20px 0;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            border-left: 4px solid #667eea;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-weight: bold;
+        }
+        .success { 
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%); 
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+        .error { 
+            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%); 
+            color: #721c24; 
+            border-left: 4px solid #dc3545;
+        }
+        .info {
+            background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+            color: #0c5460;
+            border-left: 4px solid #17a2b8;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin: 10px 5px;
+            transition: all 0.3s ease;
+        }
+        button:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        .download-button {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            text-decoration: none;
+            display: inline-block;
+            padding: 12px 25px;
+            border-radius: 8px;
+            margin: 8px 5px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+        .download-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(40, 167, 69, 0.4);
+            text-decoration: none;
+            color: white;
+        }
+        h1 { 
+            text-align: center; 
+            color: #333;
+            margin-bottom: 10px;
+        }
+        h2 { 
+            color: #667eea; 
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        .file-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+            border-left: 3px solid #6c757d;
+        }
+        .download-area {
+            background: linear-gradient(135deg, #e8f5e8 0%, #d4edda 100%);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📁 檔案下載修復測試</h1>
+        <p style="text-align: center; color: #666;">測試檔案轉換和下載功能，確保檔案可以正常下載並開啟</p>
+
+        <div class="test-section">
+            <h2>🧪 快速轉換測試</h2>
+            <button onclick="quickTest()">快速測試轉換功能</button>
+            <div id="quick-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>📊 Excel 檔案產生與下載</h2>
+            <button onclick="createExcelFile()">產生 Excel 檔案</button>
+            <div id="excel-area"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>📈 CSV 檔案產生與下載</h2>
+            <button onclick="createCSVFile()">產生 CSV 檔案</button>
+            <div id="csv-area"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>📋 多格式批次下載</h2>
+            <button onclick="createAllFiles()">產生所有格式檔案</button>
+            <div id="all-files-area"></div>
+        </div>
+    </div>
+
+    <script src="assets/js/lib-loader.js"></script>
+    <script src="assets/js/converters/spreadsheet.js"></script>
+
+    <script>
+        // 改良的下載功能
+        function downloadBlob(blob, filename) {
+            try {
+                // 方法 1: 使用 URL.createObjectURL
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.style.display = 'none';
+                
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                
+                // 延遲清理 URL 避免下載中斷
+                setTimeout(() => {
+                    URL.revokeObjectURL(url);
+                }, 1000);
+                
+                return true;
+            } catch (error) {
+                console.error('下載失敗:', error);
+                return false;
+            }
+        }
+
+        // 備用下載方法
+        function downloadBlobFallback(blob, filename) {
+            try {
+                // 方法 2: 使用 FileReader 轉換為 data URL
+                const reader = new FileReader();
+                reader.onload = function() {
+                    const a = document.createElement('a');
+                    a.href = reader.result;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                };
+                reader.readAsDataURL(blob);
+                return true;
+            } catch (error) {
+                console.error('備用下載方法失敗:', error);
+                return false;
+            }
+        }
+
+        function addResult(containerId, message, type = 'info', isHtml = false) {
+            const container = document.getElementById(containerId);
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            if (isHtml) {
+                div.innerHTML = message;
+            } else {
+                div.textContent = message;
+            }
+            container.appendChild(div);
+            return div;
+        }
+
+        async function waitForConverter(timeout = 5000) {
+            const start = Date.now();
+            while (typeof SpreadsheetConverter === 'undefined') {
+                if (Date.now() - start > timeout) {
+                    throw new Error('SpreadsheetConverter 載入逾時');
+                }
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        }
+
+        async function quickTest() {
+            const container = document.getElementById('quick-results');
+            container.innerHTML = '';
+            
+            try {
+                addResult('quick-results', '等待 SpreadsheetConverter 載入...', 'info');
+                await waitForConverter();
+                
+                addResult('quick-results', '✅ SpreadsheetConverter 已載入', 'success');
+                
+                // 測試基本功能
+                const testData = [
+                    ['項目', '數量', '單價'],
+                    ['蘋果', 10, 25],
+                    ['香蕉', 20, 15],
+                    ['橘子', 15, 20]
+                ];
+                
+                const csvBlob = SpreadsheetConverter.convertToCsv(testData);
+                addResult('quick-results', `✅ CSV 轉換成功: ${csvBlob.size} bytes`, 'success');
+                
+                const jsonBlob = SpreadsheetConverter.convertToJson(testData);
+                addResult('quick-results', `✅ JSON 轉換成功: ${jsonBlob.size} bytes`, 'success');
+                
+                addResult('quick-results', '🎉 快速測試完成！', 'success');
+                
+            } catch (error) {
+                addResult('quick-results', `❌ 測試失敗: ${error.message}`, 'error');
+            }
+        }
+
+        async function createExcelFile() {
+            const container = document.getElementById('excel-area');
+            container.innerHTML = '';
+            
+            try {
+                await waitForConverter();
+                
+                addResult('excel-area', '🔄 正在產生 Excel 檔案...', 'info');
+                
+                const salesData = [
+                    ['日期', '商品', '銷售額', '利潤率'],
+                    ['2024-01-01', 'iPhone 15', 35000, '15%'],
+                    ['2024-01-02', 'MacBook Pro', 65000, '12%'],
+                    ['2024-01-03', 'AirPods', 7000, '25%'],
+                    ['2024-01-04', 'iPad Air', 22000, '18%'],
+                    ['2024-01-05', 'Apple Watch', 12000, '20%']
+                ];
+                
+                const excelBlob = await SpreadsheetConverter.convertToExcel(salesData, 'daily-sales');
+                
+                if (excelBlob.size < 100) {
+                    throw new Error('Excel 檔案大小異常');
+                }
+                
+                addResult('excel-area', `✅ Excel 檔案產生成功！大小: ${(excelBlob.size / 1024).toFixed(1)} KB`, 'success');
+                
+                // 創建下載區域
+                const downloadDiv = document.createElement('div');
+                downloadDiv.className = 'download-area';
+                downloadDiv.innerHTML = `
+                    <div class="file-info">
+                        <strong>📊 Excel 檔案已就緒</strong><br>
+                        <p>檔案名稱: daily-sales.xlsx</p>
+                        <p>檔案大小: ${(excelBlob.size / 1024).toFixed(1)} KB</p>
+                        <p>包含: 銷售數據表格，可用 Excel/Numbers/Google Sheets 開啟</p>
+                    </div>
+                `;
+                
+                // 添加下載按鈕
+                const downloadBtn = document.createElement('button');
+                downloadBtn.className = 'download-button';
+                downloadBtn.textContent = '📊 下載 Excel 檔案';
+                downloadBtn.onclick = () => {
+                    const success = downloadBlob(excelBlob, 'daily-sales.xlsx');
+                    if (!success) {
+                        downloadBlobFallback(excelBlob, 'daily-sales.xlsx');
+                    }
+                    addResult('excel-area', '✅ 下載已開始！請檢查下載資料夾', 'success');
+                };
+                
+                downloadDiv.appendChild(downloadBtn);
+                container.appendChild(downloadDiv);
+                
+            } catch (error) {
+                addResult('excel-area', `❌ Excel 產生失敗: ${error.message}`, 'error');
+                console.error('Excel error:', error);
+            }
+        }
+
+        async function createCSVFile() {
+            const container = document.getElementById('csv-area');
+            container.innerHTML = '';
+            
+            try {
+                await waitForConverter();
+                
+                const customerData = [
+                    ['客戶編號', '姓名', '電話', '地址', '購買金額'],
+                    ['C001', '王小明', '0912-345-678', '台北市信義區', 15000],
+                    ['C002', '李美麗', '0923-456-789', '新北市板橋區', 22000],
+                    ['C003', '張志強', '0934-567-890', '桃園市中壢區', 18000],
+                    ['C004', '陳雅婷', '0945-678-901', '台中市西屯區', 25000],
+                    ['C005', '林大華', '0956-789-012', '高雄市左營區', 32000]
+                ];
+                
+                const csvBlob = SpreadsheetConverter.convertToCsv(customerData);
+                
+                addResult('csv-area', `✅ CSV 檔案產生成功！大小: ${csvBlob.size} bytes`, 'success');
+                
+                // 創建下載區域
+                const downloadDiv = document.createElement('div');
+                downloadDiv.className = 'download-area';
+                downloadDiv.innerHTML = `
+                    <div class="file-info">
+                        <strong>📈 CSV 檔案已就緒</strong><br>
+                        <p>檔案名稱: customer-data.csv</p>
+                        <p>檔案大小: ${csvBlob.size} bytes</p>
+                        <p>包含: 客戶資料清單，可用 Excel/Google Sheets/記事本 開啟</p>
+                    </div>
+                `;
+                
+                const downloadBtn = document.createElement('button');
+                downloadBtn.className = 'download-button';
+                downloadBtn.textContent = '📈 下載 CSV 檔案';
+                downloadBtn.onclick = () => {
+                    const success = downloadBlob(csvBlob, 'customer-data.csv');
+                    if (!success) {
+                        downloadBlobFallback(csvBlob, 'customer-data.csv');
+                    }
+                    addResult('csv-area', '✅ 下載已開始！請檢查下載資料夾', 'success');
+                };
+                
+                downloadDiv.appendChild(downloadBtn);
+                container.appendChild(downloadDiv);
+                
+            } catch (error) {
+                addResult('csv-area', `❌ CSV 產生失敗: ${error.message}`, 'error');
+            }
+        }
+
+        async function createAllFiles() {
+            const container = document.getElementById('all-files-area');
+            container.innerHTML = '';
+            
+            try {
+                await waitForConverter();
+                
+                addResult('all-files-area', '🔄 正在產生多種格式檔案...', 'info');
+                
+                const inventoryData = [
+                    ['商品編號', '商品名稱', '庫存', '單價', '供應商'],
+                    ['P001', '智慧手機', 150, 15000, '科技公司A'],
+                    ['P002', '藍牙耳機', 300, 2500, '科技公司B'],
+                    ['P003', '平板電腦', 80, 18000, '科技公司A'],
+                    ['P004', '智能手錶', 200, 8000, '科技公司C'],
+                    ['P005', '充電器', 500, 800, '配件公司D']
+                ];
+                
+                const files = [];
+                
+                // CSV 格式
+                try {
+                    const csvBlob = SpreadsheetConverter.convertToCsv(inventoryData);
+                    files.push({
+                        blob: csvBlob,
+                        filename: 'inventory.csv',
+                        name: 'CSV',
+                        icon: '📈'
+                    });
+                    addResult('all-files-area', '✅ CSV 格式轉換成功', 'success');
+                } catch (error) {
+                    addResult('all-files-area', `❌ CSV 轉換失敗: ${error.message}`, 'error');
+                }
+                
+                // JSON 格式
+                try {
+                    const jsonBlob = SpreadsheetConverter.convertToJson(inventoryData);
+                    files.push({
+                        blob: jsonBlob,
+                        filename: 'inventory.json',
+                        name: 'JSON',
+                        icon: '🔧'
+                    });
+                    addResult('all-files-area', '✅ JSON 格式轉換成功', 'success');
+                } catch (error) {
+                    addResult('all-files-area', `❌ JSON 轉換失敗: ${error.message}`, 'error');
+                }
+                
+                // HTML 格式
+                try {
+                    const htmlBlob = await SpreadsheetConverter.convertToFormat(
+                        { data: inventoryData, sheets: [{ name: 'inventory', data: inventoryData }] },
+                        'html'
+                    );
+                    files.push({
+                        blob: htmlBlob,
+                        filename: 'inventory.html',
+                        name: 'HTML',
+                        icon: '🌐'
+                    });
+                    addResult('all-files-area', '✅ HTML 格式轉換成功', 'success');
+                } catch (error) {
+                    addResult('all-files-area', `❌ HTML 轉換失敗: ${error.message}`, 'error');
+                }
+                
+                // Excel 格式
+                try {
+                    const excelBlob = await SpreadsheetConverter.convertToExcel(inventoryData, 'inventory');
+                    files.push({
+                        blob: excelBlob,
+                        filename: 'inventory.xlsx',
+                        name: 'Excel',
+                        icon: '📊'
+                    });
+                    addResult('all-files-area', '✅ Excel 格式轉換成功', 'success');
+                } catch (error) {
+                    addResult('all-files-area', `❌ Excel 轉換失敗: ${error.message}`, 'error');
+                }
+                
+                if (files.length > 0) {
+                    const downloadDiv = document.createElement('div');
+                    downloadDiv.className = 'download-area';
+                    downloadDiv.innerHTML = `
+                        <div class="file-info">
+                            <strong>🎉 多格式檔案準備完成！</strong><br>
+                            <p>共產生 ${files.length} 個不同格式的檔案</p>
+                            <p>請選擇下載您需要的格式：</p>
+                        </div>
+                    `;
+                    
+                    files.forEach(file => {
+                        const btn = document.createElement('button');
+                        btn.className = 'download-button';
+                        btn.textContent = `${file.icon} ${file.name} (${file.filename})`;
+                        btn.onclick = () => {
+                            const success = downloadBlob(file.blob, file.filename);
+                            if (!success) {
+                                downloadBlobFallback(file.blob, file.filename);
+                            }
+                            addResult('all-files-area', `✅ ${file.name} 檔案下載已開始！`, 'success');
+                        };
+                        downloadDiv.appendChild(btn);
+                    });
+                    
+                    container.appendChild(downloadDiv);
+                }
+                
+            } catch (error) {
+                addResult('all-files-area', `❌ 批次產生失敗: ${error.message}`, 'error');
+            }
+        }
+
+        // 全域函數
+        window.quickTest = quickTest;
+        window.createExcelFile = createExcelFile;
+        window.createCSVFile = createCSVFile;
+        window.createAllFiles = createAllFiles;
+
+        // 頁面載入時自動執行快速測試
+        window.addEventListener('load', () => {
+            setTimeout(quickTest, 1000);
+        });
+    </script>
+</body>
+</html>

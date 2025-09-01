@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>快速修復驗證</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
+            max-width: 600px; 
+            margin: 0 auto; 
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        .test-card {
+            background: white;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .warning { background: #fff3cd; color: #856404; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        .download-link {
+            display: inline-block;
+            background: #28a745;
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            margin: 5px;
+        }
+        .log {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 檔案轉換修復驗證</h1>
+    <p>快速測試修復後的檔案轉換功能</p>
+
+    <div class="test-card">
+        <h2>基本功能測試</h2>
+        <button onclick="testBasicFunctionality()">運行基本測試</button>
+        <div id="basic-result"></div>
+    </div>
+
+    <div class="test-card">
+        <h2>Excel 檔案產生測試</h2>
+        <button onclick="generateTestExcel()">產生 Excel 測試檔案</button>
+        <div id="excel-result"></div>
+    </div>
+
+    <div class="test-card">
+        <h2>CSV 檔案產生測試</h2>
+        <button onclick="generateTestCSV()">產生 CSV 測試檔案</button>
+        <div id="csv-result"></div>
+    </div>
+
+    <div class="test-card">
+        <h2>控制台日誌</h2>
+        <div id="console-log" class="log"></div>
+    </div>
+
+    <script src="assets/js/lib-loader.js"></script>
+    <script src="assets/js/converters/spreadsheet.js"></script>
+
+    <script>
+        // Console logging
+        const originalLog = console.log;
+        const originalError = console.error;
+        
+        function logToPage(message, type = 'log') {
+            const logDiv = document.getElementById('console-log');
+            const time = new Date().toLocaleTimeString();
+            logDiv.textContent += `[${time}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        console.log = (...args) => {
+            originalLog.apply(console, args);
+            logToPage(args.join(' '), 'log');
+        };
+
+        console.error = (...args) => {
+            originalError.apply(console, args);
+            logToPage(`ERROR: ${args.join(' ')}`, 'error');
+        };
+
+        function addResult(containerId, message, type) {
+            const container = document.getElementById(containerId);
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = message;
+            container.appendChild(div);
+        }
+
+        async function waitForSpreadsheetConverter(maxWait = 5000) {
+            const start = Date.now();
+            while (typeof SpreadsheetConverter === 'undefined') {
+                if (Date.now() - start > maxWait) {
+                    throw new Error('SpreadsheetConverter 載入逾時');
+                }
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        }
+
+        async function testBasicFunctionality() {
+            const containerId = 'basic-result';
+            document.getElementById(containerId).innerHTML = '';
+            
+            try {
+                addResult(containerId, '🔄 等待 SpreadsheetConverter 載入...', 'warning');
+                await waitForSpreadsheetConverter();
+                
+                addResult(containerId, '✅ SpreadsheetConverter 已載入', 'success');
+                
+                // Test escapeHtml
+                const testHtml = '<script>alert("test")</script>';
+                const escaped = SpreadsheetConverter.escapeHtml(testHtml);
+                addResult(containerId, `✅ escapeHtml 測試通過: ${escaped}`, 'success');
+                
+                // Test basic data conversion
+                const testData = [['Name', 'Age'], ['Alice', '25'], ['Bob', '30']];
+                const csvBlob = SpreadsheetConverter.convertToCsv(testData);
+                addResult(containerId, `✅ CSV 轉換成功: ${csvBlob.size} bytes`, 'success');
+                
+                const jsonBlob = SpreadsheetConverter.convertToJson(testData);
+                addResult(containerId, `✅ JSON 轉換成功: ${jsonBlob.size} bytes`, 'success');
+                
+            } catch (error) {
+                addResult(containerId, `❌ 測試失敗: ${error.message}`, 'error');
+            }
+        }
+
+        async function generateTestExcel() {
+            const containerId = 'excel-result';
+            document.getElementById(containerId).innerHTML = '';
+            
+            try {
+                await waitForSpreadsheetConverter();
+                
+                addResult(containerId, '🔄 正在產生 Excel 檔案...', 'warning');
+                
+                const testData = [
+                    ['產品', '價格', '庫存'],
+                    ['筆記型電腦', 25000, 5],
+                    ['手機', 15000, 12],
+                    ['平板', 18000, 8]
+                ];
+                
+                const excelBlob = await SpreadsheetConverter.convertToExcel(testData, 'product-list');
+                
+                addResult(containerId, `✅ Excel 檔案產生成功！大小: ${(excelBlob.size / 1024).toFixed(1)} KB`, 'success');
+                
+                const url = URL.createObjectURL(excelBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'test-products.xlsx';
+                link.className = 'download-link';
+                link.textContent = '📊 下載 Excel 檔案 (用 Excel/Numbers 開啟測試)';
+                document.getElementById(containerId).appendChild(link);
+                
+            } catch (error) {
+                addResult(containerId, `❌ Excel 產生失敗: ${error.message}`, 'error');
+                console.error('Excel generation error:', error);
+            }
+        }
+
+        async function generateTestCSV() {
+            const containerId = 'csv-result';
+            document.getElementById(containerId).innerHTML = '';
+            
+            try {
+                await waitForSpreadsheetConverter();
+                
+                const testData = [
+                    ['學生', '科目', '分數', '備註'],
+                    ['張三', '數學', 85, '需要加強'],
+                    ['李四', '英文', 92, '表現優秀'],
+                    ['王五', '物理', 78, '及格邊緣'],
+                    ['趙六', '化學', 88, '穩定發揮']
+                ];
+                
+                const csvBlob = SpreadsheetConverter.convertToCsv(testData);
+                
+                addResult(containerId, `✅ CSV 檔案產生成功！大小: ${csvBlob.size} bytes`, 'success');
+                
+                const url = URL.createObjectURL(csvBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'test-grades.csv';
+                link.className = 'download-link';
+                link.textContent = '📈 下載 CSV 檔案 (用 Excel/Numbers 開啟測試)';
+                document.getElementById(containerId).appendChild(link);
+                
+            } catch (error) {
+                addResult(containerId, `❌ CSV 產生失敗: ${error.message}`, 'error');
+            }
+        }
+
+        // Make functions globally accessible for onclick events
+        window.testBasicFunctionality = testBasicFunctionality;
+        window.generateTestExcel = generateTestExcel;
+        window.generateTestCSV = generateTestCSV;
+
+        // Auto-run basic test when page loads
+        window.addEventListener('load', async () => {
+            console.log('頁面載入完成');
+            setTimeout(() => {
+                testBasicFunctionality();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

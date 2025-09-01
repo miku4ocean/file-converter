@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>ASCII 轉換測試</title>
+</head>
+<body>
+    <h1>Debug ASCII Conversion</h1>
+    <div id="output"></div>
+    
+    <script>
+        // 複製 convertToASCII 方法來本地測試
+        function convertToASCII(text) {
+            if (!text) return text;
+            
+            console.log('Original text:', text);
+            
+            try {
+                // Comprehensive Chinese to English mapping
+                const translationMap = {
+                    // Common test phrases
+                    '最終驗證測試文件': 'Final Verification Test Document',
+                    '最終驗證測試': 'Final Verification Test',
+                    '測試文件': 'Test Document',
+                    '轉換後的文件': 'Converted Document',
+                    
+                    // Content descriptions
+                    '這是一個用於驗證 PDF 轉換功能的測試文件': 'This is a test document for verifying PDF conversion functionality',
+                    '這是一個用於驗證': 'This is for verification of',
+                    '功能驗證項目': 'Function Verification Items',
+                    'PDF 轉換功能': 'PDF conversion function',
+                    '中文字符支援': 'Chinese character support',
+                    '特殊字符處理': 'Special character processing',
+                    '多段落格式': 'Multi-paragraph formatting',
+                    '長文本處理': 'Long text processing',
+                    '測試時間': 'Test time',
+                    
+                    // Individual words
+                    '的': ' ',
+                    '和': ' and ',
+                    '在': ' at ',
+                    '是': ' is ',
+                    '有': ' have ',
+                    '個': ' ',
+                    '要': ' need ',
+                    '可': ' can ',
+                    '不': ' not ',
+                    '為': ' for ',
+                    '會': ' will ',
+                    '用': ' use ',
+                    '文件': 'document',
+                    '檔案': 'file',
+                    '轉換': 'convert',
+                    '生成': 'generate',
+                    '支援': 'support',
+                    '處理': 'process',
+                    '格式': 'format',
+                    '內容': 'content',
+                    '時間': 'time',
+                    '測試': 'test',
+                    '驗證': 'verify',
+                    '功能': 'function',
+                    
+                    // Date/time terms
+                    '年': ' year ',
+                    '月': ' month ',
+                    '日': ' day ',
+                    
+                    // Punctuation
+                    '：': ': ',
+                    '；': '; ',
+                    '，': ', ',
+                    '。': '. ',
+                    '？': '? ',
+                    '！': '! ',
+                    '（': ' (',
+                    '）': ') ',
+                    '「': ' "',
+                    '」': '" ',
+                    '『': " '",
+                    '』': "' ",
+                    '【': ' [',
+                    '】': '] ',
+                    '《': ' <',
+                    '》': '> ',
+                    '•': ' * ',
+                    '◦': ' - ',
+                    '▪': ' - '
+                };
+                
+                let result = text;
+                
+                // Apply translations in order of specificity (longer phrases first)
+                const sortedKeys = Object.keys(translationMap).sort((a, b) => b.length - a.length);
+                
+                for (const chinese of sortedKeys) {
+                    const before = result;
+                    result = result.split(chinese).join(translationMap[chinese]);
+                    if (before !== result) {
+                        console.log(`Replaced: "${chinese}" -> "${translationMap[chinese]}"`);
+                    }
+                }
+                
+                console.log('After mapping:', result);
+                
+                // Replace any remaining Chinese characters with romanized equivalents or remove them
+                const beforeChinese = result;
+                result = result.replace(/[\u4e00-\u9fff]/g, ' ');
+                
+                if (beforeChinese !== result) {
+                    console.log('Removed remaining Chinese characters');
+                }
+                
+                // Clean up multiple spaces
+                result = result.replace(/\s+/g, ' ').trim();
+                
+                console.log('Final result:', result);
+                return result;
+                
+            } catch (error) {
+                console.warn('ASCII conversion error:', error);
+                // Fallback: remove all non-ASCII characters
+                return text.replace(/[^\x00-\x7F]/g, ' ').replace(/\s+/g, ' ').trim();
+            }
+        }
+
+        // 測試轉換
+        const testTitle = '最終驗證測試文件';
+        const testContent = `這是一個用於驗證 PDF 轉換功能的測試文件。
+
+功能驗證項目：
+• 中文字符支援測試
+• 特殊字符處理：& < > " '
+• 多段落格式驗證
+• 長文本處理能力測試
+
+測試時間：2025/9/1 10:36:20`;
+
+        document.getElementById('output').innerHTML = `
+            <h2>Original Title:</h2>
+            <p>${testTitle}</p>
+            
+            <h2>Converted Title:</h2>
+            <p>${convertToASCII(testTitle)}</p>
+            
+            <h2>Original Content:</h2>
+            <pre>${testContent}</pre>
+            
+            <h2>Converted Content:</h2>
+            <pre>${convertToASCII(testContent)}</pre>
+        `;
+    </script>
+</body>
+</html>

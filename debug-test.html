@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>轉換器調試測試</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 3px;
+            background: #f8f9fa;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .warning { background: #fff3cd; color: #856404; }
+        pre { background: #f1f1f1; padding: 10px; border-radius: 3px; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h1>🔧 檔案轉換器調試測試</h1>
+    
+    <div class="section">
+        <h2>1. 庫載入狀態檢查</h2>
+        <button class="button" onclick="checkLibraryStatus()">檢查庫狀態</button>
+        <div id="lib-status" class="result"></div>
+    </div>
+
+    <div class="section">
+        <h2>2. 基本 PDF 轉換測試</h2>
+        <button class="button" onclick="testBasicPDF()">測試 PDF 轉換</button>
+        <div id="pdf-result" class="result"></div>
+    </div>
+
+    <div class="section">
+        <h2>3. 基本 DOCX 轉換測試</h2>
+        <button class="button" onclick="testBasicDOCX()">測試 DOCX 轉換</button>
+        <div id="docx-result" class="result"></div>
+    </div>
+
+    <div class="section">
+        <h2>4. 基本 XLSX 轉換測試</h2>
+        <button class="button" onclick="testBasicXLSX()">測試 XLSX 轉換</button>
+        <div id="xlsx-result" class="result"></div>
+    </div>
+
+    <div class="section">
+        <h2>5. 錯誤日誌</h2>
+        <pre id="error-log">等待測試結果...</pre>
+    </div>
+
+    <script src="assets/js/lib-loader.js"></script>
+    <script src="assets/js/converters/document.js"></script>
+    <script src="assets/js/converters/spreadsheet.js"></script>
+    <script src="assets/js/auto-loader.js"></script>
+
+    <script>
+        const errorLog = [];
+        
+        // 攔截所有錯誤
+        window.onerror = function(msg, file, line, col, error) {
+            const errorInfo = `❌ ${msg} (${file}:${line}:${col})`;
+            errorLog.push(errorInfo);
+            updateErrorLog();
+            return false;
+        };
+
+        window.addEventListener('unhandledrejection', function(event) {
+            const errorInfo = `❌ Promise rejection: ${event.reason}`;
+            errorLog.push(errorInfo);
+            updateErrorLog();
+        });
+
+        function updateErrorLog() {
+            document.getElementById('error-log').textContent = errorLog.length > 0 
+                ? errorLog.join('\n') 
+                : '✅ 無錯誤記錄';
+        }
+
+        function logInfo(message) {
+            errorLog.push(`ℹ️ ${message}`);
+            updateErrorLog();
+        }
+
+        function checkLibraryStatus() {
+            const resultDiv = document.getElementById('lib-status');
+            logInfo('開始檢查庫狀態');
+            
+            try {
+                const status = {
+                    libLoader: !!window.libLoader,
+                    DocumentConverter: !!window.DocumentConverter,
+                    SpreadsheetConverter: !!window.SpreadsheetConverter,
+                    JSZip: !!window.JSZip,
+                    jsPDF: !!window.jsPDF,
+                    XLSX: !!window.XLSX
+                };
+
+                let html = '<h3>庫載入狀態：</h3>';
+                for (const [name, loaded] of Object.entries(status)) {
+                    const icon = loaded ? '✅' : '❌';
+                    html += `<div>${icon} ${name}: ${loaded ? '已載入' : '未載入'}</div>`;
+                }
+
+                if (window.libLoader) {
+                    const libStatus = window.libLoader.getLibraryStatus();
+                    html += '<h4>詳細庫狀態：</h4>';
+                    for (const [name, info] of Object.entries(libStatus)) {
+                        const icon = info.loaded ? '✅' : '❌';
+                        html += `<div>${icon} ${name}: ${info.description}</div>`;
+                    }
+                }
+
+                resultDiv.innerHTML = html;
+                resultDiv.className = 'result success';
+                logInfo('庫狀態檢查完成');
+            } catch (error) {
+                resultDiv.innerHTML = `錯誤: ${error.message}`;
+                resultDiv.className = 'result error';
+                logInfo(`庫狀態檢查失敗: ${error.message}`);
+            }
+        }
+
+        async function testBasicPDF() {
+            const resultDiv = document.getElementById('pdf-result');
+            logInfo('開始 PDF 轉換測試');
+            
+            try {
+                resultDiv.innerHTML = '正在測試 PDF 轉換...';
+                resultDiv.className = 'result warning';
+                
+                if (!window.DocumentConverter) {
+                    throw new Error('DocumentConverter 未載入');
+                }
+
+                const testContent = '這是一個 PDF 測試內容。\n\n包含中文字符測試。';
+                const testTitle = 'PDF 測試標題';
+
+                logInfo('正在調用 convertToPdf 方法');
+                const pdfBlob = await DocumentConverter.convertToPdf(testContent, testTitle);
+                
+                logInfo(`PDF 轉換完成，檔案大小: ${pdfBlob.size} bytes`);
+                
+                if (pdfBlob.size < 500) {
+                    throw new Error('PDF 檔案過小，可能轉換失敗');
+                }
+
+                // 檢查 PDF 簽名
+                const header = new Uint8Array(await pdfBlob.slice(0, 4).arrayBuffer());
+                const signature = new TextDecoder().decode(header);
+                logInfo(`PDF 檔案簽名: ${signature}`);
+
+                const downloadUrl = URL.createObjectURL(pdfBlob);
+                
+                resultDiv.innerHTML = `
+                    ✅ PDF 轉換成功！<br>
+                    檔案大小: ${(pdfBlob.size / 1024).toFixed(2)} KB<br>
+                    檔案簽名: ${signature}<br>
+                    <a href="${downloadUrl}" download="test.pdf" style="color: #007bff;">下載測試 PDF</a>
+                `;
+                resultDiv.className = 'result success';
+                
+            } catch (error) {
+                resultDiv.innerHTML = `❌ PDF 轉換失敗: ${error.message}`;
+                resultDiv.className = 'result error';
+                logInfo(`PDF 轉換失敗: ${error.message}`);
+                console.error('PDF 轉換錯誤:', error);
+            }
+        }
+
+        async function testBasicDOCX() {
+            const resultDiv = document.getElementById('docx-result');
+            logInfo('開始 DOCX 轉換測試');
+            
+            try {
+                resultDiv.innerHTML = '正在測試 DOCX 轉換...';
+                resultDiv.className = 'result warning';
+                
+                if (!window.DocumentConverter) {
+                    throw new Error('DocumentConverter 未載入');
+                }
+
+                const testContent = '這是一個 DOCX 測試內容。\n\n包含中文字符測試。';
+                const testTitle = 'DOCX 測試標題';
+
+                logInfo('正在調用 convertToDocx 方法');
+                const docxBlob = await DocumentConverter.convertToDocx(testContent, testTitle);
+                
+                logInfo(`DOCX 轉換完成，檔案大小: ${docxBlob.size} bytes`);
+                
+                if (docxBlob.size < 1000) {
+                    throw new Error('DOCX 檔案過小，可能轉換失敗');
+                }
+
+                // 檢查 DOCX 簽名（ZIP 格式）
+                const header = new Uint8Array(await docxBlob.slice(0, 4).arrayBuffer());
+                const signature = Array.from(header).map(b => b.toString(16).padStart(2, '0')).join('');
+                logInfo(`DOCX 檔案簽名: ${signature}`);
+
+                const downloadUrl = URL.createObjectURL(docxBlob);
+                
+                resultDiv.innerHTML = `
+                    ✅ DOCX 轉換成功！<br>
+                    檔案大小: ${(docxBlob.size / 1024).toFixed(2)} KB<br>
+                    檔案簽名: ${signature}<br>
+                    <a href="${downloadUrl}" download="test.docx" style="color: #007bff;">下載測試 DOCX</a>
+                `;
+                resultDiv.className = 'result success';
+                
+            } catch (error) {
+                resultDiv.innerHTML = `❌ DOCX 轉換失敗: ${error.message}`;
+                resultDiv.className = 'result error';
+                logInfo(`DOCX 轉換失敗: ${error.message}`);
+                console.error('DOCX 轉換錯誤:', error);
+            }
+        }
+
+        async function testBasicXLSX() {
+            const resultDiv = document.getElementById('xlsx-result');
+            logInfo('開始 XLSX 轉換測試');
+            
+            try {
+                resultDiv.innerHTML = '正在測試 XLSX 轉換...';
+                resultDiv.className = 'result warning';
+                
+                if (!window.SpreadsheetConverter) {
+                    throw new Error('SpreadsheetConverter 未載入');
+                }
+
+                const testData = [
+                    ['產品', '價格', '數量'],
+                    ['測試產品1', '100', '10'],
+                    ['測試產品2', '200', '20']
+                ];
+
+                logInfo('正在調用 convertToExcel 方法');
+                const xlsxBlob = await SpreadsheetConverter.convertToExcel(testData, '測試表格');
+                
+                logInfo(`XLSX 轉換完成，檔案大小: ${xlsxBlob.size} bytes`);
+                
+                if (xlsxBlob.size < 1000) {
+                    throw new Error('XLSX 檔案過小，可能轉換失敗');
+                }
+
+                // 檢查 XLSX 簽名（ZIP 格式）
+                const header = new Uint8Array(await xlsxBlob.slice(0, 4).arrayBuffer());
+                const signature = Array.from(header).map(b => b.toString(16).padStart(2, '0')).join('');
+                logInfo(`XLSX 檔案簽名: ${signature}`);
+
+                const downloadUrl = URL.createObjectURL(xlsxBlob);
+                
+                resultDiv.innerHTML = `
+                    ✅ XLSX 轉換成功！<br>
+                    檔案大小: ${(xlsxBlob.size / 1024).toFixed(2)} KB<br>
+                    檔案簽名: ${signature}<br>
+                    <a href="${downloadUrl}" download="test.xlsx" style="color: #007bff;">下載測試 XLSX</a>
+                `;
+                resultDiv.className = 'result success';
+                
+            } catch (error) {
+                resultDiv.innerHTML = `❌ XLSX 轉換失敗: ${error.message}`;
+                resultDiv.className = 'result error';
+                logInfo(`XLSX 轉換失敗: ${error.message}`);
+                console.error('XLSX 轉換錯誤:', error);
+            }
+        }
+
+        // 確保類別被正確載入
+        function ensureClassesLoaded() {
+            // 強制註冊類別到 window 對象
+            if (typeof DocumentConverter !== 'undefined' && !window.DocumentConverter) {
+                window.DocumentConverter = DocumentConverter;
+                logInfo('手動註冊 DocumentConverter 到 window');
+            }
+            
+            if (typeof SpreadsheetConverter !== 'undefined' && !window.SpreadsheetConverter) {
+                window.SpreadsheetConverter = SpreadsheetConverter;
+                logInfo('手動註冊 SpreadsheetConverter 到 window');
+            }
+        }
+
+        // 自動運行初始檢查
+        window.addEventListener('load', () => {
+            logInfo('頁面載入完成，等待庫載入...');
+            
+            // 等待一段時間讓庫載入完成
+            setTimeout(() => {
+                ensureClassesLoaded();
+                logInfo('開始自動檢查庫狀態');
+                checkLibraryStatus();
+            }, 3000);
+        });
+    </script>
+</body>
+</html>

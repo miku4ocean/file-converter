@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>最終 PDF 整合測試</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
+            max-width: 900px; 
+            margin: 0 auto; 
+            padding: 20px;
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255,255,255,0.98);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            color: #333;
+        }
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 25px 0;
+        }
+        .test-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            border-left: 4px solid #dc3545;
+        }
+        .status {
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-weight: 500;
+        }
+        .success { 
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%); 
+            color: #155724;
+        }
+        .error { 
+            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%); 
+            color: #721c24; 
+        }
+        .info {
+            background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+            color: #0c5460;
+        }
+        .warning {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%);
+            color: #856404;
+        }
+        button {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            margin: 6px 3px;
+            transition: all 0.3s ease;
+        }
+        button:hover { 
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(220, 53, 69, 0.4);
+        }
+        .download-btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            text-decoration: none;
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: 6px;
+            margin: 6px 3px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .download-btn:hover {
+            transform: translateY(-1px);
+            text-decoration: none;
+            color: white;
+        }
+        h1 { 
+            text-align: center; 
+            color: #dc3545;
+            margin-bottom: 15px;
+        }
+        h2 { 
+            color: #dc3545; 
+            border-bottom: 2px solid #dc3545;
+            padding-bottom: 8px;
+            font-size: 1.2em;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .progress-bar {
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            height: 6px;
+            margin: 15px 0;
+        }
+        .progress-fill {
+            background: linear-gradient(90deg, #dc3545, #c82333);
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 最終 PDF 整合測試</h1>
+        <p class="subtitle">測試修復後的完整 PDF 轉換功能</p>
+        
+        <div class="progress-bar">
+            <div class="progress-fill" id="overall-progress" style="width: 0%"></div>
+        </div>
+
+        <div class="test-grid">
+            <div class="test-card">
+                <h2>🔧 系統檢查</h2>
+                <button onclick="runSystemCheck()">系統狀態檢查</button>
+                <div id="system-results"></div>
+            </div>
+
+            <div class="test-card">
+                <h2>📄 直接 PDF 測試</h2>
+                <button onclick="testDirectPDF()">直接 jsPDF 測試</button>
+                <div id="direct-pdf-results"></div>
+            </div>
+
+            <div class="test-card">
+                <h2>🔄 DocumentConverter 測試</h2>
+                <button onclick="testDocumentConverter()">DocumentConverter 測試</button>
+                <div id="converter-results"></div>
+            </div>
+
+            <div class="test-card">
+                <h2>📝 文字轉 PDF 測試</h2>
+                <button onclick="testTextToPDF()">文字 → PDF</button>
+                <div id="text-pdf-results"></div>
+            </div>
+
+            <div class="test-card">
+                <h2>🌐 HTML 轉 PDF 測試</h2>
+                <button onclick="testHTMLToPDF()">HTML → PDF</button>
+                <div id="html-pdf-results"></div>
+            </div>
+
+            <div class="test-card">
+                <h2>🎯 綜合 PDF 測試</h2>
+                <button onclick="runComprehensiveTest()">執行綜合測試</button>
+                <div id="comprehensive-results"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 載入必要腳本 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="assets/js/lib-loader.js"></script>
+    <script src="assets/js/converters/document.js"></script>
+
+    <script>
+        let completedTests = 0;
+        const totalTests = 6;
+
+        function updateProgress() {
+            const progress = (completedTests / totalTests) * 100;
+            document.getElementById('overall-progress').style.width = `${progress}%`;
+        }
+
+        function addResult(containerId, message, type = 'info', isHtml = false) {
+            const container = document.getElementById(containerId);
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            if (isHtml) {
+                div.innerHTML = message;
+            } else {
+                div.textContent = message;
+            }
+            container.appendChild(div);
+            return div;
+        }
+
+        function safeDownload(blob, filename) {
+            try {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.style.display = 'none';
+                
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                return true;
+            } catch (error) {
+                console.error('下載失敗:', error);
+                return false;
+            }
+        }
+
+        async function waitForConverter(timeout = 10000) {
+            const start = Date.now();
+            while (typeof DocumentConverter === 'undefined') {
+                if (Date.now() - start > timeout) {
+                    throw new Error('DocumentConverter 載入逾時');
+                }
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        }
+
+        async function runSystemCheck() {
+            const containerId = 'system-results';
+            document.getElementById(containerId).innerHTML = '';
+            
+            try {
+                addResult(containerId, '🔍 檢查系統載入狀態...', 'info');
+                
+                // 檢查 jsPDF
+                let jsPDFAvailable = false;
+                if (window.jsPDF) {
+                    addResult(containerId, '✅ jsPDF 已載入 (window.jsPDF)', 'success');
+                    jsPDFAvailable = true;
+                } else if (window.jspdf && window.jspdf.jsPDF) {
+                    addResult(containerId, '✅ jsPDF 已載入 (window.jspdf.jsPDF)', 'success');
+                    jsPDFAvailable = true;
+                } else {
+                    addResult(containerId, '❌ jsPDF 未載入', 'error');
+                }
+                
+                // 測試 jsPDF 實例化
+                if (jsPDFAvailable) {
+                    try {
+                        const jsPDFConstructor = window.jsPDF || window.jspdf.jsPDF;
+                        const testDoc = new jsPDFConstructor();
+                        addResult(containerId, '✅ jsPDF 實例化測試通過', 'success');
+                    } catch (error) {
+                        addResult(containerId, `❌ jsPDF 實例化失敗: ${error.message}`, 'error');
+                    }
+                }
+                
+                // 檢查 DocumentConverter
+                try {
+                    await waitForConverter(3000);
+                    addResult(containerId, '✅ DocumentConverter 已載入', 'success');
+                    
+                    // 檢查關鍵方法
+                    const methods = ['convertToPdf', 'createPdfWithJsPDF', 'loadJsPDF'];
+                    methods.forEach(method => {
+                        if (typeof DocumentConverter[method] === 'function') {
+                            addResult(containerId, `✅ ${method} 方法可用`, 'success');
+                        } else {
+                            addResult(containerId, `❌ ${method} 方法未找到`, 'error');
+                        }
+                    });
+                } catch (error) {
+                    addResult(containerId, `❌ DocumentConverter 載入失敗: ${error.message}`, 'error');
+                }
+                
+                completedTests++;
+                updateProgress();
+                
+            } catch (error) {
+                addResult(containerId, `❌ 系統檢查失敗: ${error.message}`, 'error');
+            }
+        }
+
+        async function testDirectPDF() {
+            const containerId = 'direct-pdf-results';
+            document.getElementById(containerId).innerHTML = '';
+            
+            try {
+                addResult(containerId, '🔄 直接測試 jsPDF...', 'info');
+                
+                const jsPDFConstructor = window.jsPDF || (window.jspdf && window.jspdf.jsPDF);
+                if (!jsPDFConstructor) {
+                    throw new Error('jsPDF 構造函數未找到');
+                }
+                
+                const doc = new jsPDFConstructor();
+                doc.text('直接 jsPDF 測試', 20, 20);
+                doc.text('Direct jsPDF Test', 20, 30);
+                doc.text(`生成時間: ${new Date().toLocaleString()}`, 20, 40);
+                
+                const pdfBlob = doc.output('blob');
+                
+                addResult(containerId, `✅ 直接 PDF 生成成功！大小: ${(pdfBlob.size / 1024).toFixed(1)} KB`, 'success');
+                
+                // 驗證 PDF 格式
+                const arrayBuffer = await pdfBlob.arrayBuffer();
+                const header = new Uint8Array(arrayBuffer.slice(0, 4));
+                const headerString = String.fromCharCode(...header);
+                
+                if (headerString === '%PDF') {
+                    addResult(containerId, '✅ PDF 檔案格式驗證通過', 'success');
+                    
+                    const downloadDiv = document.createElement('div');
+                    downloadDiv.innerHTML = `
+                        <a href="#" class="download-btn" onclick="safeDownload(window.directPdfBlob, 'direct-test.pdf'); return false;">
+                            📄 下載直接生成的 PDF
+                        </a>
+                    `;
+                    document.getElementById(containerId).appendChild(downloadDiv);
+                    window.directPdfBlob = pdfBlob;
+                } else {
+                    addResult(containerId, `❌ PDF 檔案格式錯誤: ${headerString}`, 'error');
+                }
+                
+                completedTests++;
+                updateProgress();
+                
+            } catch (error) {
+                addResult(containerId, `❌ 直接 PDF 測試失敗: ${error.message}`, 'error');
+            }
+        }
+
+        async function testDocumentConverter() {
+            const containerId = 'converter-results';
+            document.getElementById(containerId).innerHTML = '';
+            
+            try {
+                await waitForConverter();
+                
+                addResult(containerId, '🔄 測試 DocumentConverter.convertToPdf...', 'info');
+                
+                const testContent = `DocumentConverter 測試
+
+這是使用 DocumentConverter.convertToPdf 方法生成的 PDF 檔案。
+
+測試內容：
+1. 基本文字顯示
+2. 中文字符測試
+3. 英文字符測試
+4. 數字測試: 123456789
+5. 特殊字符測試: !@#$%^&*()
+
+如果您能正常開啟並閱讀此檔案，表示 DocumentConverter 的 PDF 轉換功能運作正常。
+
+生成時間: ${new Date().toLocaleString()}`;
+
+                const pdfBlob = await DocumentConverter.convertToPdf(testContent, 'DocumentConverter 測試');
+                
+                addResult(containerId, `✅ DocumentConverter PDF 生成成功！大小: ${(pdfBlob.size / 1024).toFixed(1)} KB`, 'success');
+                
+                const downloadDiv = document.createElement('div');
+                downloadDiv.innerHTML = `
+                    <a href="#" class="download-btn" onclick="safeDownload(window.converterPdfBlob, 'converter-test.pdf'); return false;">
+                        📄 下載 DocumentConverter 生成的 PDF
+                    </a>
+                `;
+                document.getElementById(containerId).appendChild(downloadDiv);
+                window.converterPdfBlob = pdfBlob;
+                
+                completedTests++;
+                updateProgress();
+                
+            } catch (error) {
+                addResult(containerId, `❌ DocumentConverter 測試失敗: ${error.message}`, 'error');
+                console.error('DocumentConverter test error:', error);
+            }
+        }
+
+        async function testTextToPDF() {
+            const containerId = 'text-pdf-results';
+            document.getElementById(containerId).innerHTML = '';
+            
+            try {
+                await waitForConverter();
+                
+                addResult(containerId, '🔄 文字轉 PDF 測試...', 'info');
+                
+                const longText = `文字轉 PDF 功能測試報告
+
+本測試旨在驗證長篇文字內容能否正確轉換為 PDF 格式。
+
+第一段：基本功能測試
+這是第一段內容，用來測試基本的文字轉換功能。PDF 應該能夠正確顯示中文字符、英文字符、數字和標點符號。
+
+第二段：格式測試
+這是第二段內容，測試段落間的間距和換行功能。每個段落之間應該有適當的間距，使文件看起來整潔有序。
+
+第三段：特殊字符測試
+這是第三段，包含一些特殊字符：
+• 項目符號測試
+• 數字測試：1234567890
+• 英文測試：The quick brown fox jumps over the lazy dog
+• 特殊符號：!@#$%^&*()[]{}
+
+第四段：長段落測試
+這是一個較長的段落，用來測試 PDF 生成器的文字換行功能。當一行文字超過頁面寬度時，應該能夠自動換行到下一行，並保持文字的可讀性。這個功能對於生成專業的 PDF 文件非常重要。
+
+第五段：多頁測試
+如果內容足夠長，PDF 生成器應該能夠自動創建新頁面。每個頁面都應該有適當的邊距和格式設定。
+
+技術規格：
+- 頁面格式：A4
+- 字體：Helvetica
+- 字體大小：12pt
+- 邊距：20mm
+- 行距：7pt
+
+測試結論：
+如果您能正常開啟並閱讀此 PDF 文件，且所有內容都正確顯示，表示文字轉 PDF 功能運作正常。
+
+生成時間：${new Date().toLocaleString()}
+測試版本：v1.0`;
+
+                const pdfBlob = await DocumentConverter.convertToPdf(longText, '文字轉PDF測試報告');
+                
+                addResult(containerId, `✅ 文字轉 PDF 成功！大小: ${(pdfBlob.size / 1024).toFixed(1)} KB`, 'success');
+                
+                const downloadDiv = document.createElement('div');
+                downloadDiv.innerHTML = `
+                    <a href="#" class="download-btn" onclick="safeDownload(window.textPdfBlob, 'text-to-pdf-test.pdf'); return false;">
+                        📄 下載文字轉 PDF 檔案
+                    </a>
+                `;
+                document.getElementById(containerId).appendChild(downloadDiv);
+                window.textPdfBlob = pdfBlob;
+                
+                completedTests++;
+                updateProgress();
+                
+            } catch (error) {
+                addResult(containerId, `❌ 文字轉 PDF 失敗: ${error.message}`, 'error');
+            }
+        }
+
+        async function testHTMLToPDF() {
+            const containerId = 'html-pdf-results';
+            document.getElementById(containerId).innerHTML = '';
+            
+            try {
+                await waitForConverter();
+                
+                addResult(containerId, '🔄 HTML 轉 PDF 測試...', 'info');
+                
+                const htmlContent = `<h1>HTML 轉 PDF 測試報告</h1>
+                
+<h2>測試項目</h2>
+<ul>
+    <li>HTML 標籤支援</li>
+    <li>標題層級測試</li>
+    <li>列表功能測試</li>
+    <li>段落格式測試</li>
+</ul>
+
+<h2>技術規格</h2>
+<p>本測試使用 <strong>DocumentConverter</strong> 的 HTML 轉 PDF 功能。</p>
+
+<h3>支援的 HTML 標籤</h3>
+<ul>
+    <li><strong>標題標籤</strong>: H1, H2, H3 等</li>
+    <li><strong>段落標籤</strong>: P, DIV</li>
+    <li><strong>列表標籤</strong>: UL, OL, LI</li>
+    <li><strong>格式標籤</strong>: STRONG, EM</li>
+</ul>
+
+<h2>測試結論</h2>
+<p>如果您能看到完整的 HTML 格式內容，表示 HTML 轉 PDF 功能運作正常。</p>
+
+<p><em>生成時間: ${new Date().toLocaleString()}</em></p>`;
+
+                const pdfBlob = await DocumentConverter.createHtmlToPdf(htmlContent, 'HTML轉PDF測試報告');
+                
+                addResult(containerId, `✅ HTML 轉 PDF 成功！大小: ${(pdfBlob.size / 1024).toFixed(1)} KB`, 'success');
+                addResult(containerId, 'ℹ️ 注意：此為 HTML 格式檔案，可用瀏覽器開啟後列印為 PDF', 'info');
+                
+                const downloadDiv = document.createElement('div');
+                downloadDiv.innerHTML = `
+                    <a href="#" class="download-btn" onclick="safeDownload(window.htmlPdfBlob, 'html-to-pdf-test.html'); return false;">
+                        🌐 下載 HTML 檔案 (可列印為 PDF)
+                    </a>
+                `;
+                document.getElementById(containerId).appendChild(downloadDiv);
+                window.htmlPdfBlob = pdfBlob;
+                
+                completedTests++;
+                updateProgress();
+                
+            } catch (error) {
+                addResult(containerId, `❌ HTML 轉 PDF 失敗: ${error.message}`, 'error');
+            }
+        }
+
+        async function runComprehensiveTest() {
+            const containerId = 'comprehensive-results';
+            document.getElementById(containerId).innerHTML = '';
+            
+            try {
+                await waitForConverter();
+                
+                addResult(containerId, '🔄 執行綜合 PDF 測試...', 'info');
+                
+                const tests = [
+                    {
+                        name: '簡短文字',
+                        content: '這是一個簡短的 PDF 測試。',
+                        title: '簡短測試'
+                    },
+                    {
+                        name: '中等長度文字',
+                        content: `中等長度文字測試
+
+這是一個中等長度的 PDF 測試文件。
+
+內容包括：
+• 多段落文字
+• 中文字符測試
+• English character test
+• 數字測試：123456789
+
+測試時間：${new Date().toLocaleString()}`,
+                        title: '中等測試'
+                    },
+                    {
+                        name: '長篇文字',
+                        content: Array(50).fill('這是長篇文字測試的段落內容。').join(' '),
+                        title: '長篇測試'
+                    }
+                ];
+                
+                const results = [];
+                
+                for (let i = 0; i < tests.length; i++) {
+                    const test = tests[i];
+                    try {
+                        addResult(containerId, `🔄 測試 ${i + 1}: ${test.name}`, 'info');
+                        
+                        const blob = await DocumentConverter.convertToPdf(test.content, test.title);
+                        
+                        if (blob.size > 100) {
+                            addResult(containerId, `✅ ${test.name} 成功 (${(blob.size / 1024).toFixed(1)} KB)`, 'success');
+                            results.push({ ...test, blob, index: i });
+                        } else {
+                            addResult(containerId, `❌ ${test.name} 失敗 - 檔案過小`, 'error');
+                        }
+                        
+                    } catch (testError) {
+                        addResult(containerId, `❌ ${test.name} 失敗: ${testError.message}`, 'error');
+                    }
+                }
+                
+                if (results.length > 0) {
+                    addResult(containerId, `✅ 綜合測試完成！成功生成 ${results.length} 個 PDF 檔案`, 'success');
+                    
+                    const downloadDiv = document.createElement('div');
+                    downloadDiv.innerHTML = `
+                        <strong>🎉 綜合測試結果</strong><br>
+                        成功測試: ${results.length} / ${tests.length}<br><br>
+                        ${results.map(result => 
+                            `<a href="#" class="download-btn" onclick="safeDownload(window.comprehensivePdfBlobs[${result.index}], '${result.name.replace(/\s+/g, '-')}-test.pdf'); return false;">
+                                📄 ${result.name}
+                            </a>`
+                        ).join('')}
+                    `;
+                    document.getElementById(containerId).appendChild(downloadDiv);
+                    window.comprehensivePdfBlobs = results.map(r => r.blob);
+                }
+                
+                completedTests++;
+                updateProgress();
+                
+            } catch (error) {
+                addResult(containerId, `❌ 綜合測試失敗: ${error.message}`, 'error');
+            }
+        }
+
+        // 全域函數註冊
+        window.runSystemCheck = runSystemCheck;
+        window.testDirectPDF = testDirectPDF;
+        window.testDocumentConverter = testDocumentConverter;
+        window.testTextToPDF = testTextToPDF;
+        window.testHTMLToPDF = testHTMLToPDF;
+        window.runComprehensiveTest = runComprehensiveTest;
+
+        // 頁面載入完成後自動執行系統檢查
+        window.addEventListener('load', () => {
+            setTimeout(runSystemCheck, 1000);
+        });
+    </script>
+</body>
+</html>

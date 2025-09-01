@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>真實檔案格式轉換測試</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 1200px; margin: 0 auto; }
+        .test-panel { background: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 8px; border: 1px solid #dee2e6; }
+        .test-btn { background: #007bff; color: white; border: none; padding: 12px 24px; margin: 5px; cursor: pointer; border-radius: 5px; font-size: 14px; }
+        .test-btn:hover { background: #0056b3; }
+        .test-btn:disabled { background: #6c757d; cursor: not-allowed; }
+        .success { color: #28a745; font-weight: bold; }
+        .error { color: #dc3545; font-weight: bold; }
+        .warning { color: #ffc107; font-weight: bold; }
+        .info { color: #17a2b8; }
+        .results { margin: 15px 0; padding: 15px; background: white; border-radius: 5px; border: 1px solid #ddd; }
+        .download-link { display: inline-block; padding: 8px 16px; background: #28a745; color: white; text-decoration: none; border-radius: 4px; margin: 5px 0; }
+        .download-link:hover { background: #218838; color: white; }
+        .file-info { background: #e9ecef; padding: 10px; border-radius: 4px; margin: 10px 0; font-family: monospace; font-size: 12px; }
+        .library-status { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 20px 0; }
+        .lib-card { background: white; border: 1px solid #ddd; border-radius: 5px; padding: 10px; text-align: center; }
+        .lib-loaded { border-color: #28a745; background-color: #d4edda; }
+        .lib-failed { border-color: #dc3545; background-color: #f8d7da; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 4px; font-size: 11px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔍 真實檔案格式轉換驗證</h1>
+    <p>這個測試頁面專門用來驗證轉換後的檔案是否能被真實的應用程式開啟。</p>
+    
+    <div class="test-panel">
+        <h2>📚 函式庫載入狀態</h2>
+        <button class="test-btn" onclick="checkLibraries()">檢查函式庫狀態</button>
+        <button class="test-btn" onclick="preloadLibraries()">預載入重要函式庫</button>
+        
+        <div id="libraryStatus" class="library-status"></div>
+    </div>
+
+    <div class="test-panel">
+        <h2>📄 DOCX 轉換測試</h2>
+        <p>測試產生真正可以被 Microsoft Word 或 LibreOffice 開啟的 DOCX 檔案</p>
+        
+        <button class="test-btn" onclick="testDocxGeneration()">生成測試 DOCX 檔案</button>
+        <button class="test-btn" onclick="testAdvancedDocx()">生成進階 DOCX 檔案</button>
+        
+        <div id="docxResults" class="results"></div>
+    </div>
+
+    <div class="test-panel">
+        <h2>📊 XLSX 轉換測試</h2>
+        <p>測試產生真正可以被 Microsoft Excel 或 LibreOffice Calc 開啟的 XLSX 檔案</p>
+        
+        <button class="test-btn" onclick="testXlsxGeneration()">生成測試 XLSX 檔案</button>
+        <button class="test-btn" onclick="testComplexXlsx()">生成複雜 XLSX 檔案</button>
+        
+        <div id="xlsxResults" class="results"></div>
+    </div>
+
+    <div class="test-panel">
+        <h2>📋 PDF 轉換測試</h2>
+        <p>測試產生真正可以被 PDF 閱讀器開啟的 PDF 檔案</p>
+        
+        <button class="test-btn" onclick="testPdfGeneration()">生成測試 PDF 檔案</button>
+        <button class="test-btn" onclick="testMultiPagePdf()">生成多頁 PDF 檔案</button>
+        
+        <div id="pdfResults" class="results"></div>
+    </div>
+
+    <!-- Load all necessary scripts -->
+    <script src="assets/js/lib-loader.js"></script>
+    <script src="assets/js/converters/image.js"></script>
+    <script src="assets/js/converters/document.js"></script>
+    <script src="assets/js/converters/spreadsheet.js"></script>
+    <script src="assets/js/converters/presentation.js"></script>
+    <script src="assets/js/app.js"></script>
+    <script src="assets/js/auto-loader.js"></script>
+
+    <script>
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'success' ? 'success' : type === 'error' ? 'error' : type === 'warning' ? 'warning' : 'info';
+            return `<div class="${className}">[${timestamp}] ${message}</div>`;
+        }
+
+        function createDownloadLink(blob, filename, description) {
+            const url = URL.createObjectURL(blob);
+            return `<a href="${url}" download="${filename}" class="download-link">📥 下載 ${description} (${formatBytes(blob.size)})</a>`;
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function checkLibraries() {
+            const statusDiv = document.getElementById('libraryStatus');
+            
+            if (!window.libLoader) {
+                statusDiv.innerHTML = '<div class="error">LibraryLoader 不可用</div>';
+                return;
+            }
+
+            const status = window.libLoader.getLibraryStatus();
+            let html = '';
+            
+            Object.entries(status).forEach(([name, info]) => {
+                const cardClass = info.loaded ? 'lib-card lib-loaded' : 'lib-card lib-failed';
+                const icon = info.loaded ? '✅' : '❌';
+                html += `
+                    <div class="${cardClass}">
+                        <div>${icon} <strong>${name}</strong></div>
+                        <div style="font-size: 12px; margin-top: 5px;">${info.description}</div>
+                        <div style="font-size: 11px; color: #666;">${info.loaded ? '已載入' : '未載入'}</div>
+                    </div>
+                `;
+            });
+            
+            statusDiv.innerHTML = html;
+        }
+
+        async function preloadLibraries() {
+            const criticalLibs = ['jszip', 'jspdf', 'sheetjs'];
+            const statusDiv = document.getElementById('libraryStatus');
+            
+            statusDiv.innerHTML = '<div class="info">正在載入函式庫...</div>';
+            
+            for (const libName of criticalLibs) {
+                try {
+                    await window.libLoader.loadLibrary(libName);
+                    console.log(`✅ ${libName} 載入成功`);
+                } catch (error) {
+                    console.error(`❌ ${libName} 載入失敗:`, error);
+                }
+            }
+            
+            checkLibraries();
+        }
+
+        async function testDocxGeneration() {
+            const resultsDiv = document.getElementById('docxResults');
+            let output = '<h4>DOCX 格式測試</h4>';
+            
+            try {
+                output += log('開始生成真實 DOCX 檔案...', 'info');
+                
+                const testContent = {
+                    title: 'DOCX 格式測試文件',
+                    content: `這是一個測試 DOCX 檔案的生成功能。
+
+本檔案包含以下內容：
+• 中文字符支援測試
+• 段落格式測試  
+• 特殊符號測試：©®™€£¥
+
+如果您能在 Microsoft Word 或 LibreOffice Writer 中正常開啟並看到這些內容，
+表示 DOCX 轉換功能運作正常。
+
+測試數據：
+數字：123456789
+英文：The quick brown fox jumps over the lazy dog
+日期：${new Date().toLocaleDateString()}
+
+這個檔案是由網頁版檔案轉換器自動生成的真實 DOCX 檔案。`,
+                    originalHtml: null
+                };
+                
+                const docxBlob = await DocumentConverter.convertToFormat(testContent, 'docx');
+                
+                if (docxBlob && docxBlob.size > 0) {
+                    output += log(`✅ DOCX 檔案生成成功！檔案大小：${formatBytes(docxBlob.size)}`, 'success');
+                    
+                    // File signature check
+                    const arrayBuffer = await docxBlob.slice(0, 4).arrayBuffer();
+                    const signature = new Uint8Array(arrayBuffer);
+                    const signatureHex = Array.from(signature).map(b => b.toString(16).padStart(2, '0')).join('');
+                    
+                    if (signatureHex === '504b0304') {
+                        output += log('✅ 檔案簽名驗證通過：這是一個真正的 ZIP/DOCX 檔案', 'success');
+                    } else {
+                        output += log(`⚠️ 檔案簽名異常：${signatureHex} (應該是 504b0304)`, 'warning');
+                    }
+                    
+                    output += createDownloadLink(docxBlob, 'test-document.docx', 'DOCX 測試檔案');
+                    output += '<div class="info">💡 請下載後用 Microsoft Word 或 LibreOffice Writer 開啟驗證</div>';
+                } else {
+                    output += log('❌ DOCX 檔案生成失敗：檔案為空', 'error');
+                }
+                
+            } catch (error) {
+                output += log(`❌ DOCX 生成錯誤：${error.message}`, 'error');
+                console.error('DOCX 測試錯誤:', error);
+            }
+            
+            resultsDiv.innerHTML = output;
+        }
+
+        async function testAdvancedDocx() {
+            const resultsDiv = document.getElementById('docxResults');
+            let output = '<h4>進階 DOCX 格式測試</h4>';
+            
+            try {
+                const advancedContent = {
+                    title: '進階 DOCX 功能測試',
+                    content: `這是進階 DOCX 測試文件，包含更複雜的內容結構。
+
+第一段：基本文字內容
+包含換行和段落分隔。
+
+第二段：特殊字符測試
+中文：你好世界！
+英文：Hello World!
+數字：1234567890
+符號：!@#$%^&*()_+-=[]{}|;:'",./<>?
+歐元：€ 英鎊：£ 日元：¥
+版權：© 註冊商標：® 商標：™
+
+第三段：長文字測試
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+
+第四段：多行內容
+行一：這是第一行
+行二：這是第二行  
+行三：這是第三行
+行四：這是最後一行
+
+檔案資訊：
+生成時間：${new Date().toLocaleString()}
+生成工具：檔案格式轉換器 v2.0
+檔案類型：Microsoft Word Document (.docx)`,
+                    originalHtml: null
+                };
+                
+                const docxBlob = await DocumentConverter.convertToFormat(advancedContent, 'docx');
+                
+                if (docxBlob && docxBlob.size > 0) {
+                    output += log(`✅ 進階 DOCX 檔案生成成功！檔案大小：${formatBytes(docxBlob.size)}`, 'success');
+                    output += createDownloadLink(docxBlob, 'advanced-test.docx', '進階 DOCX 測試檔案');
+                } else {
+                    output += log('❌ 進階 DOCX 檔案生成失敗', 'error');
+                }
+                
+            } catch (error) {
+                output += log(`❌ 進階 DOCX 生成錯誤：${error.message}`, 'error');
+            }
+            
+            resultsDiv.innerHTML = output;
+        }
+
+        async function testXlsxGeneration() {
+            const resultsDiv = document.getElementById('xlsxResults');
+            let output = '<h4>XLSX 格式測試</h4>';
+            
+            try {
+                output += log('開始生成真實 XLSX 檔案...', 'info');
+                
+                const testData = {
+                    data: [
+                        ['姓名', '年齡', '城市', '職業', '薪資'],
+                        ['張三', 28, '台北', '軟體工程師', 80000],
+                        ['李四', 32, '台中', '設計師', 65000],
+                        ['王五', 29, '高雄', '行銷專員', 55000],
+                        ['趙六', 35, '新竹', '產品經理', 95000],
+                        ['錢七', 26, '台南', '數據分析師', 70000],
+                        ['孫八', 31, '桃園', '專案經理', 85000],
+                        ['', '', '', '', ''],
+                        ['統計資料', '', '', '', ''],
+                        ['平均年齡', '=AVERAGE(B2:B7)', '', '', ''],
+                        ['最高薪資', '=MAX(E2:E7)', '', '', ''],
+                        ['最低薪資', '=MIN(E2:E7)', '', '', '']
+                    ],
+                    sheets: [{ name: 'Sheet1', data: [] }],
+                    fileName: 'test-data',
+                    rowCount: 12,
+                    columnCount: 5
+                };
+                
+                const xlsxBlob = await SpreadsheetConverter.convertToFormat(testData, 'xlsx');
+                
+                if (xlsxBlob && xlsxBlob.size > 0) {
+                    output += log(`✅ XLSX 檔案生成成功！檔案大小：${formatBytes(xlsxBlob.size)}`, 'success');
+                    
+                    // File signature check
+                    const arrayBuffer = await xlsxBlob.slice(0, 4).arrayBuffer();
+                    const signature = new Uint8Array(arrayBuffer);
+                    const signatureHex = Array.from(signature).map(b => b.toString(16).padStart(2, '0')).join('');
+                    
+                    if (signatureHex === '504b0304') {
+                        output += log('✅ 檔案簽名驗證通過：這是一個真正的 ZIP/XLSX 檔案', 'success');
+                    } else {
+                        output += log(`⚠️ 檔案簽名異常：${signatureHex} (應該是 504b0304)`, 'warning');
+                    }
+                    
+                    output += createDownloadLink(xlsxBlob, 'test-spreadsheet.xlsx', 'XLSX 測試檔案');
+                    output += '<div class="info">💡 請下載後用 Microsoft Excel 或 LibreOffice Calc 開啟驗證</div>';
+                } else {
+                    output += log('❌ XLSX 檔案生成失敗：檔案為空', 'error');
+                }
+                
+            } catch (error) {
+                output += log(`❌ XLSX 生成錯誤：${error.message}`, 'error');
+                console.error('XLSX 測試錯誤:', error);
+            }
+            
+            resultsDiv.innerHTML = output;
+        }
+
+        async function testComplexXlsx() {
+            const resultsDiv = document.getElementById('xlsxResults');
+            let output = '<h4>複雜 XLSX 格式測試</h4>';
+            
+            try {
+                // Create more complex data with different data types
+                const complexData = {
+                    data: [
+                        ['項目', '數量', '單價', '金額', '日期', '是否完成'],
+                        ['筆記本電腦', 5, 25000, '=B2*C2', '2024/8/31', 'TRUE'],
+                        ['滑鼠', 10, 800, '=B3*C3', '2024/8/30', 'TRUE'],
+                        ['鍵盤', 8, 1500, '=B4*C4', '2024/8/29', 'FALSE'],
+                        ['螢幕', 3, 12000, '=B5*C5', '2024/8/28', 'TRUE'],
+                        ['印表機', 2, 8000, '=B6*C6', '2024/8/27', 'FALSE'],
+                        ['', '', '', '', '', ''],
+                        ['總計', '=SUM(B2:B6)', '', '=SUM(D2:D6)', '', ''],
+                        ['平均單價', '', '=AVERAGE(C2:C6)', '', '', ''],
+                        ['', '', '', '', '', ''],
+                        ['統計報表', '', '', '', '', ''],
+                        ['生成時間', new Date().toLocaleDateString(), '', '', '', ''],
+                        ['總項目數', 5, '', '', '', '']
+                    ],
+                    sheets: [{ name: 'Sheet1', data: [] }],
+                    fileName: 'complex-data',
+                    rowCount: 13,
+                    columnCount: 6
+                };
+                
+                const xlsxBlob = await SpreadsheetConverter.convertToFormat(complexData, 'xlsx');
+                
+                if (xlsxBlob && xlsxBlob.size > 0) {
+                    output += log(`✅ 複雜 XLSX 檔案生成成功！檔案大小：${formatBytes(xlsxBlob.size)}`, 'success');
+                    output += createDownloadLink(xlsxBlob, 'complex-spreadsheet.xlsx', '複雜 XLSX 測試檔案');
+                } else {
+                    output += log('❌ 複雜 XLSX 檔案生成失敗', 'error');
+                }
+                
+            } catch (error) {
+                output += log(`❌ 複雜 XLSX 生成錯誤：${error.message}`, 'error');
+            }
+            
+            resultsDiv.innerHTML = output;
+        }
+
+        async function testPdfGeneration() {
+            const resultsDiv = document.getElementById('pdfResults');
+            let output = '<h4>PDF 格式測試</h4>';
+            
+            try {
+                output += log('開始生成真實 PDF 檔案...', 'info');
+                
+                const testContent = {
+                    title: 'PDF 格式測試文件',
+                    content: `這是一個測試 PDF 檔案的生成功能。
+
+本檔案用於驗證以下功能：
+• PDF 格式的正確性
+• 中文字符的支援
+• 特殊符號的顯示
+• 多行內容的處理
+
+技術資訊：
+檔案格式：PDF (Portable Document Format)
+生成工具：jsPDF
+生成時間：${new Date().toLocaleString()}
+檔案編碼：UTF-8
+
+內容測試：
+數字：0123456789
+英文：ABCDEFGHIJKLMNOPQRSTUVWXYZ
+小寫：abcdefghijklmnopqrstuvwxyz
+特殊符號：!@#$%^&*()_+-=[]{}|;:'",./<>?
+
+如果您能在 PDF 閱讀器中正常開啟並看到以上所有內容，
+表示 PDF 轉換功能運作正常。
+
+這是由網頁版檔案轉換器生成的真實 PDF 檔案。`,
+                    originalHtml: null
+                };
+                
+                const pdfBlob = await DocumentConverter.convertToFormat(testContent, 'pdf');
+                
+                if (pdfBlob && pdfBlob.size > 0) {
+                    output += log(`✅ PDF 檔案生成成功！檔案大小：${formatBytes(pdfBlob.size)}`, 'success');
+                    
+                    // PDF signature check
+                    const arrayBuffer = await pdfBlob.slice(0, 8).arrayBuffer();
+                    const signature = new Uint8Array(arrayBuffer);
+                    const signatureString = new TextDecoder().decode(signature);
+                    
+                    if (signatureString.startsWith('%PDF-')) {
+                        output += log('✅ PDF 檔案簽名驗證通過：這是一個真正的 PDF 檔案', 'success');
+                    } else {
+                        output += log(`⚠️ PDF 檔案簽名異常：${signatureString} (應該以 %PDF- 開頭)`, 'warning');
+                    }
+                    
+                    output += createDownloadLink(pdfBlob, 'test-document.pdf', 'PDF 測試檔案');
+                    output += '<div class="info">💡 請下載後用 PDF 閱讀器開啟驗證</div>';
+                } else {
+                    output += log('❌ PDF 檔案生成失敗：檔案為空', 'error');
+                }
+                
+            } catch (error) {
+                output += log(`❌ PDF 生成錯誤：${error.message}`, 'error');
+                console.error('PDF 測試錯誤:', error);
+            }
+            
+            resultsDiv.innerHTML = output;
+        }
+
+        async function testMultiPagePdf() {
+            const resultsDiv = document.getElementById('pdfResults');
+            let output = '<h4>多頁 PDF 測試</h4>';
+            
+            try {
+                const multiPageContent = {
+                    title: '多頁 PDF 測試文件',
+                    content: `第一頁內容
+
+這是一個多頁 PDF 檔案的測試。本檔案包含多個段落，
+用於測試 PDF 的分頁功能。
+
+第一段：簡介
+這個檔案是為了測試 PDF 生成器在處理長內容時的分頁能力。
+
+第二段：內容測試
+Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+
+Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+
+第三段：中文內容測試
+床前明月光，疑是地上霜。舉頭望明月，低頭思故鄉。
+春眠不覺曉，處處聞啼鳥。夜來風雨聲，花落知多少。
+白日依山盡，黃河入海流。欲窮千里目，更上一層樓。
+
+第四段：技術資訊
+檔案格式：PDF
+生成工具：jsPDF
+頁面大小：A4
+字體：Helvetica
+編碼：UTF-8
+
+第五段：更多測試內容
+這裡放置更多內容以確保PDF能正確分頁。每一段都是為了測試不同的功能和確保內容能夠正確顯示在多個頁面上。
+
+第六段：數據測試
+項目一：測試資料 A
+項目二：測試資料 B  
+項目三：測試資料 C
+項目四：測試資料 D
+項目五：測試資料 E
+
+第七段：結論
+如果您能看到多個頁面並且內容顯示正常，
+表示多頁 PDF 生成功能運作正常。
+
+生成時間：${new Date().toLocaleString()}
+檔案版本：2.0`,
+                    originalHtml: null
+                };
+                
+                const pdfBlob = await DocumentConverter.convertToFormat(multiPageContent, 'pdf');
+                
+                if (pdfBlob && pdfBlob.size > 0) {
+                    output += log(`✅ 多頁 PDF 檔案生成成功！檔案大小：${formatBytes(pdfBlob.size)}`, 'success');
+                    output += createDownloadLink(pdfBlob, 'multipage-test.pdf', '多頁 PDF 測試檔案');
+                } else {
+                    output += log('❌ 多頁 PDF 檔案生成失敗', 'error');
+                }
+                
+            } catch (error) {
+                output += log(`❌ 多頁 PDF 生成錯誤：${error.message}`, 'error');
+            }
+            
+            resultsDiv.innerHTML = output;
+        }
+
+        // Auto-initialize
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                checkLibraries();
+            }, 2000);
+        });
+    </script>
+</body>
+</html>
