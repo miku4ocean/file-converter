@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>簡報轉換測試 (無緩存版本)</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .upload-area { border: 2px dashed #007bff; padding: 40px; text-align: center; border-radius: 8px; margin: 20px 0; }
+        .upload-area.drag-over { background: #e3f2fd; border-color: #1976d2; }
+        .file-input { margin: 20px 0; }
+        .format-select { margin: 20px 0; }
+        .btn { padding: 15px 25px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 5px; font-size: 16px; }
+        .btn:hover { background: #0056b3; }
+        .btn.success { background: #28a745; }
+        .btn.success:hover { background: #218838; }
+        .result { margin: 10px 0; padding: 15px; border-radius: 5px; border-left: 4px solid #ddd; }
+        .success { background: #d4edda; color: #155724; border-left-color: #28a745; }
+        .error { background: #f8d7da; color: #721c24; border-left-color: #dc3545; }
+        .info { background: #d1ecf1; color: #0c5460; border-left-color: #17a2b8; }
+        .warning { background: #fff3cd; color: #856404; border-left-color: #ffc107; }
+        select, input[type="file"] { padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; }
+        .download-link { background: #28a745; color: white; text-decoration: none; padding: 10px 20px; border-radius: 5px; display: inline-block; margin: 10px 5px 0 0; }
+        .download-link:hover { background: #218838; text-decoration: none; color: white; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 簡報轉換測試 (無緩存版本)</h1>
+        <p>此版本強制重新載入所有 JavaScript 檔案，確保使用最新版本</p>
+        
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-content">
+                <h3>拖拽檔案到此處或點擊選擇</h3>
+                <p>支援 PPTX、PPT、PDF 格式</p>
+                <input type="file" id="presentationFile" accept=".pptx,.ppt,.pdf" style="display: none;">
+                <button class="btn" onclick="document.getElementById('presentationFile').click()">選擇檔案</button>
+            </div>
+        </div>
+        
+        <div class="format-select">
+            <label for="outputFormat"><strong>輸出格式：</strong></label>
+            <select id="outputFormat">
+                <option value="pdf">PDF 文件</option>
+                <option value="html">HTML 網頁</option>
+                <option value="txt">純文字</option>
+            </select>
+        </div>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <button class="btn" onclick="testPresentationConversion()">🚀 開始轉換</button>
+            <button class="btn success" onclick="testWithSampleData()">📝 使用範例資料測試</button>
+            <button class="btn" onclick="clearResults()" style="background: #6c757d;">🧹 清除結果</button>
+        </div>
+        
+        <div id="results"></div>
+    </div>
+    
+    <!-- 強制重新載入 JavaScript，避免緩存問題 -->
+    <script>
+        // 添加時間戳避免緩存
+        const timestamp = new Date().getTime();
+        const script = document.createElement('script');
+        script.src = `assets/js/converters/presentation.js?v=${timestamp}`;
+        script.onload = function() {
+            console.log('✅ PresentationConverter 已載入 (版本:', timestamp, ')');
+            
+            // 檢查方法是否存在
+            if (typeof PresentationConverter !== 'undefined') {
+                console.log('✅ PresentationConverter 類別可用');
+                
+                const methods = ['convertToPdf', 'convertToHtml', 'convertToText'];
+                methods.forEach(method => {
+                    if (typeof PresentationConverter[method] === 'function') {
+                        console.log(`✅ ${method} 方法存在`);
+                    } else {
+                        console.error(`❌ ${method} 方法不存在`);
+                    }
+                });
+            } else {
+                console.error('❌ PresentationConverter 類別未載入');
+            }
+        };
+        script.onerror = function() {
+            console.error('❌ 無法載入 PresentationConverter');
+        };
+        document.head.appendChild(script);
+    </script>
+    
+    <script>
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong> - ${message}`;
+            document.getElementById('results').appendChild(div);
+            
+            // 自動滾動到結果區域
+            div.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        // 拖拽上傳功能
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('presentationFile');
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('drag-over');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('drag-over');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('drag-over');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                log(`📁 已選擇檔案: ${files[0].name}`, 'info');
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                log(`📁 已選擇檔案: ${e.target.files[0].name}`, 'info');
+            }
+        });
+
+        async function testPresentationConversion() {
+            clearResults();
+            log('🔄 開始簡報轉換測試...', 'info');
+            
+            const fileInput = document.getElementById('presentationFile');
+            const outputFormat = document.getElementById('outputFormat').value;
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                log('❌ 請先選擇簡報檔案', 'error');
+                return;
+            }
+            
+            try {
+                log(`📁 檔案: ${file.name} (${(file.size/1024/1024).toFixed(2)}MB)`, 'info');
+                log(`🔧 輸出格式: ${outputFormat.toUpperCase()}`, 'info');
+                
+                // 檢查 PresentationConverter 是否載入
+                if (typeof PresentationConverter === 'undefined') {
+                    log('❌ PresentationConverter 未載入，請重新整理頁面', 'error');
+                    return;
+                }
+                log('✅ PresentationConverter 載入成功', 'success');
+                
+                // 驗證檔案格式
+                const isValid = PresentationConverter.isValidPresentationFile(file);
+                if (!isValid) {
+                    log('❌ 不支援的檔案格式', 'error');
+                    return;
+                }
+                log('✅ 檔案格式驗證通過', 'success');
+                
+                // 提取簡報內容
+                log('🔍 正在提取簡報內容...', 'info');
+                const content = await PresentationConverter.extractPresentationContent(file);
+                log(`✅ 內容提取成功: ${content.totalSlides || 1} 張投影片`, 'success');
+                
+                // 根據選擇的格式轉換
+                log(`🔄 正在轉換為 ${outputFormat.toUpperCase()} 格式...`, 'info');
+                let outputBlob;
+                let filename;
+                
+                const title = file.name.replace(/\.[^/.]+$/, '');
+                
+                switch (outputFormat) {
+                    case 'pdf':
+                        log('📄 使用 HTML-Canvas 方法生成 PDF...', 'info');
+                        outputBlob = await PresentationConverter.convertToPdf(content, title);
+                        filename = `${title}_簡報.pdf`;
+                        break;
+                    case 'html':
+                        log('🌐 生成 HTML 格式...', 'info');
+                        outputBlob = PresentationConverter.convertToHtml(content, title);
+                        filename = `${title}_簡報.html`;
+                        break;
+                    case 'txt':
+                        log('📝 生成純文字格式...', 'info');
+                        outputBlob = PresentationConverter.convertToText(content, title);
+                        filename = `${title}_簡報.txt`;
+                        break;
+                    default:
+                        throw new Error('不支援的輸出格式');
+                }
+                
+                if (outputBlob && outputBlob.size > 0) {
+                    log(`✅ ${outputFormat.toUpperCase()} 轉換成功！檔案大小: ${(outputBlob.size/1024).toFixed(1)} KB`, 'success');
+                    
+                    // 自動下載
+                    const url = URL.createObjectURL(outputBlob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                    log(`📥 ${filename} 已自動下載`, 'success');
+                    
+                    // 添加下載連結
+                    const results = document.getElementById('results');
+                    const linkDiv = document.createElement('div');
+                    linkDiv.innerHTML = `
+                        <a href="${url}" class="download-link" download="${filename}">
+                            📄 再次下載 ${filename}
+                        </a>
+                    `;
+                    results.appendChild(linkDiv);
+                } else {
+                    log('❌ 轉換失敗：產生空檔案', 'error');
+                }
+                
+            } catch (error) {
+                log(`❌ 轉換錯誤: ${error.message}`, 'error');
+                console.error('詳細錯誤:', error);
+                
+                // 提供詳細的錯誤診斷
+                if (error.message.includes('convertToFormat')) {
+                    log('⚠️ 這是舊版本的錯誤，請強制重新整理頁面 (Ctrl+F5 或 Cmd+Shift+R)', 'warning');
+                }
+            }
+        }
+
+        async function testWithSampleData() {
+            clearResults();
+            log('🔄 開始範例資料測試...', 'info');
+            
+            const outputFormat = document.getElementById('outputFormat').value;
+            
+            try {
+                // 建立範例簡報資料
+                const sampleContent = {
+                    title: '範例簡報測試',
+                    slides: [
+                        {
+                            slideNumber: 1,
+                            title: '歡迎投影片',
+                            content: [
+                                '歡迎使用簡報轉換器',
+                                '這是第一張投影片',
+                                '測試中文字符顯示',
+                                '• 項目符號測試',
+                                '• 格式化文字測試',
+                                '• 多行內容測試'
+                            ],
+                            notes: '這是第一張投影片的備註'
+                        },
+                        {
+                            slideNumber: 2,
+                            title: '功能介紹',
+                            content: [
+                                '支援的功能：',
+                                '1. PowerPoint 檔案解析',
+                                '2. PDF 格式輸出',
+                                '3. HTML 格式輸出',
+                                '4. 純文字格式輸出',
+                                '',
+                                '特色：',
+                                '✨ 保持中文字符',
+                                '📊 專業排版',
+                                '🔧 多格式支援'
+                            ],
+                            notes: '功能介紹投影片'
+                        }
+                    ],
+                    totalSlides: 2,
+                    metadata: {
+                        fileType: 'sample',
+                        extractedAt: new Date().toISOString(),
+                        isValid: true
+                    }
+                };
+                
+                log('✅ 範例資料建立成功', 'success');
+                log(`📊 包含 ${sampleContent.totalSlides} 張投影片`, 'info');
+                
+                // 轉換
+                log(`🔄 正在轉換為 ${outputFormat.toUpperCase()} 格式...`, 'info');
+                let outputBlob;
+                let filename;
+                
+                const title = '範例簡報測試';
+                
+                switch (outputFormat) {
+                    case 'pdf':
+                        outputBlob = await PresentationConverter.convertToPdf(sampleContent, title);
+                        filename = `${title}.pdf`;
+                        break;
+                    case 'html':
+                        outputBlob = PresentationConverter.convertToHtml(sampleContent, title);
+                        filename = `${title}.html`;
+                        break;
+                    case 'txt':
+                        outputBlob = PresentationConverter.convertToText(sampleContent, title);
+                        filename = `${title}.txt`;
+                        break;
+                }
+                
+                if (outputBlob && outputBlob.size > 0) {
+                    log(`✅ 範例 ${outputFormat.toUpperCase()} 轉換成功！檔案大小: ${(outputBlob.size/1024).toFixed(1)} KB`, 'success');
+                    
+                    // 自動下載
+                    const url = URL.createObjectURL(outputBlob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                    log(`📥 ${filename} 已自動下載`, 'success');
+                } else {
+                    log('❌ 範例轉換失敗：產生空檔案', 'error');
+                }
+                
+            } catch (error) {
+                log(`❌ 範例轉換錯誤: ${error.message}`, 'error');
+                console.error('詳細錯誤:', error);
+            }
+        }
+
+        // 頁面載入完成後顯示狀態
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                log('🚀 無緩存版本頁面載入完成', 'success');
+                log('📝 此版本會強制載入最新的 JavaScript 檔案', 'info');
+                
+                if (typeof PresentationConverter !== 'undefined') {
+                    log('✅ PresentationConverter 載入成功', 'success');
+                } else {
+                    log('⏳ PresentationConverter 載入中...', 'warning');
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
