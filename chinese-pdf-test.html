@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>中文PDF真正修復測試</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .btn { padding: 15px 30px; font-size: 16px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 10px; }
+        .btn:hover { background: #218838; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <h1>🇨🇳 中文PDF真正修復測試</h1>
+    <p>測試保持中文內容的PDF生成（不轉換為英文）</p>
+    
+    <button class="btn" onclick="testChinesePDF()">生成中文PDF</button>
+    
+    <div id="results"></div>
+
+    <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+    <script>
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = `
+                <strong>${new Date().toLocaleTimeString()}</strong> - ${message}
+            `;
+            document.getElementById('results').appendChild(div);
+        }
+
+        async function loadChineseFont() {
+            try {
+                log('🔽 正在載入中文字體...');
+                
+                // 使用 Google Fonts 的 Noto Sans SC（簡體中文）
+                const response = await fetch('https://fonts.gstatic.com/s/notosanssc/v36/k3kCo84MPvpLmixcA63oeAL7Iqp5JJXA2i9Gtlx9p7jzTSaESaJHsLmhulEKC6_Z2yQ.woff2');
+                
+                if (!response.ok) {
+                    throw new Error('字體載入失敗');
+                }
+                
+                const fontData = await response.arrayBuffer();
+                const fontBase64 = btoa(String.fromCharCode(...new Uint8Array(fontData)));
+                
+                log('✅ 中文字體載入成功');
+                return fontBase64;
+                
+            } catch (error) {
+                log('❌ 字體載入失敗，將使用替代方案: ' + error.message, 'error');
+                return null;
+            }
+        }
+
+        async function testChinesePDF() {
+            log('🔄 開始中文PDF測試...');
+            
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                // 中文測試內容（保持原樣）
+                const chineseTitle = '最終驗證測試文件';
+                const chineseContent = `這是一個用於驗證 PDF 轉換功能的測試文件。
+
+功能驗證項目：
+• 中文字符支援測試
+• 特殊字符處理：& < > " '
+• 多段落格式驗證
+• 長文本處理能力測試
+
+測試時間：${new Date().toLocaleString()}
+
+這個測試將驗證是否能夠：
+1. 保持中文內容不變
+2. 正確顯示中文字符
+3. 維持文本格式和結構
+4. 生成可讀的中文PDF檔案`;
+
+                log('📝 準備生成中文內容PDF...');
+                log('標題: ' + chineseTitle);
+                
+                // 嘗試載入中文字體
+                const chineseFont = await loadChineseFont();
+                
+                if (chineseFont) {
+                    try {
+                        // 添加中文字體到PDF
+                        doc.addFileToVFS('NotoSansSC.ttf', chineseFont);
+                        doc.addFont('NotoSansSC.ttf', 'NotoSansSC', 'normal');
+                        doc.setFont('NotoSansSC');
+                        log('✅ 使用中文字體: Noto Sans SC', 'success');
+                    } catch (fontError) {
+                        log('⚠️ 字體設定失敗，使用默認字體: ' + fontError.message, 'error');
+                        doc.setFont('helvetica', 'normal');
+                    }
+                } else {
+                    // 使用默認字體並嘗試UTF-8處理
+                    doc.setFont('helvetica', 'normal');
+                    log('⚠️ 使用默認字體（可能無法正確顯示中文）', 'error');
+                }
+                
+                doc.setFontSize(12);
+                
+                let yPosition = 20;
+                const pageHeight = 280;
+                const margin = 20;
+                const lineHeight = 8;
+                const pageWidth = 170;
+                
+                // 添加標題
+                doc.setFontSize(16);
+                doc.setFont('helvetica', 'bold');
+                
+                try {
+                    doc.text(chineseTitle, margin, yPosition);
+                    log('✅ 標題添加成功');
+                } catch (titleError) {
+                    log('⚠️ 標題添加失敗，使用英文替代', 'error');
+                    doc.text('Chinese PDF Test Document', margin, yPosition);
+                }
+                
+                yPosition += 15;
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(12);
+                
+                // 添加內容
+                const paragraphs = chineseContent.split('\n\n');
+                
+                paragraphs.forEach((paragraph, index) => {
+                    if (!paragraph.trim()) return;
+                    
+                    try {
+                        const lines = doc.splitTextToSize(paragraph.trim(), pageWidth);
+                        
+                        lines.forEach(line => {
+                            if (yPosition > pageHeight - margin) {
+                                doc.addPage();
+                                yPosition = margin;
+                            }
+                            
+                            doc.text(line, margin, yPosition);
+                            yPosition += lineHeight;
+                        });
+                        
+                        yPosition += 5;
+                        log(`✅ 段落 ${index + 1} 添加成功`);
+                        
+                    } catch (paragraphError) {
+                        log(`⚠️ 段落 ${index + 1} 添加失敗: ${paragraphError.message}`, 'error');
+                    }
+                });
+                
+                // 頁腳
+                doc.setFontSize(10);
+                doc.setTextColor(100, 100, 100);
+                doc.text('第 1 頁，共 1 頁', margin, pageHeight + 5);
+                doc.text('生成時間: ' + new Date().toLocaleDateString(), pageWidth - 40, pageHeight + 5);
+                
+                // 生成並下載
+                const pdfBlob = doc.output('blob');
+                log('✅ 中文PDF生成成功: ' + pdfBlob.size + ' bytes', 'success');
+                
+                const url = URL.createObjectURL(pdfBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'chinese-pdf-test.pdf';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                log('📥 中文PDF已下載 - 請檢查是否正確顯示中文!', 'success');
+                
+            } catch (error) {
+                log('❌ 錯誤: ' + error.message, 'error');
+                console.error('PDF生成錯誤:', error);
+            }
+        }
+    </script>
+</body>
+</html>
