@@ -260,86 +260,82 @@ class DocumentConverter {
         return blob;
     }
 
-    // Convert to PDF (fixed version with proper ASCII conversion)
+    // Convert to PDF (HTML-Canvas method preserving Chinese characters)
     static async convertToPdf(content, title, options = {}) {
         try {
-            console.log('🔄 開始 PDF 轉換 (修復版)...');
+            console.log('🔄 開始 PDF 轉換 (HTML-Canvas 方法)...');
             
-            // Load jsPDF directly
-            await DocumentConverter.loadJsPDF();
+            // Load required libraries
+            await Promise.all([
+                DocumentConverter.loadJsPDF(),
+                DocumentConverter.loadHTML2Canvas()
+            ]);
             
-            // Get jsPDF constructor
-            let jsPDF;
-            if (typeof window.jsPDF === 'function') {
-                jsPDF = window.jsPDF;
-            } else if (window.jspdf && typeof window.jspdf.jsPDF === 'function') {
-                jsPDF = window.jspdf.jsPDF;
-            } else {
-                throw new Error('jsPDF not available');
-            }
+            console.log('📝 準備 HTML 內容: ' + (title || 'Document'));
             
-            const doc = new jsPDF();
+            // Create HTML content with proper Chinese font styling
+            const htmlContent = `
+                <div style="
+                    width: 210mm; 
+                    padding: 20mm; 
+                    background: white;
+                    font-family: 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans GB', 'SimSun', sans-serif;
+                    font-size: 14px;
+                    line-height: 1.6;
+                    color: #333;
+                    box-sizing: border-box;
+                ">
+                    ${title ? `<div style="font-size: 20px; font-weight: bold; margin-bottom: 20px; color: #2c3e50;">${title}</div>` : ''}
+                    <div style="white-space: pre-wrap;">${content}</div>
+                </div>
+            `;
             
-            // Convert content to ASCII BEFORE processing
-            console.log('🔤 轉換中文文字為英文...');
-            const asciiTitle = DocumentConverter.convertToASCII(title || 'Document');
-            const asciiContent = DocumentConverter.convertToASCII(content);
+            // Create temporary container
+            const tempDiv = document.createElement('div');
+            tempDiv.style.position = 'fixed';
+            tempDiv.style.top = '-9999px';
+            tempDiv.style.left = '-9999px';
+            tempDiv.innerHTML = htmlContent;
+            document.body.appendChild(tempDiv);
             
-            console.log('✅ 轉換完成:', asciiTitle);
+            console.log('🎨 正在將 HTML 轉換為 Canvas...');
             
-            // Generate PDF with ASCII content
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(12);
-            
-            let yPosition = 20;
-            const pageHeight = 280;
-            const margin = 20;
-            const lineHeight = 6;
-            const pageWidth = 170;
-            
-            // Add title
-            if (asciiTitle) {
-                doc.setFontSize(16);
-                doc.setFont('helvetica', 'bold');
-                doc.text(asciiTitle, margin, yPosition);
-                yPosition += 10;
-                doc.setFont('helvetica', 'normal');
-                doc.setFontSize(12);
-            }
-            
-            // Add content
-            const paragraphs = asciiContent.split('\n\n');
-            
-            paragraphs.forEach(paragraph => {
-                if (!paragraph.trim()) return;
-                
-                const lines = doc.splitTextToSize(paragraph.trim(), pageWidth);
-                
-                lines.forEach(line => {
-                    if (yPosition > pageHeight - margin) {
-                        doc.addPage();
-                        yPosition = margin;
-                    }
-                    
-                    doc.text(line, margin, yPosition);
-                    yPosition += lineHeight;
-                });
-                
-                yPosition += 3;
+            // Convert HTML to Canvas using html2canvas
+            const canvas = await html2canvas(tempDiv.firstElementChild, {
+                scale: 2,
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: '#ffffff',
+                width: 794,  // A4 width in pixels at 96 DPI
+                height: 1123 // A4 height in pixels at 96 DPI
             });
             
-            // Add footer
-            doc.setFontSize(10);
-            doc.setTextColor(100, 100, 100);
-            doc.text('Page 1 of 1', margin, pageHeight + 5);
-            doc.text('Generated: ' + new Date().toLocaleDateString(), pageWidth - 40, pageHeight + 5);
+            console.log('✅ Canvas 生成成功: ' + canvas.width + 'x' + canvas.height);
             
-            const pdfBlob = doc.output('blob');
-            console.log('✅ 修復版PDF創建成功:', pdfBlob.size, 'bytes');
+            // Clean up temporary element
+            document.body.removeChild(tempDiv);
+            
+            // Create PDF
+            const { jsPDF } = window.jspdf || window;
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+            });
+            
+            console.log('📄 正在生成 PDF...');
+            
+            // Add canvas as image to PDF
+            const imgData = canvas.toDataURL('image/png');
+            pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
+            
+            const pdfBlob = pdf.output('blob');
+            console.log('✅ 中文 PDF 創建成功:', pdfBlob.size, 'bytes');
+            
             return pdfBlob;
             
         } catch (error) {
-            console.error('PDF 轉換錯誤:', error);
+            console.error('HTML-Canvas PDF 轉換錯誤:', error);
             throw new Error('PDF 轉換失敗: ' + error.message);
         }
     }
@@ -572,6 +568,28 @@ class DocumentConverter {
                 }, 100);
             };
             script.onerror = () => reject(new Error('jsPDF 載入失敗'));
+            document.head.appendChild(script);
+        });
+    }
+
+    // Load html2canvas library
+    static async loadHTML2Canvas() {
+        if (window.html2canvas) return;
+        
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js';
+            script.onload = () => {
+                setTimeout(() => {
+                    if (window.html2canvas) {
+                        console.log('✅ html2canvas 載入成功');
+                        resolve();
+                    } else {
+                        reject(new Error('html2canvas 載入後無法使用'));
+                    }
+                }, 100);
+            };
+            script.onerror = () => reject(new Error('html2canvas 載入失敗'));
             document.head.appendChild(script);
         });
     }
