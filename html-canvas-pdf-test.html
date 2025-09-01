@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>HTML-Canvas-PDF 中文測試</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .btn { padding: 15px 30px; font-size: 16px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 10px; }
+        .btn:hover { background: #0056b3; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        
+        /* 用於PDF生成的隱藏內容 */
+        .pdf-content {
+            position: fixed;
+            top: -9999px;
+            left: -9999px;
+            width: 210mm;
+            padding: 20mm;
+            background: white;
+            font-family: 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans GB', 'SimSun', sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #333;
+            box-sizing: border-box;
+        }
+        
+        .pdf-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+        
+        .pdf-text {
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>📄 HTML-Canvas-PDF 中文測試</h1>
+    <p>使用 HTML → Canvas → PDF 的方式來保持中文字符正確顯示</p>
+    
+    <button class="btn" onclick="testHTMLCanvasPDF()">🚀 生成中文PDF (HTML方式)</button>
+    
+    <div id="results"></div>
+
+    <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+    <script>
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = `
+                <strong>${new Date().toLocaleTimeString()}</strong> - ${message}
+            `;
+            document.getElementById('results').appendChild(div);
+        }
+
+        async function testHTMLCanvasPDF() {
+            log('🔄 開始 HTML-Canvas-PDF 測試...');
+            
+            try {
+                // 中文測試內容
+                const chineseTitle = '最終驗證測試文件';
+                const chineseContent = `這是一個用於驗證 PDF 轉換功能的測試文件。
+
+功能驗證項目：
+• 中文字符支援測試
+• 特殊字符處理：& < > " '
+• 多段落格式驗證
+• 長文本處理能力測試
+
+測試時間：${new Date().toLocaleString()}
+
+這個測試將驗證是否能夠：
+1. 保持中文內容不變
+2. 正確顯示中文字符
+3. 維持文本格式和結構
+4. 生成可讀的中文PDF檔案
+
+HTML-to-Canvas-to-PDF 方法的優點：
+- 使用瀏覽器原生中文字體渲染
+- 保持完整的格式和樣式
+- 不需要載入外部字體檔案
+- 支援複雜的中文排版`;
+
+                log('📝 準備HTML內容: ' + chineseTitle);
+                
+                // 創建隱藏的HTML容器用於渲染
+                const htmlContent = `
+                    <div class="pdf-title">${chineseTitle}</div>
+                    <div class="pdf-text">${chineseContent}</div>
+                `;
+                
+                const tempDiv = document.createElement('div');
+                tempDiv.className = 'pdf-content';
+                tempDiv.innerHTML = htmlContent;
+                document.body.appendChild(tempDiv);
+                
+                log('🎨 正在將HTML轉換為Canvas...');
+                
+                // 使用 html2canvas 將 HTML 轉換為 Canvas
+                const canvas = await html2canvas(tempDiv, {
+                    scale: 2, // 高解析度
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: '#ffffff',
+                    width: 794,  // A4寬度 (210mm @ 96 DPI)
+                    height: 1123 // A4高度 (297mm @ 96 DPI)
+                });
+                
+                log('✅ Canvas 生成成功: ' + canvas.width + 'x' + canvas.height);
+                
+                // 清理臨時元素
+                document.body.removeChild(tempDiv);
+                
+                // 創建 PDF
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'mm',
+                    format: 'a4'
+                });
+                
+                log('📄 正在生成PDF...');
+                
+                // 將 Canvas 添加到 PDF
+                const imgData = canvas.toDataURL('image/png');
+                pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
+                
+                // 生成 PDF Blob
+                const pdfBlob = pdf.output('blob');
+                
+                log('✅ PDF生成成功: ' + pdfBlob.size + ' bytes', 'success');
+                
+                // 下載 PDF
+                const url = URL.createObjectURL(pdfBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'html-canvas-chinese-pdf.pdf';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                log('📥 中文PDF已下載 - 應該能正確顯示中文字符!', 'success');
+                
+            } catch (error) {
+                log('❌ 錯誤: ' + error.message, 'error');
+                console.error('HTML-Canvas-PDF 錯誤:', error);
+            }
+        }
+
+        // 檢查依賴是否載入
+        window.addEventListener('load', function() {
+            log('🚀 頁面載入完成');
+            
+            setTimeout(() => {
+                if (typeof html2canvas !== 'undefined') {
+                    log('✅ html2canvas 載入成功', 'success');
+                } else {
+                    log('❌ html2canvas 載入失敗', 'error');
+                }
+                
+                if (typeof window.jspdf !== 'undefined') {
+                    log('✅ jsPDF 載入成功', 'success');
+                } else {
+                    log('❌ jsPDF 載入失敗', 'error');
+                }
+            }, 500);
+        });
+    </script>
+</body>
+</html>
