@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>PDF 亂碼修復測試</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .btn { padding: 15px 30px; font-size: 16px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 10px; }
+        .btn:hover { background: #0056b3; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <h1>🔧 PDF 亂碼修復測試</h1>
+    <p>測試新的 ASCII 轉換系統是否解決了中文亂碼問題</p>
+    
+    <div>
+        <button class="btn" onclick="testPDFConversion()">🚀 測試 PDF 轉換</button>
+        <button class="btn" onclick="clearResults()">清除結果</button>
+    </div>
+    
+    <div id="results"></div>
+
+    <!-- 載入轉換器 -->
+    <script src="assets/js/converters/document.js"></script>
+
+    <script>
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = `
+                <strong>${new Date().toLocaleTimeString()}</strong> - ${message}
+            `;
+            document.getElementById('results').appendChild(div);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        async function testPDFConversion() {
+            log('🔄 開始 PDF 轉換測試...');
+            
+            try {
+                // 檢查 DocumentConverter 是否載入
+                if (typeof DocumentConverter === 'undefined') {
+                    log('❌ DocumentConverter 未載入', 'error');
+                    return;
+                }
+                
+                log('✅ DocumentConverter 已載入');
+                
+                // 測試內容（包含中文）
+                const testTitle = '最終驗證測試文件';
+                const testContent = `這是一個用於驗證 PDF 轉換功能的測試文件。
+
+功能驗證項目：
+• 中文字符支援測試
+• 特殊字符處理：& < > " '
+• 多段落格式驗證
+• 長文本處理能力測試
+
+測試時間：${new Date().toLocaleString()}
+
+這個測試將驗證新的 ASCII 轉換系統是否能夠：
+1. 正確轉換中文文字為英文
+2. 處理標點符號和特殊字符
+3. 保持文本格式和結構
+4. 生成可讀的 PDF 檔案`;
+
+                log(`📝 測試標題：${testTitle}`);
+                log(`📄 內容長度：${testContent.length} 字符`);
+                
+                // 執行 PDF 轉換
+                log('🔄 執行 PDF 轉換...');
+                const pdfBlob = await DocumentConverter.convertToPdf(testContent, testTitle);
+                
+                if (pdfBlob && pdfBlob.size > 0) {
+                    log(`✅ PDF 轉換成功！檔案大小：${pdfBlob.size} bytes`, 'success');
+                    
+                    // 自動下載
+                    const url = URL.createObjectURL(pdfBlob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'ascii-conversion-test.pdf';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                    
+                    log('📥 PDF 檔案已自動下載', 'success');
+                    log('🎯 請開啟下載的 PDF 檔案檢查是否還有亂碼', 'info');
+                    
+                } else {
+                    log('❌ PDF 轉換失敗：產生空檔案', 'error');
+                }
+                
+            } catch (error) {
+                log(`❌ PDF 轉換錯誤：${error.message}`, 'error');
+                console.error('詳細錯誤:', error);
+            }
+        }
+
+        // 頁面載入時檢查狀態
+        window.addEventListener('load', function() {
+            log('🚀 測試頁面已載入');
+            
+            setTimeout(() => {
+                if (typeof DocumentConverter !== 'undefined') {
+                    log('✅ DocumentConverter 載入成功', 'success');
+                } else {
+                    log('❌ DocumentConverter 載入失敗', 'error');
+                }
+            }, 500);
+        });
+    </script>
+</body>
+</html>
