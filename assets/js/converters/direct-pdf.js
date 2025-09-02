@@ -152,57 +152,144 @@ class DirectPDFConverter {
     // Convert DOCX to PDF using mammoth.js
     static async convertDOCXToPDF(file) {
         try {
+            console.log('📄 開始DOCX轉PDF轉換');
+            
             // Try to load mammoth.js
             await DirectPDFConverter.loadMammoth();
             
             if (typeof mammoth !== 'undefined') {
-                console.log('📄 使用 Mammoth.js 轉換 DOCX');
+                console.log('📄 使用 Mammoth.js 解析 DOCX');
                 
                 const arrayBuffer = await file.arrayBuffer();
                 const result = await mammoth.convertToHtml({ arrayBuffer });
                 
-                // Create HTML document
-                const htmlDoc = `
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <meta charset="utf-8">
-                    <style>
-                        body { 
-                            font-family: 'Times New Roman', serif; 
-                            font-size: 12pt; 
-                            line-height: 1.2; 
-                            margin: 2.5cm;
-                            background: white;
-                        }
-                        @media print {
-                            @page { 
-                                margin: 2.5cm; 
-                                size: A4;
+                // Check if we got meaningful content
+                if (result.html && result.html.trim().length > 50) {
+                    console.log('✅ Mammoth.js 解析成功');
+                    
+                    // Create HTML document with proper styling
+                    const htmlDoc = `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="utf-8">
+                        <title>文書轉換</title>
+                        <style>
+                            body { 
+                                font-family: 'Times New Roman', '微軟正黑體', serif; 
+                                font-size: 12pt; 
+                                line-height: 1.5; 
+                                margin: 2.5cm;
+                                background: white;
+                                color: #333;
                             }
-                        }
-                    </style>
-                </head>
-                <body>
-                    ${result.html}
-                </body>
-                </html>`;
-                
-                // Create temporary HTML file and convert
-                const htmlBlob = new Blob([htmlDoc], { type: 'text/html' });
-                const htmlFile = new File([htmlBlob], 'temp.html', { type: 'text/html' });
-                
-                return await DirectPDFConverter.convertHTMLToPDF(htmlFile);
+                            h1, h2, h3, h4, h5, h6 { 
+                                color: #2c3e50; 
+                                margin-top: 20px; 
+                                margin-bottom: 10px;
+                            }
+                            p { margin-bottom: 10px; }
+                            ul, ol { margin-bottom: 10px; }
+                            table { 
+                                border-collapse: collapse; 
+                                width: 100%; 
+                                margin-bottom: 20px; 
+                            }
+                            table td, table th { 
+                                border: 1px solid #ddd; 
+                                padding: 8px; 
+                            }
+                            @media print {
+                                @page { 
+                                    margin: 2.5cm; 
+                                    size: A4;
+                                }
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        ${result.html}
+                    </body>
+                    </html>`;
+                    
+                    // Create temporary HTML file and convert
+                    const htmlBlob = new Blob([htmlDoc], { type: 'text/html' });
+                    const htmlFile = new File([htmlBlob], 'temp.html', { type: 'text/html' });
+                    
+                    return await DirectPDFConverter.convertHTMLToPDF(htmlFile);
+                } else {
+                    console.warn('Mammoth.js 解析結果不完整，使用備用方法');
+                    throw new Error('Mammoth.js 解析內容不足');
+                }
                 
             } else {
-                throw new Error('Mammoth.js 未載入，無法處理 DOCX');
+                throw new Error('Mammoth.js 未載入');
             }
             
-        } catch (error) {
-            console.warn('DOCX 專用轉換失敗，使用一般文字模式:', error);
-            // Fallback to text extraction
+        } catch (mammothError) {
+            console.warn('Mammoth.js 轉換失敗，嘗試直接解析 DOCX:', mammothError);
+            
+            // Try direct DOCX text extraction as fallback
+            try {
+                const textContent = await DirectPDFConverter.extractDOCXText(file);
+                if (textContent && textContent.trim()) {
+                    console.log('📄 使用直接文字提取方法');
+                    return await DirectPDFConverter.renderTextAsPDF(textContent, file.name);
+                }
+            } catch (extractError) {
+                console.warn('直接文字提取也失敗:', extractError);
+            }
+            
+            // Final fallback to generic text extraction
+            console.log('📄 使用最基本的備用方案');
             const textContent = await DirectPDFConverter.extractTextFromDocument(file);
             return await DirectPDFConverter.renderTextAsPDF(textContent, file.name);
+        }
+    }
+
+    // Direct DOCX text extraction (backup method)
+    static async extractDOCXText(file) {
+        try {
+            // Load JSZip to parse DOCX structure
+            await DirectPDFConverter.loadJSZip();
+            
+            const arrayBuffer = await file.arrayBuffer();
+            const zip = new JSZip();
+            const zipContent = await zip.loadAsync(arrayBuffer);
+            
+            // Look for the main document XML
+            const documentXml = zipContent.file('word/document.xml');
+            if (documentXml) {
+                const xmlContent = await documentXml.async('text');
+                
+                // Extract text from XML (basic approach)
+                const textMatches = xmlContent.match(/<w:t[^>]*>([^<]+)<\/w:t>/g) || [];
+                const paragraphMatches = xmlContent.match(/<w:p[^>]*>/g) || [];
+                
+                let extractedText = '';
+                let currentParagraph = '';
+                
+                textMatches.forEach(match => {
+                    const text = match.replace(/<[^>]+>/g, '').trim();
+                    if (text) {
+                        currentParagraph += text + ' ';
+                    }
+                });
+                
+                // Add paragraph breaks
+                const paragraphs = currentParagraph.split(/\s{3,}/).filter(p => p.trim());
+                extractedText = paragraphs.join('\n\n');
+                
+                if (extractedText.trim()) {
+                    return `文書檔案: ${file.name}\n\n${extractedText}`;
+                }
+            }
+            
+            return `文書檔案: ${file.name}\n\n檔案大小: ${DirectPDFConverter.formatFileSize(file.size)}\n⚠️ 此DOCX檔案的內容無法完全解析，建議使用Microsoft Word或相容軟體開啟`;
+            
+        } catch (error) {
+            console.warn('DOCX直接解析失敗:', error);
+            return `文書檔案: ${file.name}\n檔案大小: ${DirectPDFConverter.formatFileSize(file.size)}\n❌ 檔案解析失敗: ${error.message}`;
         }
     }
 
@@ -227,9 +314,11 @@ class DirectPDFConverter {
         }
     }
 
-    // Convert PPTX to PDF by extracting slide images
+    // Convert PPTX to PDF by extracting and rendering slide content
     static async convertPPTXToPDF(file) {
         try {
+            console.log('🎯 開始PPTX轉PDF (內容解析模式)');
+            
             // Load JSZip for PPTX processing
             await DirectPDFConverter.loadJSZip();
             
@@ -237,19 +326,13 @@ class DirectPDFConverter {
             const zip = new JSZip();
             const zipContent = await zip.loadAsync(arrayBuffer);
             
-            // Look for slide images in the ZIP
-            const slideImages = [];
-            zipContent.forEach((relativePath, file) => {
-                if (relativePath.includes('ppt/media/') && 
-                    (relativePath.endsWith('.png') || relativePath.endsWith('.jpg') || relativePath.endsWith('.jpeg'))) {
-                    slideImages.push({ path: relativePath, file: file });
-                }
-            });
+            // Extract slide content from PPTX structure
+            const slides = await DirectPDFConverter.extractPPTXSlides(zipContent);
             
-            if (slideImages.length > 0) {
-                console.log(`🖼️ 找到 ${slideImages.length} 張投影片圖片`);
+            if (slides && slides.length > 0) {
+                console.log(`📊 解析到 ${slides.length} 張投影片`);
                 
-                // Create PDF with slide images
+                // Create PDF with rendered slides
                 await DirectPDFConverter.loadJsPDF();
                 const { jsPDF } = window.jspdf || window;
                 const pdf = new jsPDF({
@@ -258,42 +341,60 @@ class DirectPDFConverter {
                     format: 'a4'
                 });
                 
-                let addedPages = 0;
-                
-                for (let i = 0; i < slideImages.length; i++) {
+                for (let i = 0; i < slides.length; i++) {
                     try {
-                        const imageFile = slideImages[i];
-                        const imageData = await imageFile.file.async('blob');
-                        const imageUrl = URL.createObjectURL(imageData);
+                        const slide = slides[i];
                         
                         // Add page for each slide (except first)
-                        if (addedPages > 0) {
+                        if (i > 0) {
                             pdf.addPage();
                         }
                         
-                        // Add image to PDF
-                        pdf.addImage(imageUrl, 'JPEG', 10, 10, 277, 190); // A4 landscape dimensions
+                        // Render slide content as HTML and convert to PDF page
+                        const slideHTML = await DirectPDFConverter.renderSlideAsHTML(slide, i + 1);
+                        await DirectPDFConverter.addHTMLToPDFPage(pdf, slideHTML);
                         
-                        URL.revokeObjectURL(imageUrl);
-                        addedPages++;
-                        
-                    } catch (imgError) {
-                        console.warn(`投影片 ${i + 1} 處理失敗:`, imgError);
+                    } catch (slideError) {
+                        console.warn(`投影片 ${i + 1} 渲染失敗:`, slideError);
+                        // Add error slide
+                        pdf.setFontSize(16);
+                        pdf.text(`投影片 ${i + 1} (載入失敗)`, 20, 30);
+                        pdf.setFontSize(12);
+                        pdf.text('此投影片內容無法正確解析', 20, 50);
                     }
                 }
                 
-                if (addedPages > 0) {
-                    const pdfBlob = pdf.output('blob');
-                    console.log(`✅ PPTX轉PDF完成: ${addedPages} 頁`);
-                    return pdfBlob;
-                }
+                const pdfBlob = pdf.output('blob');
+                console.log(`✅ PPTX轉PDF完成: ${slides.length} 頁`);
+                return pdfBlob;
             }
             
-            // Fallback: create placeholder
+            // Fallback: try to extract basic text content
+            console.log('🔄 使用備用方法解析PPTX');
+            const textContent = await DirectPDFConverter.extractPPTXText(zipContent);
+            if (textContent && textContent.trim()) {
+                return await DirectPDFConverter.renderTextAsPDF(textContent, file.name);
+            }
+            
+            // Final fallback: create placeholder
             return await DirectPDFConverter.createPresentationPlaceholderPDF(file);
             
         } catch (error) {
-            console.warn('PPTX 解析失敗，建立預覽版本:', error);
+            console.warn('PPTX 解析失敗，建立備用版本:', error);
+            // Try to extract any text content as last resort
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const zip = new JSZip();
+                const zipContent = await zip.loadAsync(arrayBuffer);
+                const textContent = await DirectPDFConverter.extractPPTXText(zipContent);
+                if (textContent && textContent.trim()) {
+                    console.log('📝 使用文字內容作為備用方案');
+                    return await DirectPDFConverter.renderTextAsPDF(textContent, file.name);
+                }
+            } catch (extractError) {
+                console.warn('文字提取也失敗:', extractError);
+            }
+            
             return await DirectPDFConverter.createPresentationPlaceholderPDF(file);
         }
     }
@@ -429,6 +530,212 @@ class DirectPDFConverter {
         const sizes = ['Bytes', 'KB', 'MB', 'GB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // PPTX specific methods
+    static async extractPPTXSlides(zipContent) {
+        try {
+            const slides = [];
+            
+            // Look for slide XML files
+            zipContent.forEach((relativePath, zipEntry) => {
+                if (relativePath.startsWith('ppt/slides/slide') && relativePath.endsWith('.xml')) {
+                    slides.push({
+                        path: relativePath,
+                        entry: zipEntry,
+                        number: parseInt(relativePath.match(/slide(\d+)\.xml/)?.[1] || '0')
+                    });
+                }
+            });
+            
+            // Sort slides by number
+            slides.sort((a, b) => a.number - b.number);
+            
+            // Extract content from each slide
+            const slideContents = [];
+            for (const slide of slides) {
+                try {
+                    const xmlContent = await slide.entry.async('text');
+                    const slideContent = DirectPDFConverter.parseSlideXML(xmlContent, slide.number);
+                    slideContents.push(slideContent);
+                } catch (error) {
+                    console.warn(`解析投影片 ${slide.number} 失敗:`, error);
+                    slideContents.push({
+                        number: slide.number,
+                        title: `投影片 ${slide.number}`,
+                        content: '此投影片內容無法解析',
+                        textElements: []
+                    });
+                }
+            }
+            
+            return slideContents;
+        } catch (error) {
+            console.error('PPTX投影片提取失敗:', error);
+            return null;
+        }
+    }
+
+    static parseSlideXML(xmlContent, slideNumber) {
+        try {
+            // Basic XML text extraction for PPTX slides
+            // This is a simplified parser - real PPTX parsing is complex
+            
+            const textElements = [];
+            let title = '';
+            
+            // Extract text content using regex (simplified approach)
+            const textMatches = xmlContent.match(/<a:t[^>]*>([^<]+)<\/a:t>/g) || [];
+            
+            textMatches.forEach((match, index) => {
+                const text = match.replace(/<[^>]+>/g, '').trim();
+                if (text) {
+                    if (index === 0 && text.length < 100) {
+                        title = text; // First short text is likely the title
+                    }
+                    textElements.push({
+                        text: text,
+                        type: index === 0 ? 'title' : 'content'
+                    });
+                }
+            });
+            
+            return {
+                number: slideNumber,
+                title: title || `投影片 ${slideNumber}`,
+                content: textElements.map(el => el.text).join('\n'),
+                textElements: textElements
+            };
+        } catch (error) {
+            console.warn(`解析投影片 ${slideNumber} XML失敗:`, error);
+            return {
+                number: slideNumber,
+                title: `投影片 ${slideNumber}`,
+                content: '投影片內容解析失敗',
+                textElements: []
+            };
+        }
+    }
+
+    static async renderSlideAsHTML(slide, slideNumber) {
+        const titleText = slide.title || `投影片 ${slideNumber}`;
+        const contentElements = slide.textElements || [];
+        
+        let contentHTML = '';
+        
+        if (contentElements.length > 0) {
+            contentElements.forEach(element => {
+                if (element.type === 'title') {
+                    contentHTML += `<h1 style="font-size: 24px; color: #2c3e50; margin-bottom: 20px; text-align: center;">${element.text}</h1>`;
+                } else {
+                    contentHTML += `<p style="font-size: 16px; line-height: 1.6; margin-bottom: 15px;">${element.text}</p>`;
+                }
+            });
+        } else {
+            contentHTML = `<h1 style="font-size: 24px; color: #2c3e50; text-align: center; margin-top: 50px;">${titleText}</h1>`;
+            if (slide.content && slide.content !== titleText) {
+                contentHTML += `<div style="font-size: 16px; line-height: 1.6; margin-top: 30px; white-space: pre-wrap;">${slide.content}</div>`;
+            }
+        }
+        
+        return `
+        <div style="
+            width: 297mm; 
+            height: 210mm; 
+            padding: 20mm; 
+            background: white; 
+            font-family: Arial, '微軟正黑體', sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        ">
+            ${contentHTML}
+            <div style="position: absolute; bottom: 10mm; right: 15mm; font-size: 12px; color: #666;">
+                ${slideNumber}
+            </div>
+        </div>`;
+    }
+
+    static async addHTMLToPDFPage(pdf, htmlContent) {
+        try {
+            // Create temporary element to render HTML
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = htmlContent;
+            tempDiv.style.position = 'fixed';
+            tempDiv.style.top = '-9999px';
+            tempDiv.style.left = '-9999px';
+            tempDiv.style.width = '297mm';
+            tempDiv.style.height = '210mm';
+            document.body.appendChild(tempDiv);
+            
+            // Load html2canvas if not already loaded
+            await DirectPDFConverter.loadHTML2Canvas();
+            
+            // Capture the HTML as canvas
+            const canvas = await html2canvas(tempDiv, {
+                scale: 1,
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: '#ffffff',
+                width: 1123,  // A4 landscape width in pixels
+                height: 794   // A4 landscape height in pixels  
+            });
+            
+            // Add canvas image to PDF
+            const imgData = canvas.toDataURL('image/png');
+            pdf.addImage(imgData, 'PNG', 0, 0, 297, 210);
+            
+            // Clean up
+            document.body.removeChild(tempDiv);
+            
+        } catch (error) {
+            console.warn('HTML轉PDF頁面失敗:', error);
+            // Add text fallback
+            pdf.setFontSize(16);
+            pdf.text('投影片渲染失敗', 20, 30);
+        }
+    }
+
+    static async extractPPTXText(zipContent) {
+        try {
+            let allText = '';
+            const slideFiles = [];
+            
+            // Collect slide XML files
+            zipContent.forEach((relativePath, zipEntry) => {
+                if (relativePath.startsWith('ppt/slides/slide') && relativePath.endsWith('.xml')) {
+                    const slideNumber = parseInt(relativePath.match(/slide(\d+)\.xml/)?.[1] || '0');
+                    slideFiles.push({ path: relativePath, entry: zipEntry, number: slideNumber });
+                }
+            });
+            
+            // Sort by slide number
+            slideFiles.sort((a, b) => a.number - b.number);
+            
+            // Extract text from each slide
+            for (const slideFile of slideFiles) {
+                try {
+                    const xmlContent = await slideFile.entry.async('text');
+                    const textMatches = xmlContent.match(/<a:t[^>]*>([^<]+)<\/a:t>/g) || [];
+                    
+                    const slideTexts = textMatches.map(match => 
+                        match.replace(/<[^>]+>/g, '').trim()
+                    ).filter(text => text.length > 0);
+                    
+                    if (slideTexts.length > 0) {
+                        allText += `\n\n--- 投影片 ${slideFile.number} ---\n`;
+                        allText += slideTexts.join('\n');
+                    }
+                } catch (error) {
+                    console.warn(`提取投影片文字失敗: ${slideFile.path}`, error);
+                }
+            }
+            
+            return allText.trim();
+        } catch (error) {
+            console.error('PPTX文字提取失敗:', error);
+            return '';
+        }
     }
 
     // Load required libraries
