@@ -260,10 +260,10 @@ class DocumentConverter {
         return blob;
     }
 
-    // Convert to PDF (HTML-Canvas method preserving Chinese characters)
+    // Convert to PDF with proper multi-page support and content preservation
     static async convertToPdf(content, title, options = {}) {
         try {
-            console.log('🔄 開始 PDF 轉換 (HTML-Canvas 方法)...');
+            console.log('🔄 開始文書PDF轉換 (多頁面支援)...');
             
             // Load required libraries
             await Promise.all([
@@ -271,22 +271,180 @@ class DocumentConverter {
                 DocumentConverter.loadHTML2Canvas()
             ]);
             
-            console.log('📝 準備 HTML 內容: ' + (title || 'Document'));
+            console.log('📝 準備文書內容: ' + (title || 'Document'));
+            
+            // Create PDF
+            const { jsPDF } = window.jspdf || window;
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+            });
+            
+            // Split content into manageable chunks for pagination
+            const paragraphs = content.split('\n\n').filter(p => p.trim());
+            const maxLinesPerPage = 35; // Approximate lines per page
+            const pageWidth = 170; // mm (210 - 40 for margins)
+            const pageHeight = 257; // mm (297 - 40 for margins)
+            
+            let currentPage = [];
+            let pageNumber = 1;
+            let totalPages = Math.ceil(paragraphs.length / 3); // Rough estimate
+            
+            // Add title page if title exists
+            if (title && title.trim()) {
+                const titleHtml = `
+                    <div style="
+                        width: ${pageWidth}mm; 
+                        height: ${pageHeight}mm;
+                        padding: 20mm;
+                        background: white;
+                        font-family: 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans GB', 'SimSun', sans-serif;
+                        color: #333;
+                        box-sizing: border-box;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                        align-items: center;
+                        text-align: center;
+                    ">
+                        <div style="font-size: 28px; font-weight: bold; color: #2c3e50; margin-bottom: 40px; line-height: 1.2;">
+                            📝 ${title}
+                        </div>
+                        <div style="font-size: 16px; color: #34495e; margin-bottom: 60px;">
+                            文書轉換報告
+                        </div>
+                        <div style="font-size: 12px; color: #7f8c8d;">
+                            生成時間: ${new Date().toLocaleString()}<br>
+                            內容長度: ${content.length} 字符<br>
+                            預估頁數: ${totalPages} 頁
+                        </div>
+                    </div>
+                `;
+                
+                await DocumentConverter.addPageToPdf(pdf, titleHtml, pageWidth, pageHeight);
+                pageNumber++;
+            }
+            
+            // Process content in chunks suitable for each page
+            let remainingParagraphs = [...paragraphs];
+            
+            while (remainingParagraphs.length > 0) {
+                // Calculate how much content fits on this page
+                let pageContent = '';
+                let linesUsed = 0;
+                let paragraphsOnPage = 0;
+                
+                while (remainingParagraphs.length > 0 && linesUsed < maxLinesPerPage) {
+                    const paragraph = remainingParagraphs[0];
+                    const estimatedLines = Math.ceil(paragraph.length / 80) + 1; // Rough estimate
+                    
+                    if (linesUsed + estimatedLines > maxLinesPerPage && paragraphsOnPage > 0) {
+                        // This paragraph won't fit, start new page
+                        break;
+                    }
+                    
+                    pageContent += (pageContent ? '\n\n' : '') + paragraph;
+                    linesUsed += estimatedLines;
+                    paragraphsOnPage++;
+                    remainingParagraphs.shift();
+                }
+                
+                // Create HTML for this page
+                const pageHtml = `
+                    <div style="
+                        width: ${pageWidth}mm; 
+                        height: ${pageHeight}mm;
+                        padding: 20mm;
+                        background: white;
+                        font-family: 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans GB', 'SimSun', sans-serif;
+                        font-size: 12px;
+                        line-height: 1.6;
+                        color: #333;
+                        box-sizing: border-box;
+                        position: relative;
+                    ">
+                        <div style="white-space: pre-wrap; margin-bottom: 40px;">
+                            ${pageContent}
+                        </div>
+                        <div style="position: absolute; bottom: 10mm; left: 20mm; right: 20mm; display: flex; justify-content: space-between; font-size: 10px; color: #666;">
+                            <span>第 ${pageNumber} 頁</span>
+                            <span>${title || '文書轉換'}</span>
+                        </div>
+                    </div>
+                `;
+                
+                // Add page to PDF
+                if (pageNumber > 1) {
+                    pdf.addPage();
+                }
+                
+                await DocumentConverter.addPageToPdf(pdf, pageHtml, pageWidth, pageHeight);
+                console.log(`✅ 第 ${pageNumber} 頁已添加 (${paragraphsOnPage} 段落)`);
+                pageNumber++;
+            }
+            
+            const pdfBlob = pdf.output('blob');
+            console.log(`✅ 多頁面PDF創建成功: ${pageNumber - 1} 頁, ${pdfBlob.size} bytes`);
+            
+            return pdfBlob;
+            
+        } catch (error) {
+            console.error('多頁面PDF轉換錯誤:', error);
+            // Fallback to simple single-page method
+            return await DocumentConverter.convertToPdfSimple(content, title, options);
+        }
+    }
+    
+    // Helper method to add a page to PDF using HTML2Canvas
+    static async addPageToPdf(pdf, htmlContent, pageWidth, pageHeight) {
+        const tempDiv = document.createElement('div');
+        tempDiv.style.position = 'fixed';
+        tempDiv.style.top = '-9999px';
+        tempDiv.style.left = '-9999px';
+        tempDiv.innerHTML = htmlContent;
+        document.body.appendChild(tempDiv);
+        
+        try {
+            const canvas = await html2canvas(tempDiv.firstElementChild, {
+                scale: 2,
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: '#ffffff',
+                width: pageWidth * 3.78, // Convert mm to pixels (96 DPI)
+                height: pageHeight * 3.78
+            });
+            
+            const imgData = canvas.toDataURL('image/png');
+            pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
+            
+        } finally {
+            document.body.removeChild(tempDiv);
+        }
+    }
+    
+    // Fallback simple PDF conversion method
+    static async convertToPdfSimple(content, title, options = {}) {
+        try {
+            console.log('🔄 使用簡單方法轉換PDF...');
             
             // Create HTML content with proper Chinese font styling
             const htmlContent = `
                 <div style="
-                    width: 210mm; 
+                    width: 170mm; 
                     padding: 20mm; 
                     background: white;
                     font-family: 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans GB', 'SimSun', sans-serif;
-                    font-size: 14px;
+                    font-size: 12px;
                     line-height: 1.6;
                     color: #333;
                     box-sizing: border-box;
                 ">
-                    ${title ? `<div style="font-size: 20px; font-weight: bold; margin-bottom: 20px; color: #2c3e50;">${title}</div>` : ''}
+                    ${title ? `<div style="font-size: 18px; font-weight: bold; margin-bottom: 20px; color: #2c3e50; text-align: center; border-bottom: 2px solid #3498db; padding-bottom: 10px;">${title}</div>` : ''}
                     <div style="white-space: pre-wrap;">${content}</div>
+                    <div style="margin-top: 30px; padding-top: 15px; border-top: 1px solid #ddd; font-size: 10px; color: #666; text-align: center;">
+                        由文書轉換器生成 - ${new Date().toLocaleString()}
+                    </div>
                 </div>
             `;
             
@@ -298,9 +456,7 @@ class DocumentConverter {
             tempDiv.innerHTML = htmlContent;
             document.body.appendChild(tempDiv);
             
-            console.log('🎨 正在將 HTML 轉換為 Canvas...');
-            
-            // Convert HTML to Canvas using html2canvas
+            // Convert HTML to Canvas
             const canvas = await html2canvas(tempDiv.firstElementChild, {
                 scale: 2,
                 useCORS: true,
@@ -309,8 +465,6 @@ class DocumentConverter {
                 width: 794,  // A4 width in pixels at 96 DPI
                 height: 1123 // A4 height in pixels at 96 DPI
             });
-            
-            console.log('✅ Canvas 生成成功: ' + canvas.width + 'x' + canvas.height);
             
             // Clean up temporary element
             document.body.removeChild(tempDiv);
@@ -323,19 +477,17 @@ class DocumentConverter {
                 format: 'a4'
             });
             
-            console.log('📄 正在生成 PDF...');
-            
             // Add canvas as image to PDF
             const imgData = canvas.toDataURL('image/png');
             pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
             
             const pdfBlob = pdf.output('blob');
-            console.log('✅ 中文 PDF 創建成功:', pdfBlob.size, 'bytes');
+            console.log('✅ 簡單 PDF 創建成功:', pdfBlob.size, 'bytes');
             
             return pdfBlob;
             
         } catch (error) {
-            console.error('HTML-Canvas PDF 轉換錯誤:', error);
+            console.error('簡單 PDF 轉換錯誤:', error);
             throw new Error('PDF 轉換失敗: ' + error.message);
         }
     }

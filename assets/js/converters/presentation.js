@@ -233,10 +233,10 @@ class PresentationConverter {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
-    // Convert presentation to PDF using HTML-Canvas method
+    // Convert presentation to PDF with separate pages for each slide
     static async convertToPdf(content, title, options = {}) {
         try {
-            console.log('🔄 開始簡報轉PDF (HTML-Canvas 方法)...');
+            console.log('🔄 開始簡報轉PDF (多頁面方法)...');
             
             // Load required libraries
             await Promise.all([
@@ -244,77 +244,7 @@ class PresentationConverter {
                 PresentationConverter.loadHTML2Canvas()
             ]);
             
-            console.log('📝 準備簡報HTML內容: ' + (title || 'Presentation'));
-            
-            // Convert presentation content to formatted text
-            let formattedContent = '';
-            
-            if (content && content.slides) {
-                // Process slides
-                content.slides.forEach((slide, index) => {
-                    formattedContent += `投影片 ${slide.slideNumber || index + 1}: ${slide.title || '無標題'}\n\n`;
-                    
-                    if (slide.content && Array.isArray(slide.content)) {
-                        formattedContent += slide.content.join('\n') + '\n\n';
-                    } else if (slide.content) {
-                        formattedContent += slide.content + '\n\n';
-                    }
-                    
-                    if (slide.notes) {
-                        formattedContent += `備註: ${slide.notes}\n\n`;
-                    }
-                    
-                    formattedContent += '---\n\n';
-                });
-            } else {
-                // Fallback for simple text content
-                formattedContent = content || '無簡報內容';
-            }
-            
-            // Create HTML content with proper formatting
-            const htmlContent = `
-                <div style="
-                    width: 210mm; 
-                    padding: 20mm; 
-                    background: white;
-                    font-family: 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans GB', 'SimSun', sans-serif;
-                    font-size: 14px;
-                    line-height: 1.6;
-                    color: #333;
-                    box-sizing: border-box;
-                ">
-                    ${title ? `<div style="font-size: 24px; font-weight: bold; margin-bottom: 30px; color: #2c3e50; text-align: center; border-bottom: 2px solid #3498db; padding-bottom: 15px;">📊 ${title}</div>` : ''}
-                    <div style="white-space: pre-wrap; font-size: 12px;">${formattedContent}</div>
-                    <div style="margin-top: 30px; padding-top: 15px; border-top: 1px solid #ddd; font-size: 10px; color: #666; text-align: center;">
-                        由簡報轉換器生成 - ${new Date().toLocaleString()}
-                    </div>
-                </div>
-            `;
-            
-            // Create temporary container
-            const tempDiv = document.createElement('div');
-            tempDiv.style.position = 'fixed';
-            tempDiv.style.top = '-9999px';
-            tempDiv.style.left = '-9999px';
-            tempDiv.innerHTML = htmlContent;
-            document.body.appendChild(tempDiv);
-            
-            console.log('🎨 正在將簡報HTML轉換為Canvas...');
-            
-            // Convert HTML to Canvas using html2canvas
-            const canvas = await html2canvas(tempDiv.firstElementChild, {
-                scale: 2,
-                useCORS: true,
-                allowTaint: true,
-                backgroundColor: '#ffffff',
-                width: 794,  // A4 width in pixels at 96 DPI
-                height: 1123 // A4 height in pixels at 96 DPI
-            });
-            
-            console.log('✅ Canvas 生成成功: ' + canvas.width + 'x' + canvas.height);
-            
-            // Clean up temporary element
-            document.body.removeChild(tempDiv);
+            console.log('📝 準備簡報內容: ' + (title || 'Presentation'));
             
             // Create PDF
             const { jsPDF } = window.jspdf || window;
@@ -324,14 +254,202 @@ class PresentationConverter {
                 format: 'a4'
             });
             
-            console.log('📄 正在生成簡報PDF...');
+            let pageCount = 0;
             
-            // Add canvas as image to PDF
-            const imgData = canvas.toDataURL('image/png');
-            pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
+            if (content && content.slides && Array.isArray(content.slides)) {
+                // Process each slide as a separate page
+                for (let i = 0; i < content.slides.length; i++) {
+                    const slide = content.slides[i];
+                    console.log(`🎨 處理投影片 ${i + 1}/${content.slides.length}`);
+                    
+                    // Create slide content
+                    let slideContent = '';
+                    if (slide.content && Array.isArray(slide.content)) {
+                        slideContent = slide.content.join('\n\n');
+                    } else if (slide.content) {
+                        slideContent = slide.content;
+                    }
+                    
+                    // Create HTML for this slide
+                    const slideHtml = `
+                        <div style="
+                            width: 190mm; 
+                            height: 257mm;
+                            padding: 20mm; 
+                            background: white;
+                            font-family: 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans GB', 'SimSun', sans-serif;
+                            color: #333;
+                            box-sizing: border-box;
+                            page-break-after: always;
+                        ">
+                            <div style="font-size: 20px; font-weight: bold; margin-bottom: 20px; color: #2c3e50; text-align: center; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
+                                ${slide.title || `投影片 ${slide.slideNumber || i + 1}`}
+                            </div>
+                            <div style="white-space: pre-wrap; font-size: 14px; line-height: 1.6; margin: 20px 0;">
+                                ${slideContent || '無內容'}
+                            </div>
+                            ${slide.notes ? `
+                                <div style="margin-top: 30px; padding: 15px; background: #f8f9fa; border-left: 4px solid #3498db; font-size: 12px;">
+                                    <strong>備註:</strong> ${slide.notes}
+                                </div>
+                            ` : ''}
+                            <div style="position: absolute; bottom: 10mm; right: 20mm; font-size: 10px; color: #666;">
+                                第 ${i + 1} 頁 / 共 ${content.slides.length} 頁
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Create temporary container for this slide
+                    const tempDiv = document.createElement('div');
+                    tempDiv.style.position = 'fixed';
+                    tempDiv.style.top = '-9999px';
+                    tempDiv.style.left = '-9999px';
+                    tempDiv.innerHTML = slideHtml;
+                    document.body.appendChild(tempDiv);
+                    
+                    try {
+                        // Convert slide to canvas
+                        const canvas = await html2canvas(tempDiv.firstElementChild, {
+                            scale: 2,
+                            useCORS: true,
+                            allowTaint: true,
+                            backgroundColor: '#ffffff',
+                            width: 794,  // A4 width in pixels at 96 DPI
+                            height: 1123 // A4 height in pixels at 96 DPI
+                        });
+                        
+                        // Add page to PDF (add new page except for first slide)
+                        if (i > 0) {
+                            pdf.addPage();
+                        }
+                        
+                        // Add canvas as image to PDF
+                        const imgData = canvas.toDataURL('image/png');
+                        pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
+                        
+                        pageCount++;
+                        console.log(`✅ 投影片 ${i + 1} 已添加到PDF`);
+                        
+                    } catch (slideError) {
+                        console.error(`投影片 ${i + 1} 處理失敗:`, slideError);
+                        // Add error page
+                        if (i > 0) {
+                            pdf.addPage();
+                        }
+                        pdf.setFontSize(16);
+                        pdf.text(`投影片 ${i + 1} - 處理錯誤`, 20, 30);
+                        pdf.setFontSize(12);
+                        pdf.text(slideError.message || '未知錯誤', 20, 50);
+                        pageCount++;
+                    }
+                    
+                    // Clean up temporary element
+                    document.body.removeChild(tempDiv);
+                }
+            } else {
+                // Fallback for simple text content
+                console.log('📝 處理簡單文字內容');
+                const fallbackHtml = `
+                    <div style="
+                        width: 190mm; 
+                        height: 257mm;
+                        padding: 20mm; 
+                        background: white;
+                        font-family: 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans GB', 'SimSun', sans-serif;
+                        color: #333;
+                        box-sizing: border-box;
+                    ">
+                        <div style="font-size: 20px; font-weight: bold; margin-bottom: 20px; color: #2c3e50; text-align: center; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
+                            📊 ${title || '簡報文件'}
+                        </div>
+                        <div style="white-space: pre-wrap; font-size: 14px; line-height: 1.6;">
+                            ${content || '無簡報內容'}
+                        </div>
+                        <div style="position: absolute; bottom: 10mm; right: 20mm; font-size: 10px; color: #666;">
+                            第 1 頁 / 共 1 頁
+                        </div>
+                    </div>
+                `;
+                
+                const tempDiv = document.createElement('div');
+                tempDiv.style.position = 'fixed';
+                tempDiv.style.top = '-9999px';
+                tempDiv.style.left = '-9999px';
+                tempDiv.innerHTML = fallbackHtml;
+                document.body.appendChild(tempDiv);
+                
+                const canvas = await html2canvas(tempDiv.firstElementChild, {
+                    scale: 2,
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: '#ffffff',
+                    width: 794,
+                    height: 1123
+                });
+                
+                const imgData = canvas.toDataURL('image/png');
+                pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
+                document.body.removeChild(tempDiv);
+                pageCount++;
+            }
+            
+            // Add title page if we have multiple slides
+            if (pageCount > 1 && title) {
+                // Insert title page at the beginning
+                pdf.insertPage(1, 'a4');
+                
+                const titleHtml = `
+                    <div style="
+                        width: 190mm; 
+                        height: 257mm;
+                        padding: 20mm; 
+                        background: white;
+                        font-family: 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans GB', 'SimSun', sans-serif;
+                        color: #333;
+                        box-sizing: border-box;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                        align-items: center;
+                        text-align: center;
+                    ">
+                        <div style="font-size: 32px; font-weight: bold; color: #2c3e50; margin-bottom: 40px;">
+                            📊 ${title}
+                        </div>
+                        <div style="font-size: 18px; color: #34495e; margin-bottom: 60px;">
+                            共 ${pageCount} 張投影片
+                        </div>
+                        <div style="font-size: 14px; color: #7f8c8d;">
+                            由簡報轉換器生成<br>
+                            ${new Date().toLocaleString()}
+                        </div>
+                    </div>
+                `;
+                
+                const titleDiv = document.createElement('div');
+                titleDiv.style.position = 'fixed';
+                titleDiv.style.top = '-9999px';
+                titleDiv.style.left = '-9999px';
+                titleDiv.innerHTML = titleHtml;
+                document.body.appendChild(titleDiv);
+                
+                const titleCanvas = await html2canvas(titleDiv.firstElementChild, {
+                    scale: 2,
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: '#ffffff',
+                    width: 794,
+                    height: 1123
+                });
+                
+                pdf.setPage(1);
+                const titleImgData = titleCanvas.toDataURL('image/png');
+                pdf.addImage(titleImgData, 'PNG', 0, 0, 210, 297);
+                document.body.removeChild(titleDiv);
+            }
             
             const pdfBlob = pdf.output('blob');
-            console.log('✅ 簡報PDF創建成功:', pdfBlob.size, 'bytes');
+            console.log(`✅ 簡報PDF創建成功: ${pageCount} 頁, ${pdfBlob.size} bytes`);
             
             return pdfBlob;
             

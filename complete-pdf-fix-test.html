@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>完整 PDF 轉檔功能測試</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            color: #7f8c8d;
+            font-size: 16px;
+        }
+        
+        .test-section {
+            margin: 30px 0;
+            padding: 25px;
+            border: 2px solid #ecf0f1;
+            border-radius: 10px;
+            background: #f8f9fa;
+        }
+        
+        .test-section h2 {
+            color: #2980b9;
+            font-size: 20px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .test-section h2::before {
+            content: "🧪";
+            margin-right: 10px;
+        }
+        
+        .test-controls {
+            display: flex;
+            gap: 15px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            color: white;
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            color: white;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        }
+        
+        .file-input {
+            margin: 15px 0;
+            padding: 10px;
+            border: 2px dashed #bdc3c7;
+            border-radius: 8px;
+            text-align: center;
+            background: white;
+        }
+        
+        .status {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 8px;
+            background: #e8f4f8;
+            border-left: 4px solid #3498db;
+        }
+        
+        .status.success {
+            background: #e8f5e8;
+            border-left-color: #2ecc71;
+        }
+        
+        .status.error {
+            background: #fdf2f2;
+            border-left-color: #e74c3c;
+        }
+        
+        .progress {
+            margin: 15px 0;
+            height: 8px;
+            background: #ecf0f1;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #3498db, #2ecc71);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .sample-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border: 1px solid #ddd;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .feature-list {
+            list-style: none;
+            margin: 20px 0;
+        }
+        
+        .feature-list li {
+            padding: 8px 0;
+            padding-left: 25px;
+            position: relative;
+        }
+        
+        .feature-list li::before {
+            content: "✅";
+            position: absolute;
+            left: 0;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            
+            .test-controls {
+                flex-direction: column;
+            }
+            
+            .btn {
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📄 完整 PDF 轉檔功能測試</h1>
+            <p>測試修復後的簡報和文書轉 PDF 功能，確保內容完整性和多頁面支援</p>
+        </div>
+
+        <!-- 簡報轉檔測試 -->
+        <div class="test-section">
+            <h2>簡報轉 PDF 測試</h2>
+            <p><strong>新功能：</strong></p>
+            <ul class="feature-list">
+                <li>每個投影片轉為獨立 PDF 頁面</li>
+                <li>自動生成標題頁</li>
+                <li>保留投影片標題和備註</li>
+                <li>完整頁面編號和格式</li>
+            </ul>
+            
+            <div class="file-input">
+                <input type="file" id="presentationFile" accept=".pptx,.ppt,.pdf" style="margin: 10px;">
+                <p>選擇簡報檔案 (PPTX, PPT, PDF)</p>
+            </div>
+            
+            <div class="test-controls">
+                <button class="btn btn-primary" onclick="testPresentationToPdf()">
+                    📊 測試簡報轉 PDF
+                </button>
+                <button class="btn btn-warning" onclick="createSamplePresentation()">
+                    📝 生成測試簡報
+                </button>
+            </div>
+            
+            <div id="presentationStatus" class="status" style="display:none;">
+                準備測試...
+            </div>
+            <div id="presentationProgress" class="progress" style="display:none;">
+                <div class="progress-bar"></div>
+            </div>
+        </div>
+
+        <!-- 文書轉檔測試 -->
+        <div class="test-section">
+            <h2>文書轉 PDF 測試</h2>
+            <p><strong>新功能：</strong></p>
+            <ul class="feature-list">
+                <li>智慧分頁，避免內容截斷</li>
+                <li>自動標題頁生成</li>
+                <li>頁面編號和文件資訊</li>
+                <li>支援長文本多頁面顯示</li>
+            </ul>
+            
+            <div class="file-input">
+                <input type="file" id="documentFile" accept=".docx,.doc,.txt,.md,.html" style="margin: 10px;">
+                <p>選擇文書檔案 (DOCX, DOC, TXT, MD, HTML)</p>
+            </div>
+            
+            <div class="test-controls">
+                <button class="btn btn-primary" onclick="testDocumentToPdf()">
+                    📄 測試文書轉 PDF
+                </button>
+                <button class="btn btn-warning" onclick="createSampleDocument()">
+                    📝 生成測試文件
+                </button>
+                <button class="btn btn-success" onclick="testLongDocument()">
+                    📚 測試長文件
+                </button>
+            </div>
+            
+            <div id="documentStatus" class="status" style="display:none;">
+                準備測試...
+            </div>
+            <div id="documentProgress" class="progress" style="display:none;">
+                <div class="progress-bar"></div>
+            </div>
+        </div>
+
+        <!-- 測試結果展示 -->
+        <div class="test-section">
+            <h2>測試結果</h2>
+            <div id="testResults">
+                <p>點擊上面的測試按鈕開始驗證功能...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 載入必要的轉換器 -->
+    <script src="assets/js/converters/presentation.js"></script>
+    <script src="assets/js/converters/document.js"></script>
+
+    <script>
+        // 全局變數
+        let testResults = [];
+
+        // 顯示狀態訊息
+        function showStatus(elementId, message, type = 'info') {
+            const statusEl = document.getElementById(elementId);
+            statusEl.style.display = 'block';
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+        }
+
+        // 顯示進度
+        function updateProgress(elementId, percent) {
+            const progressEl = document.getElementById(elementId);
+            const progressBar = progressEl.querySelector('.progress-bar');
+            progressEl.style.display = 'block';
+            progressBar.style.width = percent + '%';
+        }
+
+        // 下載檔案
+        function downloadBlob(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // 添加測試結果
+        function addTestResult(test, success, details) {
+            testResults.push({
+                test,
+                success,
+                details,
+                timestamp: new Date().toLocaleString()
+            });
+            updateTestResults();
+        }
+
+        // 更新測試結果顯示
+        function updateTestResults() {
+            const resultsEl = document.getElementById('testResults');
+            if (testResults.length === 0) {
+                resultsEl.innerHTML = '<p>尚無測試結果...</p>';
+                return;
+            }
+
+            resultsEl.innerHTML = testResults.map(result => `
+                <div class="status ${result.success ? 'success' : 'error'}" style="margin: 10px 0;">
+                    <strong>${result.success ? '✅' : '❌'} ${result.test}</strong><br>
+                    <small>${result.timestamp}</small><br>
+                    ${result.details}
+                </div>
+            `).join('');
+        }
+
+        // 生成範例簡報
+        function createSamplePresentation() {
+            const samplePresentation = {
+                title: "測試簡報文件",
+                slides: [
+                    {
+                        slideNumber: 1,
+                        title: "歡迎頁面",
+                        content: [
+                            "歡迎使用簡報轉換器",
+                            "這是第一張投影片",
+                            "• 功能測試項目",
+                            "• 多頁面支援驗證",
+                            "• 中文字符處理測試"
+                        ],
+                        notes: "這是第一張投影片的備註內容"
+                    },
+                    {
+                        slideNumber: 2,
+                        title: "功能介紹",
+                        content: [
+                            "新的 PDF 轉換功能包含：",
+                            "",
+                            "1. 每張投影片獨立成頁",
+                            "2. 自動標題頁生成",
+                            "3. 完整內容保留",
+                            "4. 頁面編號系統",
+                            "",
+                            "提升了轉換品質和使用體驗"
+                        ],
+                        notes: "詳細說明新功能的優點"
+                    },
+                    {
+                        slideNumber: 3,
+                        title: "測試驗證",
+                        content: [
+                            "測試項目：",
+                            "✓ 投影片分頁正確",
+                            "✓ 中文字符顯示正常", 
+                            "✓ 格式保持完整",
+                            "✓ 備註內容包含",
+                            "",
+                            "預期結果：生成 4 頁 PDF",
+                            "(標題頁 + 3 張投影片)"
+                        ],
+                        notes: "最終的驗證結果說明"
+                    }
+                ],
+                totalSlides: 3,
+                metadata: {
+                    fileType: 'sample',
+                    extractedAt: new Date().toISOString(),
+                    isValid: true
+                }
+            };
+
+            testPresentationConversion(samplePresentation, "範例簡報測試");
+        }
+
+        // 生成範例文件
+        function createSampleDocument() {
+            const sampleContent = `這是一個測試文件標題
+
+這是第一段落的內容。這個段落用來測試文書轉 PDF 的基本功能，包括中文字符的正確顯示和格式保持。
+
+第二段落包含更多內容，用來測試多段落的處理能力。我們需要確保每個段落都能正確分頁並保持格式。
+
+功能測試項目：
+• 多頁面智慧分頁
+• 中文字符完整支援
+• 段落格式保留
+• 標題頁自動生成
+• 頁面編號系統
+
+這是較長的段落，用來測試長文本的處理。在實際使用中，用戶可能會轉換包含大量文字的文件，我們需要確保這些內容能夠正確分頁，避免內容被截斷或重疊。
+
+最後一個段落用來總結測試內容。如果您看到這個文字出現在 PDF 中，說明文書轉換功能正常運作。
+
+結束語：測試完成，感謝使用！`;
+
+            testDocumentConversion(sampleContent, "範例文件測試");
+        }
+
+        // 測試長文件
+        function testLongDocument() {
+            let longContent = "長文件測試報告\n\n";
+            
+            for (let i = 1; i <= 10; i++) {
+                longContent += `第 ${i} 章節\n\n`;
+                longContent += `這是第 ${i} 章節的內容。`;
+                longContent += `本章節包含多個段落，用來測試長文件的分頁功能。`;
+                longContent += `我們需要確保內容能夠正確分佈到多個頁面中。\n\n`;
+                
+                // 添加多個子段落
+                for (let j = 1; j <= 3; j++) {
+                    longContent += `第 ${i}.${j} 小節：這是子章節的內容，包含更詳細的說明和解釋。`;
+                    longContent += `每個小節都有足夠的內容來測試分頁邏輯的正確性。`;
+                    longContent += `我們希望看到內容能夠自然地分佈到各個頁面中。\n\n`;
+                }
+            }
+            
+            longContent += "結論：這是一個包含多個章節的長文件，用來測試多頁面 PDF 轉換功能的穩定性和正確性。";
+            
+            testDocumentConversion(longContent, "長文件測試", true);
+        }
+
+        // 測試簡報轉 PDF
+        async function testPresentationToPdf() {
+            const fileInput = document.getElementById('presentationFile');
+            
+            if (fileInput.files.length === 0) {
+                showStatus('presentationStatus', '請先選擇簡報檔案', 'error');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            
+            try {
+                showStatus('presentationStatus', '正在解析簡報檔案...', 'info');
+                updateProgress('presentationProgress', 20);
+
+                // 解析簡報內容
+                const presentationData = await PresentationConverter.extractPresentationContent(file);
+                
+                updateProgress('presentationProgress', 50);
+                showStatus('presentationStatus', '正在轉換為 PDF...', 'info');
+
+                // 轉換為 PDF
+                await testPresentationConversion(presentationData, file.name);
+                
+            } catch (error) {
+                console.error('簡報轉 PDF 測試失敗:', error);
+                showStatus('presentationStatus', `轉換失敗: ${error.message}`, 'error');
+                updateProgress('presentationProgress', 0);
+                addTestResult('簡報轉 PDF', false, error.message);
+            }
+        }
+
+        // 執行簡報轉換測試
+        async function testPresentationConversion(presentationData, filename) {
+            try {
+                updateProgress('presentationProgress', 70);
+                
+                const pdfBlob = await PresentationConverter.convertToPdf(
+                    presentationData, 
+                    presentationData.title || filename
+                );
+                
+                updateProgress('presentationProgress', 100);
+                showStatus('presentationStatus', '轉換成功！正在下載...', 'success');
+                
+                // 下載 PDF
+                downloadBlob(pdfBlob, `${filename.replace(/\.[^.]+$/, '')}_converted.pdf`);
+                
+                // 記錄測試結果
+                const details = `檔案大小: ${(pdfBlob.size / 1024).toFixed(2)} KB, ` +
+                              `投影片數量: ${presentationData.slides ? presentationData.slides.length : 1}`;
+                
+                addTestResult('簡報轉 PDF', true, details);
+                
+                setTimeout(() => {
+                    updateProgress('presentationProgress', 0);
+                    showStatus('presentationStatus', '測試完成', 'success');
+                }, 2000);
+                
+            } catch (error) {
+                throw error;
+            }
+        }
+
+        // 測試文書轉 PDF
+        async function testDocumentToPdf() {
+            const fileInput = document.getElementById('documentFile');
+            
+            if (fileInput.files.length === 0) {
+                showStatus('documentStatus', '請先選擇文書檔案', 'error');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            
+            try {
+                showStatus('documentStatus', '正在解析文書檔案...', 'info');
+                updateProgress('documentProgress', 20);
+
+                // 解析文書內容
+                const documentData = await DocumentConverter.extractTextContent(file);
+                
+                updateProgress('documentProgress', 50);
+                testDocumentConversion(documentData.content, documentData.title || file.name);
+                
+            } catch (error) {
+                console.error('文書轉 PDF 測試失敗:', error);
+                showStatus('documentStatus', `轉換失敗: ${error.message}`, 'error');
+                updateProgress('documentProgress', 0);
+                addTestResult('文書轉 PDF', false, error.message);
+            }
+        }
+
+        // 執行文書轉換測試
+        async function testDocumentConversion(content, title, isLongDocument = false) {
+            try {
+                showStatus('documentStatus', '正在轉換為 PDF...', 'info');
+                updateProgress('documentProgress', 70);
+                
+                const pdfBlob = await DocumentConverter.convertToPdf(content, title);
+                
+                updateProgress('documentProgress', 100);
+                showStatus('documentStatus', '轉換成功！正在下載...', 'success');
+                
+                // 下載 PDF
+                const filename = isLongDocument ? '長文件測試.pdf' : `${title.replace(/\.[^.]+$/, '')}_converted.pdf`;
+                downloadBlob(pdfBlob, filename);
+                
+                // 記錄測試結果
+                const wordCount = content.split(/\s+/).length;
+                const details = `檔案大小: ${(pdfBlob.size / 1024).toFixed(2)} KB, ` +
+                              `內容長度: ${content.length} 字符, 字數: ${wordCount}`;
+                
+                const testName = isLongDocument ? '長文件轉 PDF' : '文書轉 PDF';
+                addTestResult(testName, true, details);
+                
+                setTimeout(() => {
+                    updateProgress('documentProgress', 0);
+                    showStatus('documentStatus', '測試完成', 'success');
+                }, 2000);
+                
+            } catch (error) {
+                console.error('文書轉換失敗:', error);
+                showStatus('documentStatus', `轉換失敗: ${error.message}`, 'error');
+                updateProgress('documentProgress', 0);
+                const testName = isLongDocument ? '長文件轉 PDF' : '文書轉 PDF';
+                addTestResult(testName, false, error.message);
+            }
+        }
+
+        // 頁面載入完成後的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('📄 完整 PDF 轉檔功能測試頁面已載入');
+            console.log('🔧 可用的轉換器:', {
+                presentation: typeof PresentationConverter !== 'undefined',
+                document: typeof DocumentConverter !== 'undefined'
+            });
+        });
+    </script>
+</body>
+</html>
