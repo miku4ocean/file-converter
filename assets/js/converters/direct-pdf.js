@@ -91,7 +91,7 @@ class DirectPDFConverter {
             // Use html2canvas to capture the rendered content
             await DirectPDFConverter.loadHTML2Canvas();
             const canvas = await html2canvas(iframe.contentDocument.body, {
-                scale: 2,
+                scale: 3, // 提高解析度 (從2提升到3)
                 useCORS: true,
                 allowTaint: true,
                 backgroundColor: '#ffffff',
@@ -673,7 +673,7 @@ class DirectPDFConverter {
             
             // Capture the HTML as canvas
             const canvas = await html2canvas(tempDiv, {
-                scale: 1,
+                scale: 3, // 提高解析度 (從1提升到3)
                 useCORS: true,
                 allowTaint: true,
                 backgroundColor: '#ffffff',
