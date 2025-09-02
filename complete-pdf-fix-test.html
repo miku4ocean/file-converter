@@ -481,31 +481,52 @@
         // 執行簡報轉換測試
         async function testPresentationConversion(presentationData, filename) {
             try {
+                console.log('🔄 開始簡報轉換測試:', presentationData);
+                
+                // 驗證數據結構
+                if (!presentationData) {
+                    throw new Error('簡報數據為空');
+                }
+                
+                if (!presentationData.slides || !Array.isArray(presentationData.slides)) {
+                    throw new Error('簡報數據結構錯誤：缺少 slides 陣列');
+                }
+                
                 updateProgress('presentationProgress', 70);
+                showStatus('presentationStatus', `正在轉換 ${presentationData.slides.length} 張投影片...`, 'info');
                 
                 const pdfBlob = await PresentationConverter.convertToPdf(
                     presentationData, 
                     presentationData.title || filename
                 );
                 
+                if (!pdfBlob || pdfBlob.size === 0) {
+                    throw new Error('PDF 生成失敗：檔案大小為 0');
+                }
+                
                 updateProgress('presentationProgress', 100);
-                showStatus('presentationStatus', '轉換成功！正在下載...', 'success');
+                showStatus('presentationStatus', `轉換成功！PDF 大小: ${(pdfBlob.size / 1024).toFixed(2)} KB`, 'success');
                 
                 // 下載 PDF
-                downloadBlob(pdfBlob, `${filename.replace(/\.[^.]+$/, '')}_converted.pdf`);
+                downloadBlob(pdfBlob, `${filename.replace(/\.[^.]+$/, '')}_presentation.pdf`);
                 
                 // 記錄測試結果
                 const details = `檔案大小: ${(pdfBlob.size / 1024).toFixed(2)} KB, ` +
-                              `投影片數量: ${presentationData.slides ? presentationData.slides.length : 1}`;
+                              `投影片數量: ${presentationData.slides.length}, ` +
+                              `預期頁數: ${presentationData.slides.length + (presentationData.title ? 1 : 0)}`;
                 
                 addTestResult('簡報轉 PDF', true, details);
                 
                 setTimeout(() => {
                     updateProgress('presentationProgress', 0);
                     showStatus('presentationStatus', '測試完成', 'success');
-                }, 2000);
+                }, 3000);
                 
             } catch (error) {
+                console.error('簡報轉換測試失敗:', error);
+                updateProgress('presentationProgress', 0);
+                showStatus('presentationStatus', `轉換失敗: ${error.message}`, 'error');
+                addTestResult('簡報轉 PDF', false, error.message + ' (詳細錯誤請查看控制台)');
                 throw error;
             }
         }
@@ -542,22 +563,43 @@
         // 執行文書轉換測試
         async function testDocumentConversion(content, title, isLongDocument = false) {
             try {
-                showStatus('documentStatus', '正在轉換為 PDF...', 'info');
+                console.log('🔄 開始文書轉換測試:', { contentLength: content.length, title, isLongDocument });
+                
+                // 驗證輸入數據
+                if (!content || typeof content !== 'string') {
+                    throw new Error('文書內容無效');
+                }
+                
+                if (content.length === 0) {
+                    throw new Error('文書內容為空');
+                }
+                
+                showStatus('documentStatus', '正在分析文書內容...', 'info');
+                updateProgress('documentProgress', 30);
+                
+                // 估算頁數
+                const estimatedPages = Math.ceil(content.length / 3000);
+                showStatus('documentStatus', `正在轉換為 PDF... (預估 ${estimatedPages} 頁)`, 'info');
                 updateProgress('documentProgress', 70);
                 
                 const pdfBlob = await DocumentConverter.convertToPdf(content, title);
                 
+                if (!pdfBlob || pdfBlob.size === 0) {
+                    throw new Error('PDF 生成失敗：檔案大小為 0');
+                }
+                
                 updateProgress('documentProgress', 100);
-                showStatus('documentStatus', '轉換成功！正在下載...', 'success');
+                showStatus('documentStatus', `轉換成功！PDF 大小: ${(pdfBlob.size / 1024).toFixed(2)} KB`, 'success');
                 
                 // 下載 PDF
-                const filename = isLongDocument ? '長文件測試.pdf' : `${title.replace(/\.[^.]+$/, '')}_converted.pdf`;
+                const filename = isLongDocument ? '長文件測試.pdf' : `${title.replace(/\.[^.]+$/, '')}_document.pdf`;
                 downloadBlob(pdfBlob, filename);
                 
                 // 記錄測試結果
-                const wordCount = content.split(/\s+/).length;
+                const wordCount = content.split(/\s+/).filter(w => w.length > 0).length;
+                const paragraphs = content.split('\n\n').filter(p => p.trim()).length;
                 const details = `檔案大小: ${(pdfBlob.size / 1024).toFixed(2)} KB, ` +
-                              `內容長度: ${content.length} 字符, 字數: ${wordCount}`;
+                              `內容長度: ${content.length} 字符, 字數: ${wordCount}, 段落: ${paragraphs}, 預估頁數: ${estimatedPages}`;
                 
                 const testName = isLongDocument ? '長文件轉 PDF' : '文書轉 PDF';
                 addTestResult(testName, true, details);
@@ -565,14 +607,14 @@
                 setTimeout(() => {
                     updateProgress('documentProgress', 0);
                     showStatus('documentStatus', '測試完成', 'success');
-                }, 2000);
+                }, 3000);
                 
             } catch (error) {
                 console.error('文書轉換失敗:', error);
-                showStatus('documentStatus', `轉換失敗: ${error.message}`, 'error');
                 updateProgress('documentProgress', 0);
+                showStatus('documentStatus', `轉換失敗: ${error.message}`, 'error');
                 const testName = isLongDocument ? '長文件轉 PDF' : '文書轉 PDF';
-                addTestResult(testName, false, error.message);
+                addTestResult(testName, false, error.message + ' (詳細錯誤請查看控制台)');
             }
         }
 

@@ -402,24 +402,69 @@ class DocumentConverter {
         tempDiv.style.position = 'fixed';
         tempDiv.style.top = '-9999px';
         tempDiv.style.left = '-9999px';
+        tempDiv.style.width = pageWidth + 'mm';
+        tempDiv.style.height = pageHeight + 'mm';
         tempDiv.innerHTML = htmlContent;
         document.body.appendChild(tempDiv);
         
         try {
+            // 等待元素渲染
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
             const canvas = await html2canvas(tempDiv.firstElementChild, {
-                scale: 2,
+                scale: 1.5, // 降低解析度提高效能
                 useCORS: true,
                 allowTaint: true,
                 backgroundColor: '#ffffff',
-                width: pageWidth * 3.78, // Convert mm to pixels (96 DPI)
-                height: pageHeight * 3.78
+                width: Math.round(pageWidth * 3.78), // Convert mm to pixels (96 DPI)
+                height: Math.round(pageHeight * 3.78),
+                logging: false, // 關閉日誌輸出
+                windowWidth: Math.round(pageWidth * 3.78),
+                windowHeight: Math.round(pageHeight * 3.78)
             });
             
-            const imgData = canvas.toDataURL('image/png');
+            const imgData = canvas.toDataURL('image/png', 0.8); // 壓縮品質
             pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
             
+        } catch (error) {
+            console.error('頁面轉換Canvas錯誤:', error);
+            // 回退到文字模式
+            await DocumentConverter.addTextPageToPdf(pdf, htmlContent, pageWidth, pageHeight);
         } finally {
-            document.body.removeChild(tempDiv);
+            if (document.body.contains(tempDiv)) {
+                document.body.removeChild(tempDiv);
+            }
+        }
+    }
+    
+    // Fallback: Add text-only page to PDF
+    static async addTextPageToPdf(pdf, htmlContent, pageWidth, pageHeight) {
+        try {
+            // 提取純文字內容
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlContent, 'text/html');
+            const textContent = doc.body ? doc.body.textContent || doc.body.innerText || '' : '';
+            
+            // 使用 jsPDF 的文字模式
+            pdf.setFontSize(12);
+            const lines = pdf.splitTextToSize(textContent, pageWidth - 40); // 留出邊距
+            
+            let yPosition = 20;
+            const lineHeight = 7;
+            
+            lines.forEach(line => {
+                if (yPosition > pageHeight - 20) {
+                    pdf.addPage();
+                    yPosition = 20;
+                }
+                pdf.text(line, 20, yPosition);
+                yPosition += lineHeight;
+            });
+            
+        } catch (error) {
+            console.error('文字頁面添加錯誤:', error);
+            // 最後回退：添加錯誤訊息
+            pdf.text('文檔處理錯誤', 20, 50);
         }
     }
     

@@ -64,9 +64,20 @@ class PresentationConverter {
             const fileName = file.name.replace(/\.[^/.]+$/, '');
             const fileType = file.name.toLowerCase().substring(file.name.lastIndexOf('.') + 1);
             
-            // Basic file validation
-            const uint8Array = new Uint8Array(arrayBuffer);
-            const header = Array.from(uint8Array.slice(0, 4)).map(b => b.toString(16).padStart(2, '0')).join('');
+            // Basic file validation with error handling
+            let header = 'unknown';
+            try {
+                const uint8Array = new Uint8Array(arrayBuffer);
+                if (uint8Array && uint8Array.length >= 4) {
+                    const headerBytes = uint8Array.slice(0, 4);
+                    header = Array.from(headerBytes)
+                        .map(b => b.toString(16).padStart(2, '0'))
+                        .join('');
+                }
+            } catch (error) {
+                console.warn('檔案標頭解析錯誤:', error);
+                header = 'unknown';
+            }
             
             // Check for ZIP signature (PPTX) or OLE signature (PPT)
             const isZip = header === '504b0304' || header === '504b0506';
@@ -262,12 +273,29 @@ class PresentationConverter {
                     const slide = content.slides[i];
                     console.log(`🎨 處理投影片 ${i + 1}/${content.slides.length}`);
                     
-                    // Create slide content
+                    // Create slide content safely
                     let slideContent = '';
-                    if (slide.content && Array.isArray(slide.content)) {
-                        slideContent = slide.content.join('\n\n');
-                    } else if (slide.content) {
-                        slideContent = slide.content;
+                    try {
+                        if (slide && slide.content && Array.isArray(slide.content)) {
+                            // 安全處理陣列內容，防止超長字串
+                            const safeContent = slide.content
+                                .filter(item => item != null && typeof item === 'string')
+                                .map(item => {
+                                    const str = String(item);
+                                    return str.length > 5000 ? str.substring(0, 5000) + '...' : str;
+                                })
+                                .slice(0, 20); // 限制最多20個元素
+                            
+                            slideContent = safeContent.length > 0 ? safeContent.join('\n\n') : '無內容';
+                        } else if (slide && slide.content && typeof slide.content === 'string') {
+                            const str = String(slide.content);
+                            slideContent = str.length > 10000 ? str.substring(0, 10000) + '...' : str;
+                        } else {
+                            slideContent = '無可顯示內容';
+                        }
+                    } catch (error) {
+                        console.error(`投影片 ${i + 1} 內容處理錯誤:`, error);
+                        slideContent = '內容處理時發生錯誤';
                     }
                     
                     // Create HTML for this slide
