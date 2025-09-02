@@ -619,6 +619,13 @@ ${error.message}
 
     async convertDocumentFile(file, outputFormat) {
         try {
+            // Use direct PDF conversion for PDF output
+            if (outputFormat.toLowerCase() === 'pdf') {
+                console.log('📄 使用直接檔案轉PDF功能');
+                return await DocumentConverter.convertToPdf(file, file.name, {});
+            }
+            
+            // For other formats, extract content first
             const extractedContent = await DocumentConverter.extractTextContent(file);
             const compression = document.getElementById('compression')?.value || 'standard';
             
@@ -652,16 +659,20 @@ ${error.message}
 
     async convertPresentationFile(file, outputFormat) {
         try {
-            const presentationData = await PresentationConverter.extractPresentationContent(file);
-            const includeNotes = document.getElementById('includeNotes')?.checked || true;
             const title = file.name.replace(/\.[^/.]+$/, '');
             
-            // Use the specific conversion methods based on output format
+            // Use direct PDF conversion for PDF output
+            if (outputFormat.toLowerCase() === 'pdf') {
+                console.log('📊 使用直接檔案轉PDF功能');
+                return await PresentationConverter.convertToPdf(file, title, {});
+            }
+            
+            // For other formats, extract content first
+            const presentationData = await PresentationConverter.extractPresentationContent(file);
+            const includeNotes = document.getElementById('includeNotes')?.checked || true;
+            
             let blob;
             switch (outputFormat.toLowerCase()) {
-                case 'pdf':
-                    blob = await PresentationConverter.convertToPdf(presentationData, title, { includeNotes });
-                    break;
                 case 'html':
                     blob = PresentationConverter.convertToHtml(presentationData, title, { includeNotes });
                     break;

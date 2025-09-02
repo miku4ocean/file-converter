@@ -244,10 +244,29 @@ class PresentationConverter {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
-    // Convert presentation to PDF with separate pages for each slide
-    static async convertToPdf(content, title, options = {}) {
+    // Convert presentation to PDF - Direct file conversion (like print-to-PDF)
+    static async convertToPdf(presentationFile, title, options = {}) {
+        // NEW: Use direct PDF conversion instead of content parsing
+        if (presentationFile instanceof File) {
+            console.log('🖨️ 使用直接PDF轉換 (類似列印功能)');
+            
+            // Load the direct PDF converter
+            if (typeof DirectPDFConverter !== 'undefined') {
+                return await DirectPDFConverter.convertToPDF(presentationFile, options);
+            } else {
+                console.warn('DirectPDFConverter 未載入，使用傳統方法');
+            }
+        }
+        
+        // FALLBACK: Use the old content-based method if direct conversion fails
+        return await PresentationConverter.convertContentToPdf(presentationFile, title, options);
+    }
+    
+    // Legacy method - convert parsed content to PDF
+    static async convertContentToPdf(content, title, options = {}) {
         try {
-            console.log('🔄 開始簡報轉PDF (多頁面方法)...');
+            console.log('🔄 開始內容型簡報轉PDF (舊版方法)...');
+            console.warn('⚠️ 建議使用 DirectPDFConverter 以獲得更好的結果');
             
             // Load required libraries
             await Promise.all([

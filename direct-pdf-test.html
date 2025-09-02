@@ -3,173 +3,79 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>直接 PDF 測試</title>
+    <title>🖨️ 直接PDF轉換測試</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
-        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .result { padding: 15px; margin: 10px 0; border-radius: 8px; font-family: monospace; }
-        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
-        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
-        button { padding: 15px 25px; margin: 10px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
-        button:hover { background: #0056b3; }
-        button:disabled { background: #6c757d; cursor: not-allowed; }
-        .log { height: 200px; overflow-y: auto; background: #f8f9fa; border: 1px solid #dee2e6; padding: 10px; font-family: monospace; font-size: 12px; }
+        body { font-family: 'Microsoft YaHei', sans-serif; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; }
+        .test-section { margin: 30px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        .btn { padding: 10px 20px; margin: 5px; border: none; border-radius: 5px; cursor: pointer; color: white; }
+        .btn-primary { background: #3498db; }
+        .btn-success { background: #2ecc71; }
+        .btn-warning { background: #f39c12; }
+        .status { margin: 15px 0; padding: 15px; border-radius: 5px; }
+        .status.success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .status.error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .status.info { background: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+        .progress { height: 6px; background: #e9ecef; border-radius: 3px; margin: 10px 0; }
+        .progress-bar { height: 100%; background: #28a745; border-radius: 3px; transition: width 0.3s; }
+        .file-input { margin: 15px 0; padding: 15px; border: 2px dashed #ccc; text-align: center; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🧪 直接 PDF 轉檔測試</h1>
-        <p>直接測試修復後的 PDF 轉檔功能，不依賴複雜的載入機制</p>
-        
-        <div class="result info" id="status">正在初始化...</div>
-        
-        <button onclick="testBasicPDF()" id="basicBtn">📄 基本 PDF 測試</button>
-        <button onclick="testSpecialChars()" id="specialBtn">🔤 特殊字符測試</button>
-        <button onclick="testChineseText()" id="chineseBtn">🇹🇼 中文文字測試</button>
-        <button onclick="testErrorHandling()" id="errorBtn">⚠️ 錯誤處理測試</button>
-        
-        <div class="result info">
-            <strong>測試日誌：</strong>
-            <div class="log" id="testLog"></div>
+        <h1>🖨️ 直接PDF轉換測試</h1>
+        <p>測試新的直接PDF轉換功能，保留原始檔案外觀</p>
+
+        <div class="test-section">
+            <h2>HTML文件轉PDF</h2>
+            <div class="file-input">
+                <input type="file" id="htmlFile" accept=".html,.htm">
+                <p>選擇HTML檔案</p>
+            </div>
+            <button class="btn btn-primary" onclick="testHTMLToPDF()">轉換HTML為PDF</button>
+            <button class="btn btn-warning" onclick="createSampleHTML()">建立範例HTML</button>
+            <div id="htmlStatus" class="status" style="display:none;"></div>
+            <div id="htmlProgress" class="progress" style="display:none;">
+                <div class="progress-bar" style="width:0%"></div>
+            </div>
         </div>
-        
-        <div id="testResults"></div>
+
+        <div class="test-section">
+            <h2>文書檔案轉PDF</h2>
+            <div class="file-input">
+                <input type="file" id="documentFile" accept=".docx,.doc,.txt,.md,.rtf">
+                <p>選擇文書檔案</p>
+            </div>
+            <button class="btn btn-primary" onclick="testDocumentToPDF()">轉換文書為PDF</button>
+            <button class="btn btn-success" onclick="testTextFile()">建立測試文字檔</button>
+            <div id="documentStatus" class="status" style="display:none;"></div>
+            <div id="documentProgress" class="progress" style="display:none;">
+                <div class="progress-bar" style="width:0%"></div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>測試結果</h2>
+            <div id="testResults">點擊上面的按鈕開始測試...</div>
+        </div>
     </div>
 
-    <!-- 直接載入必要的函式庫 -->
-    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-    
-    <!-- 直接載入 DocumentConverter -->
+    <script src="assets/js/converters/direct-pdf.js"></script>
     <script>
-        // 直接嵌入修復後的 DocumentConverter 核心功能
-        class DirectDocumentConverter {
-            // 修復後的靜態方法
-            static escapeXml(text) {
-                if (!text) return '';
-                return text
-                    .replace(/&/g, '&amp;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;')
-                    .replace(/"/g, '&quot;')
-                    .replace(/'/g, '&#39;');
-            }
+        let testResults = [];
 
-            static escapeRtf(text) {
-                if (!text) return '';
-                return text
-                    .replace(/\\/g, '\\\\')
-                    .replace(/\{/g, '\\{')
-                    .replace(/\}/g, '\\}');
-            }
-
-            // 簡化的 PDF 轉換方法
-            static async convertTextToPdf(content, filename) {
-                try {
-                    log('🔄 開始轉換 PDF...', 'info');
-                    
-                    // 檢查 jsPDF 是否可用
-                    if (typeof jsPDF === 'undefined') {
-                        throw new Error('jsPDF 函式庫未載入');
-                    }
-
-                    // 使用 jsPDF 創建 PDF
-                    const doc = new jsPDF.jsPDF();
-                    
-                    // 設定字型 (使用支援中文的字型)
-                    doc.setFont('helvetica');
-                    doc.setFontSize(12);
-                    
-                    // 處理內容
-                    const title = filename ? filename.replace('.pdf', '') : '文件';
-                    const processedContent = content || '(空白內容)';
-                    
-                    log(`📝 處理內容: ${processedContent.length} 字符`, 'info');
-                    
-                    // 添加標題
-                    doc.setFontSize(16);
-                    doc.text(DirectDocumentConverter.escapeXml(title), 20, 20);
-                    
-                    // 添加內容（分行處理）
-                    doc.setFontSize(12);
-                    const lines = processedContent.split('\n');
-                    let yPosition = 40;
-                    
-                    lines.forEach((line, index) => {
-                        if (yPosition > 280) { // 換頁
-                            doc.addPage();
-                            yPosition = 20;
-                        }
-                        
-                        // 處理長行（自動換行）
-                        const processedLine = DirectDocumentConverter.escapeXml(line);
-                        const splitLines = doc.splitTextToSize(processedLine, 170);
-                        
-                        splitLines.forEach(splitLine => {
-                            if (yPosition > 280) {
-                                doc.addPage();
-                                yPosition = 20;
-                            }
-                            doc.text(splitLine, 20, yPosition);
-                            yPosition += 6;
-                        });
-                        
-                        // 段落間距
-                        if (line.trim() === '') {
-                            yPosition += 3;
-                        }
-                    });
-                    
-                    // 生成 PDF Blob
-                    const pdfBlob = doc.output('blob');
-                    log(`✅ PDF 生成成功: ${pdfBlob.size} bytes`, 'success');
-                    
-                    return pdfBlob;
-                    
-                } catch (error) {
-                    log(`❌ PDF 轉換失敗: ${error.message}`, 'error');
-                    throw error;
-                }
-            }
+        function showStatus(elementId, message, type = 'info') {
+            const statusEl = document.getElementById(elementId);
+            statusEl.style.display = 'block';
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
         }
 
-        let testCount = 0;
-        let passedTests = 0;
-
-        function log(message, type = 'info') {
-            const logDiv = document.getElementById('testLog');
-            const timestamp = new Date().toLocaleTimeString();
-            const logEntry = document.createElement('div');
-            logEntry.style.color = type === 'error' ? '#dc3545' : type === 'success' ? '#28a745' : type === 'warning' ? '#ffc107' : '#6c757d';
-            logEntry.textContent = `[${timestamp}] ${message}`;
-            logDiv.appendChild(logEntry);
-            logDiv.scrollTop = logDiv.scrollHeight;
-            console.log(message);
-        }
-
-        function addResult(name, success, details) {
-            testCount++;
-            if (success) passedTests++;
-            
-            const resultsDiv = document.getElementById('testResults');
-            const resultDiv = document.createElement('div');
-            resultDiv.className = `result ${success ? 'success' : 'error'}`;
-            resultDiv.innerHTML = `
-                <strong>${success ? '✅' : '❌'} ${name}</strong><br>
-                ${details}<br>
-                <small>測試 ${testCount} | 通過率: ${Math.round((passedTests/testCount)*100)}%</small>
-            `;
-            resultsDiv.appendChild(resultDiv);
-            
-            updateStatus();
-        }
-
-        function updateStatus() {
-            const statusDiv = document.getElementById('status');
-            const rate = testCount > 0 ? Math.round((passedTests/testCount)*100) : 0;
-            statusDiv.className = `result ${rate === 100 ? 'success' : rate >= 75 ? 'warning' : 'error'}`;
-            statusDiv.innerHTML = `測試進度: ${passedTests}/${testCount} 通過 (${rate}%)`;
+        function updateProgress(elementId, percent) {
+            const progressEl = document.getElementById(elementId);
+            const progressBar = progressEl.querySelector('.progress-bar');
+            progressEl.style.display = 'block';
+            progressBar.style.width = percent + '%';
         }
 
         function downloadBlob(blob, filename) {
@@ -177,143 +83,162 @@
             const a = document.createElement('a');
             a.href = url;
             a.download = filename;
-            a.style.display = 'none';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
-            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            URL.revokeObjectURL(url);
         }
 
-        // 測試函數
-        async function testBasicPDF() {
-            log('🧪 開始基本 PDF 測試', 'info');
-            const btn = document.getElementById('basicBtn');
-            btn.disabled = true;
-            
+        function addTestResult(test, success, details) {
+            testResults.push({
+                test, success, details,
+                timestamp: new Date().toLocaleString()
+            });
+            updateTestResults();
+        }
+
+        function updateTestResults() {
+            const resultsEl = document.getElementById('testResults');
+            if (testResults.length === 0) {
+                resultsEl.innerHTML = '點擊上面的按鈕開始測試...';
+                return;
+            }
+            resultsEl.innerHTML = testResults.map(result => `
+                <div class="status ${result.success ? 'success' : 'error'}">
+                    <strong>${result.success ? '✅' : '❌'} ${result.test}</strong><br>
+                    <small>${result.timestamp}</small><br>
+                    ${result.details}
+                </div>
+            `).join('');
+        }
+
+        async function testHTMLToPDF() {
+            const fileInput = document.getElementById('htmlFile');
+            if (fileInput.files.length === 0) {
+                showStatus('htmlStatus', '請先選擇HTML檔案', 'error');
+                return;
+            }
+
+            const file = fileInput.files[0];
             try {
-                const testContent = "Hello World!\n這是基本的 PDF 測試內容。";
-                const pdfBlob = await DirectDocumentConverter.convertTextToPdf(testContent, 'basic-test.pdf');
+                showStatus('htmlStatus', '正在轉換...', 'info');
+                updateProgress('htmlProgress', 30);
+
+                const pdfBlob = await DirectPDFConverter.convertToPDF(file);
                 
-                if (pdfBlob && pdfBlob.size > 0) {
-                    addResult('基本 PDF 測試', true, `檔案大小: ${pdfBlob.size} bytes`);
-                    downloadBlob(pdfBlob, 'basic-test.pdf');
-                } else {
-                    addResult('基本 PDF 測試', false, '產生的檔案為空');
-                }
+                updateProgress('htmlProgress', 100);
+                showStatus('htmlStatus', '轉換成功！', 'success');
+
+                downloadBlob(pdfBlob, file.name.replace(/\\.[^.]+$/, '') + '_direct.pdf');
+                addTestResult('HTML轉PDF', true, `檔案: ${file.name}, 大小: ${(pdfBlob.size/1024).toFixed(2)}KB`);
+
             } catch (error) {
-                addResult('基本 PDF 測試', false, error.message);
-            } finally {
-                btn.disabled = false;
+                console.error('HTML轉PDF失敗:', error);
+                showStatus('htmlStatus', '轉換失敗: ' + error.message, 'error');
+                addTestResult('HTML轉PDF', false, error.message);
             }
         }
 
-        async function testSpecialChars() {
-            log('🧪 開始特殊字符測試', 'info');
-            const btn = document.getElementById('specialBtn');
-            btn.disabled = true;
+        function createSampleHTML() {
+            const htmlContent = \`<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>範例文件</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
+        h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        h2 { color: #27ae60; }
+        .highlight { background: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <h1>📊 測試文件</h1>
+    <h2>第一章</h2>
+    <p>這是一個測試HTML文件，用來展示直接PDF轉換功能。</p>
+    <div class="highlight">
+        <strong>重點：</strong> 這會保留所有CSS樣式和佈局！
+    </div>
+    <h2>第二章</h2>
+    <ul>
+        <li>完整保留視覺外觀</li>
+        <li>支援複雜CSS樣式</li>
+        <li>類似瀏覽器列印功能</li>
+    </ul>
+</body>
+</html>\`;
+
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const file = new File([blob], 'sample.html', { type: 'text/html' });
             
+            const fileInput = document.getElementById('htmlFile');
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            fileInput.files = dt.files;
+            
+            showStatus('htmlStatus', '已建立範例HTML檔案', 'success');
+        }
+
+        async function testDocumentToPDF() {
+            const fileInput = document.getElementById('documentFile');
+            if (fileInput.files.length === 0) {
+                showStatus('documentStatus', '請先選擇文書檔案', 'error');
+                return;
+            }
+
+            const file = fileInput.files[0];
             try {
-                const testContent = "特殊字符測試：& < > \" '\nHTML 實體：&amp; &lt; &gt; &quot; &#39;";
-                const pdfBlob = await DirectDocumentConverter.convertTextToPdf(testContent, 'special-chars.pdf');
+                showStatus('documentStatus', '正在轉換...', 'info');
+                updateProgress('documentProgress', 30);
+
+                const pdfBlob = await DirectPDFConverter.convertToPDF(file);
                 
-                if (pdfBlob && pdfBlob.size > 0) {
-                    addResult('特殊字符測試', true, `檔案大小: ${pdfBlob.size} bytes`);
-                    downloadBlob(pdfBlob, 'special-chars.pdf');
-                } else {
-                    addResult('特殊字符測試', false, '產生的檔案為空');
-                }
+                updateProgress('documentProgress', 100);
+                showStatus('documentStatus', '轉換成功！', 'success');
+
+                downloadBlob(pdfBlob, file.name.replace(/\\.[^.]+$/, '') + '_direct.pdf');
+                addTestResult('文書轉PDF', true, `檔案: ${file.name}, 大小: ${(pdfBlob.size/1024).toFixed(2)}KB`);
+
             } catch (error) {
-                addResult('特殊字符測試', false, error.message);
-            } finally {
-                btn.disabled = false;
+                console.error('文書轉PDF失敗:', error);
+                showStatus('documentStatus', '轉換失敗: ' + error.message, 'error');
+                addTestResult('文書轉PDF', false, error.message);
             }
         }
 
-        async function testChineseText() {
-            log('🧪 開始中文文字測試', 'info');
-            const btn = document.getElementById('chineseBtn');
-            btn.disabled = true;
+        function testTextFile() {
+            const textContent = \`測試文字檔案
+
+這是第一段內容，用來測試直接PDF轉換。
+
+第二段：新的轉換方式會保留文字格式，
+包括換行和段落結構。
+
+測試項目：
+• 中文字符支援
+• 段落格式保留  
+• 換行處理
+
+這是真正的檔案轉換，不是內容摘要！
+
+生成時間：\${new Date().toLocaleString()}\`;
+
+            const blob = new Blob([textContent], { type: 'text/plain' });
+            const file = new File([blob], 'test.txt', { type: 'text/plain' });
             
-            try {
-                const testContent = `中文測試文件
-
-這是第一段中文內容，測試 PDF 轉換時是否能正確處理中文字符。
-
-第二段包含更多內容：
-- 列表項目一
-- 列表項目二
-- 列表項目三
-
-混合語言測試：
-English: Hello World!
-中文：你好世界！
-日文：こんにちは世界！
-
-結束段落。`;
-                
-                const pdfBlob = await DirectDocumentConverter.convertTextToPdf(testContent, 'chinese-test.pdf');
-                
-                if (pdfBlob && pdfBlob.size > 0) {
-                    addResult('中文文字測試', true, `檔案大小: ${pdfBlob.size} bytes`);
-                    downloadBlob(pdfBlob, 'chinese-test.pdf');
-                } else {
-                    addResult('中文文字測試', false, '產生的檔案為空');
-                }
-            } catch (error) {
-                addResult('中文文字測試', false, error.message);
-            } finally {
-                btn.disabled = false;
-            }
+            const fileInput = document.getElementById('documentFile');
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            fileInput.files = dt.files;
+            
+            showStatus('documentStatus', '已建立測試文字檔', 'success');
         }
 
-        async function testErrorHandling() {
-            log('🧪 開始錯誤處理測試', 'info');
-            const btn = document.getElementById('errorBtn');
-            btn.disabled = true;
-            
-            try {
-                // 測試空內容
-                const pdfBlob1 = await DirectDocumentConverter.convertTextToPdf('', 'empty-test.pdf');
-                let test1Success = pdfBlob1 && pdfBlob1.size > 0;
-                
-                // 測試 null 內容
-                const pdfBlob2 = await DirectDocumentConverter.convertTextToPdf(null, 'null-test.pdf');
-                let test2Success = pdfBlob2 && pdfBlob2.size > 0;
-                
-                // 測試 undefined 內容
-                const pdfBlob3 = await DirectDocumentConverter.convertTextToPdf(undefined, 'undefined-test.pdf');
-                let test3Success = pdfBlob3 && pdfBlob3.size > 0;
-                
-                const overallSuccess = test1Success && test2Success && test3Success;
-                addResult('錯誤處理測試', overallSuccess, 
-                    `空內容: ${test1Success ? '✅' : '❌'} | null: ${test2Success ? '✅' : '❌'} | undefined: ${test3Success ? '✅' : '❌'}`);
-                
-                if (test1Success) downloadBlob(pdfBlob1, 'empty-test.pdf');
-                if (test2Success) downloadBlob(pdfBlob2, 'null-test.pdf');  
-                if (test3Success) downloadBlob(pdfBlob3, 'undefined-test.pdf');
-                
-            } catch (error) {
-                addResult('錯誤處理測試', false, error.message);
-            } finally {
-                btn.disabled = false;
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('直接PDF轉換測試頁面載入');
+            if (typeof DirectPDFConverter === 'undefined') {
+                document.body.innerHTML = '<div style="text-align:center;padding:50px;color:red;"><h1>轉換器載入失敗</h1></div>';
             }
-        }
-
-        // 初始化
-        window.addEventListener('load', function() {
-            log('📄 直接測試頁面載入完成', 'info');
-            
-            setTimeout(() => {
-                if (typeof jsPDF !== 'undefined') {
-                    log('✅ jsPDF 函式庫載入成功', 'success');
-                    document.getElementById('status').innerHTML = '✅ 系統準備就緒，可以開始測試';
-                    document.getElementById('status').className = 'result success';
-                } else {
-                    log('❌ jsPDF 函式庫載入失敗', 'error');
-                    document.getElementById('status').innerHTML = '❌ jsPDF 函式庫載入失敗';
-                    document.getElementById('status').className = 'result error';
-                }
-            }, 1000);
         });
     </script>
 </body>
