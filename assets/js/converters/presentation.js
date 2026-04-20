@@ -246,19 +246,29 @@ class PresentationConverter {
 
     // Convert presentation to PDF - Direct file conversion (like print-to-PDF)
     static async convertToPdf(presentationFile, title, options = {}) {
-        // NEW: Use direct PDF conversion instead of content parsing
+        // NEW: Use Fixed PDF Converter to solve the real problems
         if (presentationFile instanceof File) {
-            console.log('🖨️ 使用直接PDF轉換 (類似列印功能)');
+            console.log('🔧 使用修復版PDF轉換器 (解決真正問題)');
             
-            // Load the direct PDF converter
+            // Try Fixed PDF Converter first - addresses actual issues
+            if (typeof FixedPDFConverter !== 'undefined') {
+                try {
+                    return await FixedPDFConverter.convertToPDF(presentationFile, options);
+                } catch (error) {
+                    console.warn('修復版轉換失敗，使用備用方案:', error.message);
+                }
+            }
+            
+            // Fallback to DirectPDFConverter
             if (typeof DirectPDFConverter !== 'undefined') {
+                console.log('🔄 使用直接轉換備用方案');
                 return await DirectPDFConverter.convertToPDF(presentationFile, options);
             } else {
-                console.warn('DirectPDFConverter 未載入，使用傳統方法');
+                console.warn('所有轉換器都未載入，使用傳統方法');
             }
         }
         
-        // FALLBACK: Use the old content-based method if direct conversion fails
+        // FALLBACK: Use the old content-based method if all else fails
         return await PresentationConverter.convertContentToPdf(presentationFile, title, options);
     }
     

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>測試 Office Online 預覽方案</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        
+        .test-section h3 {
+            color: #2980b9;
+            margin-bottom: 15px;
+        }
+        
+        #officeFrame {
+            width: 100%;
+            height: 600px;
+            border: 2px solid #3498db;
+            border-radius: 5px;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        
+        .btn:hover {
+            background: #2980b9;
+        }
+        
+        .status {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 5px;
+            background: #e8f4f8;
+            border-left: 4px solid #3498db;
+        }
+        
+        .error {
+            background: #fdf2f2;
+            border-left-color: #e74c3c;
+        }
+        
+        .success {
+            background: #e8f5e8;
+            border-left-color: #2ecc71;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Office Online 預覽方案測試</h1>
+        <p>測試是否能使用 Microsoft Office Online 來預覽檔案，然後截圖轉成PDF</p>
+        
+        <!-- 測試 Office Online 嵌入 -->
+        <div class="test-section">
+            <h3>📊 測試 Office Online 嵌入</h3>
+            <p>嘗試使用 Microsoft Office Online 預覽功能</p>
+            
+            <input type="file" id="fileInput" accept=".pptx,.docx,.ppt,.doc">
+            <button class="btn" onclick="testOfficeOnlinePreview()">測試 Office Online 預覽</button>
+            <button class="btn" onclick="testOfficeViewerAPI()">測試 Office Viewer API</button>
+            
+            <div id="status" class="status" style="display:none;"></div>
+            
+            <!-- Office Online iframe -->
+            <iframe id="officeFrame" style="display:none;" src="about:blank"></iframe>
+        </div>
+        
+        <!-- 測試結果 -->
+        <div class="test-section">
+            <h3>📋 測試結果</h3>
+            <div id="results">尚未開始測試...</div>
+        </div>
+    </div>
+    
+    <script>
+        let testResults = [];
+        
+        function showStatus(message, type = 'info') {
+            const statusEl = document.getElementById('status');
+            statusEl.style.display = 'block';
+            statusEl.className = `status ${type}`;
+            statusEl.textContent = message;
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+        
+        function addResult(test, success, details) {
+            testResults.push({ test, success, details, timestamp: new Date() });
+            updateResults();
+        }
+        
+        function updateResults() {
+            const resultsEl = document.getElementById('results');
+            resultsEl.innerHTML = testResults.map(result => `
+                <div style="margin: 10px 0; padding: 10px; background: ${result.success ? '#e8f5e8' : '#fdf2f2'}; border-radius: 5px;">
+                    <strong>${result.success ? '✅' : '❌'} ${result.test}</strong><br>
+                    ${result.details}<br>
+                    <small style="color: #666;">${result.timestamp.toLocaleString()}</small>
+                </div>
+            `).join('');
+        }
+        
+        // 測試方法1: 使用 Office Online Web Viewer
+        async function testOfficeOnlinePreview() {
+            const fileInput = document.getElementById('fileInput');
+            
+            if (fileInput.files.length === 0) {
+                showStatus('請先選擇檔案', 'error');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            
+            try {
+                showStatus('測試 Office Online 預覽...', 'info');
+                
+                // 方法1: 嘗試使用 Office Online 的公開預覽API
+                const fileUrl = URL.createObjectURL(file);
+                const officeOnlineUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}`;
+                
+                const iframe = document.getElementById('officeFrame');
+                iframe.style.display = 'block';
+                iframe.src = officeOnlineUrl;
+                
+                // 等待載入
+                setTimeout(() => {
+                    try {
+                        // 檢查是否成功載入
+                        if (iframe.contentDocument) {
+                            addResult('Office Online 預覽', true, '成功載入 Office Online 預覽');
+                            showStatus('Office Online 載入成功！可以嘗試截圖', 'success');
+                        } else {
+                            throw new Error('無法訪問 iframe 內容 (跨域限制)');
+                        }
+                    } catch (error) {
+                        addResult('Office Online 預覽', false, `載入失敗: ${error.message}`);
+                        showStatus(`Office Online 載入失敗: ${error.message}`, 'error');
+                    }
+                }, 3000);
+                
+            } catch (error) {
+                console.error('Office Online 測試失敗:', error);
+                addResult('Office Online 預覽', false, `錯誤: ${error.message}`);
+                showStatus(`測試失敗: ${error.message}`, 'error');
+            }
+        }
+        
+        // 測試方法2: 使用 Office Online Viewer API
+        async function testOfficeViewerAPI() {
+            const fileInput = document.getElementById('fileInput');
+            
+            if (fileInput.files.length === 0) {
+                showStatus('請先選擇檔案', 'error');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            
+            try {
+                showStatus('測試 Office Viewer API...', 'info');
+                
+                // 嘗試上傳到臨時存儲並獲取公開URL
+                // 這需要一個可以公開訪問的文件URL
+                
+                // 模擬測試 - 實際需要將檔案上傳到公開可訪問的地址
+                addResult('Office Viewer API', false, '需要公開可訪問的檔案URL，本地檔案無法直接使用');
+                showStatus('Office Viewer API 需要公開URL，本地測試受限', 'error');
+                
+            } catch (error) {
+                console.error('Office Viewer API 測試失敗:', error);
+                addResult('Office Viewer API', false, `錯誤: ${error.message}`);
+                showStatus(`測試失敗: ${error.message}`, 'error');
+            }
+        }
+        
+        // 初始化
+        window.onload = function() {
+            showStatus('準備測試 Office Online 方案...', 'info');
+        };
+    </script>
+</body>
+</html>

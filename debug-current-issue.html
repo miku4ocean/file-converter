@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>調試當前問題</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .error-section {
+            background: #fdf2f2;
+            border: 1px solid #e74c3c;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .console-output {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        .simple-test {
+            background: #e8f5e8;
+            border: 1px solid #2ecc71;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🐛 調試當前問題</h1>
+        <p><strong>現實：</strong>讓我們停止所有複雜的方案，直接看看實際上發生了什麼。</p>
+        
+        <div class="error-section">
+            <h2>❌ 當前問題</h2>
+            <ul>
+                <li><strong>DOC轉PDF:</strong> 18頁重複內容</li>
+                <li><strong>PPT轉PDF:</strong> 只有文字，沒有視覺格式</li>
+                <li><strong>根本原因:</strong> 我的所有"改進"都沒有解決基本問題</li>
+            </ul>
+        </div>
+        
+        <div class="simple-test">
+            <h2>🔧 簡單測試</h2>
+            <p>讓我們測試最基本的功能，看看到底哪裡出錯了：</p>
+            
+            <input type="file" id="testFile" accept=".docx,.pptx">
+            <button class="btn" onclick="simpleTest()">簡單測試</button>
+            <button class="btn" onclick="clearConsole()">清除控制台</button>
+            
+            <h3>控制台輸出:</h3>
+            <div id="consoleOutput" class="console-output">等待測試...</div>
+        </div>
+    </div>
+    
+    <!-- 只載入最基本的庫 -->
+    <script src="https://unpkg.com/mammoth@1.4.2/mammoth.browser.min.js"></script>
+    <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    
+    <script>
+        let consoleOutput = document.getElementById('consoleOutput');
+        
+        // 重寫 console.log 來顯示在頁面上
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+        
+        function logToPage(message, type = 'log') {
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#e74c3c' : type === 'warn' ? '#f39c12' : '#2ecc71';
+            
+            consoleOutput.innerHTML += `
+                <div style="margin: 5px 0;">
+                    <span style="color: #bdc3c7;">[${timestamp}]</span> 
+                    <span style="color: ${color};">[${type.toUpperCase()}]</span> 
+                    ${message}
+                </div>
+            `;
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        }
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            logToPage(args.join(' '), 'log');
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            logToPage(args.join(' '), 'error');
+        };
+        
+        console.warn = function(...args) {
+            originalWarn.apply(console, args);
+            logToPage(args.join(' '), 'warn');
+        };
+        
+        function clearConsole() {
+            consoleOutput.innerHTML = '控制台已清除...';
+        }
+        
+        async function simpleTest() {
+            const fileInput = document.getElementById('testFile');
+            
+            if (fileInput.files.length === 0) {
+                console.error('請選擇檔案');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            console.log('=== 開始簡單測試 ===');
+            console.log('檔案名稱:', file.name);
+            console.log('檔案大小:', (file.size / 1024).toFixed(2) + ' KB');
+            console.log('檔案類型:', file.type);
+            
+            const fileType = file.name.toLowerCase().split('.').pop();
+            console.log('檔案副檔名:', fileType);
+            
+            try {
+                if (fileType === 'docx') {
+                    await testDOCX(file);
+                } else if (fileType === 'pptx') {
+                    await testPPTX(file);
+                } else {
+                    console.error('不支援的檔案類型');
+                }
+            } catch (error) {
+                console.error('測試失敗:', error.message);
+                console.error('錯誤詳情:', error);
+            }
+        }
+        
+        async function testDOCX(file) {
+            console.log('--- 測試 DOCX 檔案 ---');
+            
+            // 檢查 mammoth 是否可用
+            if (typeof mammoth === 'undefined') {
+                console.error('Mammoth.js 未載入');
+                return;
+            }
+            
+            console.log('✓ Mammoth.js 已載入');
+            
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                console.log('✓ 檔案讀取成功，大小:', arrayBuffer.byteLength, '位元組');
+                
+                const result = await mammoth.convertToHtml({ arrayBuffer });
+                console.log('✓ Mammoth 轉換成功');
+                console.log('HTML 內容長度:', result.html.length);
+                console.log('警告數量:', result.messages.length);
+                
+                if (result.messages.length > 0) {
+                    console.warn('Mammoth 警告:');
+                    result.messages.forEach(msg => console.warn('-', msg.message));
+                }
+                
+                // 顯示 HTML 的前 200 個字符
+                const preview = result.html.substring(0, 200);
+                console.log('HTML 預覽:', preview + (result.html.length > 200 ? '...' : ''));
+                
+                // 這裡是關鍵：看看轉換成PDF時發生了什麼
+                await convertHTMLToPDF(result.html, file.name);
+                
+            } catch (error) {
+                console.error('DOCX 處理失敗:', error.message);
+            }
+        }
+        
+        async function testPPTX(file) {
+            console.log('--- 測試 PPTX 檔案 ---');
+            
+            if (typeof JSZip === 'undefined') {
+                console.error('JSZip 未載入');
+                return;
+            }
+            
+            console.log('✓ JSZip 已載入');
+            
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const zip = new JSZip();
+                const zipContent = await zip.loadAsync(arrayBuffer);
+                
+                console.log('✓ PPTX ZIP 解析成功');
+                console.log('ZIP 檔案數量:', Object.keys(zipContent.files).length);
+                
+                // 列出所有檔案
+                const files = Object.keys(zipContent.files);
+                console.log('ZIP 內容:');
+                files.slice(0, 10).forEach(fileName => console.log('-', fileName));
+                if (files.length > 10) {
+                    console.log('... 還有', files.length - 10, '個檔案');
+                }
+                
+                // 找投影片檔案
+                const slideFiles = files.filter(f => f.startsWith('ppt/slides/slide') && f.endsWith('.xml'));
+                console.log('找到', slideFiles.length, '個投影片檔案:', slideFiles);
+                
+                // 提取第一個投影片的內容
+                if (slideFiles.length > 0) {
+                    const firstSlide = slideFiles[0];
+                    const slideContent = await zipContent.files[firstSlide].async('text');
+                    console.log('第一個投影片 XML 長度:', slideContent.length);
+                    
+                    // 提取文字
+                    const textMatches = slideContent.match(/<a:t[^>]*>([^<]+)<\/a:t>/g) || [];
+                    console.log('找到', textMatches.length, '個文字元素');
+                    
+                    if (textMatches.length > 0) {
+                        console.log('文字內容預覽:');
+                        textMatches.slice(0, 5).forEach(match => {
+                            const text = match.replace(/<[^>]+>/g, '').trim();
+                            console.log('-', text);
+                        });
+                    }
+                }
+                
+                // 這裡是問題所在：我們只提取了文字，沒有處理格式、圖片等
+                console.warn('⚠️ 發現問題：只提取文字，沒有視覺格式');
+                
+            } catch (error) {
+                console.error('PPTX 處理失敗:', error.message);
+            }
+        }
+        
+        async function convertHTMLToPDF(html, fileName) {
+            console.log('--- 測試 HTML → PDF 轉換 ---');
+            
+            if (typeof jsPDF === 'undefined' || typeof html2canvas === 'undefined') {
+                console.error('PDF 庫未載入');
+                return;
+            }
+            
+            console.log('✓ PDF 庫已載入');
+            
+            try {
+                // 創建臨時容器
+                const container = document.createElement('div');
+                container.innerHTML = html;
+                container.style.position = 'fixed';
+                container.style.top = '-9999px';
+                container.style.width = '794px';
+                container.style.padding = '20px';
+                container.style.background = 'white';
+                container.style.fontFamily = 'Arial, sans-serif';
+                
+                document.body.appendChild(container);
+                
+                console.log('✓ 臨時容器已創建');
+                console.log('容器高度:', container.offsetHeight, 'px');
+                
+                // 這裡可能是問題：html2canvas 的設定
+                const canvas = await html2canvas(container, {
+                    scale: 1,
+                    useCORS: true,
+                    backgroundColor: '#ffffff',
+                    width: 794
+                });
+                
+                console.log('✓ Canvas 截圖成功');
+                console.log('Canvas 尺寸:', canvas.width, 'x', canvas.height);
+                
+                // PDF 生成 - 這裡可能是重複頁面的原因
+                const pdf = new jsPDF('p', 'pt', 'a4');
+                const imgData = canvas.toDataURL('image/jpeg', 0.9);
+                
+                const pdfWidth = 595;
+                const pdfHeight = 842;
+                const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+                
+                console.log('PDF 尺寸計算:');
+                console.log('- PDF 寬度:', pdfWidth);
+                console.log('- PDF 高度:', pdfHeight);
+                console.log('- 圖片高度:', imgHeight);
+                
+                // 關鍵問題：這裡的分頁邏輯可能有問題
+                if (imgHeight > pdfHeight) {
+                    console.warn('⚠️ 內容超過一頁，需要分頁');
+                    console.log('預計頁數:', Math.ceil(imgHeight / pdfHeight));
+                    
+                    // 這裡可能是18頁重複的原因！
+                    let yPos = 0;
+                    let pageCount = 0;
+                    
+                    while (yPos < imgHeight) {
+                        if (pageCount > 0) pdf.addPage();
+                        
+                        pdf.addImage(imgData, 'JPEG', 0, -yPos, pdfWidth, imgHeight);
+                        yPos += pdfHeight;
+                        pageCount++;
+                        
+                        console.log('添加第', pageCount, '頁，yPos:', yPos);
+                        
+                        // 防止無限迴圈
+                        if (pageCount > 20) {
+                            console.error('⚠️ 頁數超過20，停止分頁');
+                            break;
+                        }
+                    }
+                } else {
+                    console.log('✓ 內容適合一頁');
+                    pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, imgHeight);
+                }
+                
+                const pdfBlob = pdf.output('blob');
+                console.log('✓ PDF 生成成功，大小:', (pdfBlob.size / 1024).toFixed(2), 'KB');
+                
+                // 下載
+                const url = URL.createObjectURL(pdfBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName.replace(/\.[^.]+$/, '') + '_debug.pdf';
+                a.click();
+                
+                document.body.removeChild(container);
+                
+            } catch (error) {
+                console.error('PDF 轉換失敗:', error.message);
+            }
+        }
+        
+        window.onload = function() {
+            console.log('調試頁面已載入');
+            console.log('可用庫:');
+            console.log('- mammoth:', typeof mammoth !== 'undefined' ? '✓' : '✗');
+            console.log('- JSZip:', typeof JSZip !== 'undefined' ? '✓' : '✗'); 
+            console.log('- jsPDF:', typeof jsPDF !== 'undefined' ? '✓' : '✗');
+            console.log('- html2canvas:', typeof html2canvas !== 'undefined' ? '✓' : '✗');
+        };
+    </script>
+</body>
+</html>

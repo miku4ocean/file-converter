@@ -212,6 +212,7 @@
     </div>
 
     <!-- 載入必要的轉換器 -->
+    <script src="assets/js/converters/fixed-pdf-converter.js"></script>
     <script src="assets/js/converters/direct-pdf.js"></script>
     <script src="assets/js/converters/presentation.js"></script>
     <script src="assets/js/converters/document.js"></script>
@@ -289,14 +290,9 @@
                 
                 const startTime = Date.now();
                 
-                // 使用新的直接轉換方法
+                // 使用統一的轉換方法 (避免雙重轉換)
                 let pdfBlob;
-                if (typeof DirectPDFConverter !== 'undefined') {
-                    pdfBlob = await DirectPDFConverter.convertToPDF(file);
-                } else {
-                    // 回退到修改過的舊方法
-                    pdfBlob = await PresentationConverter.convertToPdf(file, file.name);
-                }
+                pdfBlob = await PresentationConverter.convertToPdf(file, file.name);
                 
                 const duration = Date.now() - startTime;
 
@@ -344,14 +340,9 @@
                 
                 const startTime = Date.now();
                 
-                // 使用新的直接轉換方法
+                // 使用統一的轉換方法 (避免雙重轉換)
                 let pdfBlob;
-                if (typeof DirectPDFConverter !== 'undefined') {
-                    pdfBlob = await DirectPDFConverter.convertToPDF(file);
-                } else {
-                    // 回退到修改過的舊方法
-                    pdfBlob = await DocumentConverter.convertToPdf(file, file.name);
-                }
+                pdfBlob = await DocumentConverter.convertToPdf(file, file.name);
                 
                 const duration = Date.now() - startTime;
 

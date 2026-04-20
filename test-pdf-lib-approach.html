@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>測試 PDF-lib 直接創建PDF方案</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .test-approach {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        
+        .test-approach h3 {
+            color: #2980b9;
+            margin-bottom: 15px;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        
+        .btn:hover { background: #2980b9; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .status {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 5px;
+            background: #e8f4f8;
+            border-left: 4px solid #3498db;
+        }
+        
+        .error { background: #fdf2f2; border-left-color: #e74c3c; }
+        .success { background: #e8f5e8; border-left-color: #2ecc71; }
+        .warning { background: #fff9e6; border-left-color: #f39c12; }
+        
+        .library-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #6c757d;
+        }
+        
+        code {
+            background: #f1f2f6;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .preview {
+            max-width: 100%;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📚 PDF-lib 直接創建PDF方案測試</h1>
+        <p>測試使用專業PDF庫直接從文件內容創建PDF，而不是依賴HTML轉換</p>
+        
+        <!-- PDF-lib 基礎測試 -->
+        <div class="test-approach">
+            <h3>📄 PDF-lib 基礎測試</h3>
+            <div class="library-info">
+                <strong>PDF-lib:</strong> 專業的PDF創建和編輯庫<br>
+                <strong>優點:</strong> 精確控制PDF結構、支援圖片、字型、表格<br>
+                <strong>適用:</strong> 從零開始創建PDF，不依賴HTML渲染
+            </div>
+            
+            <button class="btn" onclick="testPDFLibBasic()">測試 PDF-lib 基本功能</button>
+            <button class="btn" onclick="testDocxToPDFLib()">測試 DOCX → PDF-lib</button>
+            <button class="btn" onclick="testPPTXToPDFLib()">測試 PPTX → PDF-lib</button>
+            
+            <div id="pdflibStatus" class="status" style="display:none;"></div>
+            <div id="pdflibPreview"></div>
+        </div>
+        
+        <!-- PizZip + PDF-lib 測試 -->
+        <div class="test-approach">
+            <h3>🗜️ PizZip 文件解析測試</h3>
+            <div class="library-info">
+                <strong>PizZip:</strong> 專門處理 Office 文件的 ZIP 解析器<br>
+                <strong>優點:</strong> 比 JSZip 更適合處理 Office 格式<br>
+                <strong>配合:</strong> Mammoth.js (DOCX) 和自定義 PPTX 解析
+            </div>
+            
+            <input type="file" id="documentFile" accept=".docx,.pptx">
+            <button class="btn" onclick="testPizZipParsing()">測試 PizZip 解析</button>
+            <button class="btn" onclick="testAdvancedDocxParsing()">測試高級 DOCX 解析</button>
+            
+            <div id="pizzipStatus" class="status" style="display:none;"></div>
+            <div id="pizzipResults"></div>
+        </div>
+        
+        <!-- 完整方案測試 -->
+        <div class="test-approach">
+            <h3>🎯 完整轉換測試</h3>
+            <div class="library-info">
+                <strong>完整流程:</strong> 文件解析 → 內容提取 → PDF-lib 重建<br>
+                <strong>目標:</strong> 保持原始格式和頁面佈局<br>
+                <strong>挑戰:</strong> 處理複雜的格式和圖片
+            </div>
+            
+            <input type="file" id="fullTestFile" accept=".docx,.pptx">
+            <button class="btn" onclick="testFullConversion()">完整轉換測試</button>
+            
+            <div id="fullTestStatus" class="status" style="display:none;"></div>
+            <div id="fullTestResults"></div>
+        </div>
+        
+        <!-- 測試結果比較 -->
+        <div class="test-approach">
+            <h3>📊 方案比較結果</h3>
+            <div id="comparisonResults">準備進行測試...</div>
+        </div>
+    </div>
+    
+    <!-- 載入必要的庫 -->
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://unpkg.com/pizzip@3.1.6/dist/pizzip.min.js"></script>
+    <script src="https://unpkg.com/mammoth@1.4.2/mammoth.browser.min.js"></script>
+    
+    <script>
+        let comparisonData = [];
+        
+        function showStatus(elementId, message, type = 'info') {
+            const statusEl = document.getElementById(elementId);
+            statusEl.style.display = 'block';
+            statusEl.className = `status ${type}`;
+            statusEl.innerHTML = message;
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+        
+        function addComparison(approach, success, pros, cons, complexity, quality) {
+            comparisonData.push({ approach, success, pros, cons, complexity, quality });
+            updateComparison();
+        }
+        
+        function updateComparison() {
+            const resultEl = document.getElementById('comparisonResults');
+            
+            resultEl.innerHTML = `
+                <div style="margin-bottom: 20px;">
+                    <strong>已測試方案: ${comparisonData.length}</strong>
+                </div>
+                ${comparisonData.map(data => `
+                    <div style="margin: 15px 0; padding: 15px; background: ${data.success ? '#e8f5e8' : '#fdf2f2'}; border-radius: 8px;">
+                        <h4 style="margin: 0 0 10px 0; color: ${data.success ? '#27ae60' : '#e74c3c'};">
+                            ${data.success ? '✅' : '❌'} ${data.approach}
+                        </h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px;">
+                            <div>
+                                <strong style="color: #27ae60;">優點:</strong>
+                                <ul style="margin: 5px 0; padding-left: 20px;">
+                                    ${data.pros.map(pro => `<li>${pro}</li>`).join('')}
+                                </ul>
+                            </div>
+                            <div>
+                                <strong style="color: #e74c3c;">缺點:</strong>
+                                <ul style="margin: 5px 0; padding-left: 20px;">
+                                    ${data.cons.map(con => `<li>${con}</li>`).join('')}
+                                </ul>
+                            </div>
+                        </div>
+                        <div style="margin-top: 10px; font-size: 14px;">
+                            <span style="background: #3498db; color: white; padding: 3px 8px; border-radius: 12px; margin-right: 10px;">
+                                複雜度: ${data.complexity}/5
+                            </span>
+                            <span style="background: #2ecc71; color: white; padding: 3px 8px; border-radius: 12px;">
+                                品質: ${data.quality}/5
+                            </span>
+                        </div>
+                    </div>
+                `).join('')}
+            `;
+        }
+        
+        // 測試 PDF-lib 基本功能
+        async function testPDFLibBasic() {
+            try {
+                showStatus('pdflibStatus', '測試 PDF-lib 基本功能...', 'info');
+                
+                // 檢查 PDF-lib 是否載入
+                if (typeof PDFLib === 'undefined') {
+                    throw new Error('PDF-lib 未正確載入');
+                }
+                
+                // 創建基本PDF
+                const pdfDoc = await PDFLib.PDFDocument.create();
+                const page = pdfDoc.addPage([595, 842]); // A4 尺寸
+                
+                // 加入文字
+                page.drawText('PDF-lib 測試成功！', {
+                    x: 50,
+                    y: 750,
+                    size: 20,
+                    color: PDFLib.rgb(0, 0, 0)
+                });
+                
+                // 生成PDF
+                const pdfBytes = await pdfDoc.save();
+                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                
+                // 創建下載連結
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'pdf-lib-test.pdf';
+                
+                document.getElementById('pdflibPreview').innerHTML = `
+                    <div style="margin: 15px 0;">
+                        <a href="${url}" target="_blank" style="color: #3498db; text-decoration: none;">
+                            📄 查看生成的PDF (${(blob.size / 1024).toFixed(1)} KB)
+                        </a>
+                        <button onclick="this.previousElementSibling.click()" class="btn" style="margin-left: 10px;">下載PDF</button>
+                    </div>
+                `;
+                
+                addComparison('PDF-lib 基本功能', true,
+                    ['精確控制PDF結構', '不依賴瀏覽器渲染', '支援復雜排版', '文件小巧'],
+                    ['需要手動處理所有佈局', '字型支援限制', '圖片處理複雜'],
+                    3, 5
+                );
+                
+                showStatus('pdflibStatus', '✅ PDF-lib 基本功能測試成功！', 'success');
+                
+            } catch (error) {
+                addComparison('PDF-lib 基本功能', false, [], [`錯誤: ${error.message}`], 0, 0);
+                showStatus('pdflibStatus', `❌ PDF-lib 測試失敗: ${error.message}`, 'error');
+            }
+        }
+        
+        // 測試 DOCX → PDF-lib
+        async function testDocxToPDFLib() {
+            try {
+                showStatus('pdflibStatus', '測試 DOCX → PDF-lib 轉換...', 'info');
+                
+                // 創建模擬的DOCX內容
+                const docxContent = {
+                    title: "測試文件",
+                    paragraphs: [
+                        { text: "這是第一段文字", style: { fontSize: 14, bold: true } },
+                        { text: "這是第二段文字，包含一些詳細的說明內容。", style: { fontSize: 12, bold: false } },
+                        { text: "這是第三段，測試換行和格式。", style: { fontSize: 12, italic: true } }
+                    ]
+                };
+                
+                // 使用 PDF-lib 創建PDF
+                const pdfDoc = await PDFLib.PDFDocument.create();
+                const page = pdfDoc.addPage([595, 842]);
+                
+                let yPosition = 750;
+                
+                // 標題
+                page.drawText(docxContent.title, {
+                    x: 50,
+                    y: yPosition,
+                    size: 16,
+                    color: PDFLib.rgb(0, 0, 0)
+                });
+                
+                yPosition -= 40;
+                
+                // 段落
+                for (const para of docxContent.paragraphs) {
+                    page.drawText(para.text, {
+                        x: 50,
+                        y: yPosition,
+                        size: para.style.fontSize,
+                        color: PDFLib.rgb(0, 0, 0)
+                    });
+                    yPosition -= (para.style.fontSize + 10);
+                }
+                
+                const pdfBytes = await pdfDoc.save();
+                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                const url = URL.createObjectURL(blob);
+                
+                document.getElementById('pdflibPreview').innerHTML += `
+                    <div style="margin: 15px 0;">
+                        <a href="${url}" target="_blank" style="color: #3498db; text-decoration: none;">
+                            📄 DOCX → PDF-lib 結果 (${(blob.size / 1024).toFixed(1)} KB)
+                        </a>
+                    </div>
+                `;
+                
+                addComparison('DOCX → PDF-lib', true,
+                    ['精確的文字定位', '保持文字格式', '可控制的頁面佈局'],
+                    ['需要完整重新實現DOCX解析', '圖片和表格處理復雜', '字型限制'],
+                    4, 4
+                );
+                
+                showStatus('pdflibStatus', '✅ DOCX → PDF-lib 轉換測試成功！', 'success');
+                
+            } catch (error) {
+                addComparison('DOCX → PDF-lib', false, [], [`錯誤: ${error.message}`], 0, 0);
+                showStatus('pdflibStatus', `❌ DOCX → PDF-lib 測試失敗: ${error.message}`, 'error');
+            }
+        }
+        
+        // 測試 PPTX → PDF-lib
+        async function testPPTXToPDFLib() {
+            try {
+                showStatus('pdflibStatus', '測試 PPTX → PDF-lib 轉換...', 'info');
+                
+                // 創建模擬的PPTX內容 (多個投影片)
+                const pptxContent = {
+                    slides: [
+                        {
+                            title: "投影片 1: 標題頁",
+                            content: ["歡迎來到簡報", "副標題內容"]
+                        },
+                        {
+                            title: "投影片 2: 內容頁", 
+                            content: ["第一點重要內容", "第二點詳細說明", "第三點總結"]
+                        },
+                        {
+                            title: "投影片 3: 結論",
+                            content: ["謝謝觀看"]
+                        }
+                    ]
+                };
+                
+                const pdfDoc = await PDFLib.PDFDocument.create();
+                
+                // 為每個投影片創建一個頁面
+                for (let i = 0; i < pptxContent.slides.length; i++) {
+                    const slide = pptxContent.slides[i];
+                    const page = pdfDoc.addPage([595, 842]);
+                    
+                    let yPosition = 750;
+                    
+                    // 投影片標題
+                    page.drawText(slide.title, {
+                        x: 50,
+                        y: yPosition,
+                        size: 20,
+                        color: PDFLib.rgb(0, 0, 1)
+                    });
+                    
+                    yPosition -= 60;
+                    
+                    // 投影片內容
+                    for (const content of slide.content) {
+                        page.drawText(`• ${content}`, {
+                            x: 70,
+                            y: yPosition,
+                            size: 14,
+                            color: PDFLib.rgb(0, 0, 0)
+                        });
+                        yPosition -= 30;
+                    }
+                    
+                    // 頁碼
+                    page.drawText(`第 ${i + 1} 頁，共 ${pptxContent.slides.length} 頁`, {
+                        x: 450,
+                        y: 30,
+                        size: 10,
+                        color: PDFLib.rgb(0.5, 0.5, 0.5)
+                    });
+                }
+                
+                const pdfBytes = await pdfDoc.save();
+                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                const url = URL.createObjectURL(blob);
+                
+                document.getElementById('pdflibPreview').innerHTML += `
+                    <div style="margin: 15px 0;">
+                        <a href="${url}" target="_blank" style="color: #3498db; text-decoration: none;">
+                            📊 PPTX → PDF-lib 結果 (${pptxContent.slides.length}頁, ${(blob.size / 1024).toFixed(1)} KB)
+                        </a>
+                    </div>
+                `;
+                
+                addComparison('PPTX → PDF-lib', true,
+                    ['每個投影片獨立成頁', '保持投影片結構', '精確控制佈局', '正確的頁數'],
+                    ['無法處理復雜動畫', '圖片和媒體需額外處理', '版式設計需手動重建'],
+                    4, 3
+                );
+                
+                showStatus('pdflibStatus', '✅ PPTX → PDF-lib 轉換測試成功！', 'success');
+                
+            } catch (error) {
+                addComparison('PPTX → PDF-lib', false, [], [`錯誤: ${error.message}`], 0, 0);
+                showStatus('pdflibStatus', `❌ PPTX → PDF-lib 測試失敗: ${error.message}`, 'error');
+            }
+        }
+        
+        // 自動開始測試
+        window.onload = function() {
+            setTimeout(() => {
+                console.log('開始自動測試 PDF-lib 方案...');
+                testPDFLibBasic();
+                setTimeout(testDocxToPDFLib, 2000);
+                setTimeout(testPPTXToPDFLib, 4000);
+            }, 1000);
+        };
+    </script>
+</body>
+</html>

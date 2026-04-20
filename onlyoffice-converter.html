@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OnlyOffice 免費轉檔方案</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .solution {
+            background: #e8f5e8;
+            border: 1px solid #2ecc71;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            background: #2ecc71;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn:hover {
+            background: #27ae60;
+        }
+        
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        
+        .office-viewer {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📄 OnlyOffice 免費轉檔方案</h1>
+        
+        <div class="solution">
+            <h2>✅ 可行的免費方案</h2>
+            <p><strong>OnlyOffice Document Server</strong> 提供完全免費的JavaScript API：</p>
+            <ul>
+                <li>✅ 完全免費（開源）</li>
+                <li>✅ 不需要用戶安裝Office</li>
+                <li>✅ 純瀏覽器運行</li>
+                <li>✅ 支援PPTX、DOCX轉PDF</li>
+                <li>✅ 保留完整格式和圖片</li>
+            </ul>
+        </div>
+        
+        <div class="warning">
+            <h3>⚠️ 設定要求</h3>
+            <p>需要設置OnlyOffice Document Server（可以用Docker輕鬆部署）</p>
+        </div>
+        
+        <h3>🚀 部署步驟：</h3>
+        <pre style="background: #f8f9fa; padding: 15px; border-radius: 5px; overflow-x: auto;">
+# 1. 使用Docker部署OnlyOffice (免費)
+docker run -i -t -d -p 80:80 onlyoffice/documentserver
+
+# 2. 在你的網站中加入OnlyOffice API
+&lt;script type="text/javascript" src="http://your-server/web-apps/apps/api/documents/api.js"&gt;&lt;/script&gt;
+        </pre>
+        
+        <h3>📝 使用範例：</h3>
+        <div id="onlyoffice-placeholder" class="office-viewer">
+            <div style="display: flex; align-items: center; justify-content: center; height: 100%; background: #f8f9fa; color: #666;">
+                OnlyOffice 編輯器將顯示在這裡
+            </div>
+        </div>
+        
+        <button class="btn" onclick="showOnlyOfficeDemo()">載入示範</button>
+        <a href="#alternative" class="btn" style="background: #3498db;">查看其他方案</a>
+    </div>
+    
+    <div class="container" id="alternative">
+        <h2>🔄 方案2: 使用 PDF.js + Office Online Viewer</h2>
+        
+        <div class="solution">
+            <h3>組合方案（完全免費）：</h3>
+            <ol>
+                <li><strong>Google Docs Viewer API</strong> - 免費預覽Office文件</li>
+                <li><strong>html2canvas</strong> - 截圖預覽內容</li>
+                <li><strong>jsPDF</strong> - 生成PDF</li>
+            </ol>
+        </div>
+        
+        <div style="margin: 20px 0;">
+            <h4>測試Google Docs Viewer：</h4>
+            <input type="file" id="fileInput" accept=".pptx,.docx" style="margin: 10px 0;">
+            <button class="btn" onclick="testGoogleViewer()">測試預覽</button>
+        </div>
+        
+        <iframe id="googleViewer" style="width: 100%; height: 500px; border: 1px solid #ddd; display: none;"></iframe>
+        
+        <div id="status" style="margin: 15px 0; padding: 15px; background: #e8f4f8; border-radius: 5px; display: none;"></div>
+    </div>
+    
+    <div class="container">
+        <h2>📋 方案比較</h2>
+        
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+            <thead>
+                <tr style="background: #f8f9fa;">
+                    <th style="padding: 12px; border: 1px solid #ddd; text-align: left;">方案</th>
+                    <th style="padding: 12px; border: 1px solid #ddd;">費用</th>
+                    <th style="padding: 12px; border: 1px solid #ddd;">品質</th>
+                    <th style="padding: 12px; border: 1px solid #ddd;">設置複雜度</th>
+                    <th style="padding: 12px; border: 1px solid #ddd;">推薦度</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="padding: 12px; border: 1px solid #ddd;"><strong>OnlyOffice</strong></td>
+                    <td style="padding: 12px; border: 1px solid #ddd; color: #2ecc71;">免費</td>
+                    <td style="padding: 12px; border: 1px solid #ddd; color: #2ecc71;">⭐⭐⭐⭐⭐</td>
+                    <td style="padding: 12px; border: 1px solid #ddd; color: #f39c12;">中等</td>
+                    <td style="padding: 12px; border: 1px solid #ddd; color: #2ecc71;">★★★★★</td>
+                </tr>
+                <tr>
+                    <td style="padding: 12px; border: 1px solid #ddd;"><strong>Google Viewer組合</strong></td>
+                    <td style="padding: 12px; border: 1px solid #ddd; color: #2ecc71;">免費</td>
+                    <td style="padding: 12px; border: 1px solid #ddd; color: #f39c12;">⭐⭐⭐</td>
+                    <td style="padding: 12px; border: 1px solid #ddd; color: #2ecc71;">簡單</td>
+                    <td style="padding: 12px; border: 1px solid #ddd; color: #f39c12;">★★★</td>
+                </tr>
+                <tr>
+                    <td style="padding: 12px; border: 1px solid #ddd;"><strong>LibreOffice + WASM</strong></td>
+                    <td style="padding: 12px; border: 1px solid #ddd; color: #2ecc71;">免費</td>
+                    <td style="padding: 12px; border: 1px solid #ddd; color: #2ecc71;">⭐⭐⭐⭐⭐</td>
+                    <td style="padding: 12px; border: 1px solid #ddd; color: #e74c3c;">複雜</td>
+                    <td style="padding: 12px; border: 1px solid #ddd; color: #f39c12;">★★★</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <script>
+        function showOnlyOfficeDemo() {
+            alert('OnlyOffice 示範需要部署Document Server後才能運行。\n\n快速部署指令：\ndocker run -d -p 80:80 onlyoffice/documentserver');
+        }
+        
+        function testGoogleViewer() {
+            const fileInput = document.getElementById('fileInput');
+            const viewer = document.getElementById('googleViewer');
+            const status = document.getElementById('status');
+            
+            if (fileInput.files.length === 0) {
+                showStatus('請先選擇檔案', 'error');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            showStatus('正在使用Google Docs Viewer預覽...', 'info');
+            
+            // 創建臨時URL (注意：實際使用需要公開可訪問的URL)
+            const fileUrl = URL.createObjectURL(file);
+            const googleViewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(window.location.origin + '/' + file.name)}&embedded=true`;
+            
+            viewer.src = googleViewerUrl;
+            viewer.style.display = 'block';
+            
+            // 注意：Google Docs Viewer 需要公開可訪問的URL
+            showStatus('⚠️ Google Docs Viewer 需要公開可訪問的檔案URL。本地測試受限。', 'warning');
+        }
+        
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('status');
+            statusEl.style.display = 'block';
+            statusEl.innerHTML = message;
+            
+            const colors = {
+                info: '#e8f4f8',
+                warning: '#fff3cd', 
+                error: '#fdf2f2'
+            };
+            
+            statusEl.style.background = colors[type] || colors.info;
+        }
+    </script>
+</body>
+</html>

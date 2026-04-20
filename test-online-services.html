@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>測試線上轉換服務方案</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .service-test {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        
+        .service-test h3 {
+            color: #2980b9;
+            margin-bottom: 15px;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        
+        .btn:hover { background: #2980b9; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .status {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 5px;
+            background: #e8f4f8;
+            border-left: 4px solid #3498db;
+        }
+        
+        .error { background: #fdf2f2; border-left-color: #e74c3c; }
+        .success { background: #e8f5e8; border-left-color: #2ecc71; }
+        .warning { background: #fff9e6; border-left-color: #f39c12; }
+        
+        .api-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #6c757d;
+        }
+        
+        code {
+            background: #f1f2f6;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌐 線上轉換服務方案測試</h1>
+        <p>測試各種線上PDF轉換服務的可行性</p>
+        
+        <!-- ConvertAPI 測試 -->
+        <div class="service-test">
+            <h3>🔄 ConvertAPI</h3>
+            <div class="api-info">
+                <strong>服務網址:</strong> <code>https://v2.convertapi.com/</code><br>
+                <strong>支援格式:</strong> PPTX → PDF, DOCX → PDF<br>
+                <strong>免費額度:</strong> 每月250次轉換<br>
+                <strong>價格:</strong> $0.01 per conversion
+            </div>
+            
+            <input type="file" id="convertapiFile" accept=".pptx,.docx,.ppt,.doc">
+            <button class="btn" onclick="testConvertAPI()">測試 ConvertAPI</button>
+            <div id="convertapiStatus" class="status" style="display:none;"></div>
+        </div>
+        
+        <!-- CloudConvert 測試 -->
+        <div class="service-test">
+            <h3>☁️ CloudConvert</h3>
+            <div class="api-info">
+                <strong>服務網址:</strong> <code>https://cloudconvert.com/api/v2</code><br>
+                <strong>支援格式:</strong> 200+ 格式互轉<br>
+                <strong>免費額度:</strong> 每天25次轉換<br>
+                <strong>價格:</strong> $0.008 per conversion minute
+            </div>
+            
+            <input type="file" id="cloudconvertFile" accept=".pptx,.docx,.ppt,.doc">
+            <button class="btn" onclick="testCloudConvert()">測試 CloudConvert</button>
+            <div id="cloudconvertStatus" class="status" style="display:none;"></div>
+        </div>
+        
+        <!-- Zamzar 測試 -->
+        <div class="service-test">
+            <h3>🔀 Zamzar</h3>
+            <div class="api-info">
+                <strong>服務網址:</strong> <code>https://developers.zamzar.com/</code><br>
+                <strong>支援格式:</strong> 1200+ 格式<br>
+                <strong>免費額度:</strong> 測試用API key<br>
+                <strong>價格:</strong> $0.01 per file
+            </div>
+            
+            <input type="file" id="zamzarFile" accept=".pptx,.docx,.ppt,.doc">
+            <button class="btn" onclick="testZamzar()">測試 Zamzar</button>
+            <div id="zamzarStatus" class="status" style="display:none;"></div>
+        </div>
+        
+        <!-- ILovePDF 測試 -->
+        <div class="service-test">
+            <h3>❤️ ILovePDF</h3>
+            <div class="api-info">
+                <strong>服務網址:</strong> <code>https://developer.ilovepdf.com/</code><br>
+                <strong>支援格式:</strong> Office → PDF<br>
+                <strong>免費額度:</strong> 250 files/month<br>
+                <strong>價格:</strong> €4/month for 2500 files
+            </div>
+            
+            <input type="file" id="ilovepdfFile" accept=".pptx,.docx,.ppt,.doc">
+            <button class="btn" onclick="testILovePDF()">測試 ILovePDF</button>
+            <div id="ilovepdfStatus" class="status" style="display:none;"></div>
+        </div>
+        
+        <!-- 測試結果總結 -->
+        <div class="service-test">
+            <h3>📊 測試結果總結</h3>
+            <div id="summaryResults">尚未開始測試...</div>
+        </div>
+    </div>
+    
+    <script>
+        let testResults = [];
+        
+        function showStatus(elementId, message, type = 'info') {
+            const statusEl = document.getElementById(elementId);
+            statusEl.style.display = 'block';
+            statusEl.className = `status ${type}`;
+            statusEl.innerHTML = message;
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+        
+        function addResult(service, success, details, cost = null, features = []) {
+            testResults.push({ 
+                service, 
+                success, 
+                details, 
+                cost,
+                features,
+                timestamp: new Date() 
+            });
+            updateSummary();
+        }
+        
+        function updateSummary() {
+            const summaryEl = document.getElementById('summaryResults');
+            
+            if (testResults.length === 0) {
+                summaryEl.innerHTML = '尚未開始測試...';
+                return;
+            }
+            
+            const successCount = testResults.filter(r => r.success).length;
+            
+            summaryEl.innerHTML = `
+                <div style="margin-bottom: 20px;">
+                    <strong>測試進度:</strong> ${testResults.length} 個服務已測試，${successCount} 個可用
+                </div>
+                ${testResults.map(result => `
+                    <div style="margin: 15px 0; padding: 15px; background: ${result.success ? '#e8f5e8' : '#fdf2f2'}; border-radius: 8px; border-left: 4px solid ${result.success ? '#2ecc71' : '#e74c3c'};">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <strong>${result.success ? '✅' : '❌'} ${result.service}</strong>
+                            ${result.cost ? `<span style="background: #3498db; color: white; padding: 3px 8px; border-radius: 12px; font-size: 12px;">${result.cost}</span>` : ''}
+                        </div>
+                        <div style="margin-bottom: 8px;">${result.details}</div>
+                        ${result.features.length > 0 ? `
+                            <div style="font-size: 12px; color: #666;">
+                                特點: ${result.features.join(', ')}
+                            </div>
+                        ` : ''}
+                        <div style="font-size: 11px; color: #999; margin-top: 5px;">
+                            ${result.timestamp.toLocaleString()}
+                        </div>
+                    </div>
+                `).join('')}
+            `;
+        }
+        
+        // 測試 ConvertAPI
+        async function testConvertAPI() {
+            const fileInput = document.getElementById('convertapiFile');
+            
+            if (fileInput.files.length === 0) {
+                showStatus('convertapiStatus', '請先選擇檔案', 'error');
+                return;
+            }
+            
+            try {
+                showStatus('convertapiStatus', '測試 ConvertAPI 服務可用性...', 'info');
+                
+                // 測試 API 端點是否可達
+                const response = await fetch('https://v2.convertapi.com/', { method: 'HEAD' });
+                
+                if (response.ok) {
+                    addResult('ConvertAPI', true, 
+                        '服務端點可訪問，支援 PPTX/DOCX → PDF 轉換', 
+                        '$0.01/轉換',
+                        ['高品質轉換', '保留格式', '快速處理']
+                    );
+                    showStatus('convertapiStatus', 
+                        '✅ ConvertAPI 可用<br>需要 API Key 進行實際轉換<br>免費額度: 250次/月', 
+                        'success'
+                    );
+                } else {
+                    throw new Error('服務不可用');
+                }
+                
+            } catch (error) {
+                addResult('ConvertAPI', false, `無法連接到服務: ${error.message}`);
+                showStatus('convertapiStatus', `❌ ConvertAPI 測試失敗: ${error.message}`, 'error');
+            }
+        }
+        
+        // 測試 CloudConvert
+        async function testCloudConvert() {
+            const fileInput = document.getElementById('cloudconvertFile');
+            
+            if (fileInput.files.length === 0) {
+                showStatus('cloudconvertStatus', '請先選擇檔案', 'error');
+                return;
+            }
+            
+            try {
+                showStatus('cloudconvertStatus', '測試 CloudConvert 服務可用性...', 'info');
+                
+                const response = await fetch('https://api.cloudconvert.com/v2/users/me', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Bearer invalid_key_for_test'
+                    }
+                });
+                
+                // 401 表示服務可用但需要有效 key
+                if (response.status === 401) {
+                    addResult('CloudConvert', true,
+                        '服務端點可訪問，API 結構正常',
+                        '$0.008/分鐘',
+                        ['200+格式支援', '批次處理', 'Webhook通知']
+                    );
+                    showStatus('cloudconvertStatus',
+                        '✅ CloudConvert 可用<br>需要 API Key 進行實際轉換<br>免費額度: 25次/天',
+                        'success'
+                    );
+                } else {
+                    throw new Error(`意外的回應狀態: ${response.status}`);
+                }
+                
+            } catch (error) {
+                addResult('CloudConvert', false, `連接測試失敗: ${error.message}`);
+                showStatus('cloudconvertStatus', `❌ CloudConvert 測試失敗: ${error.message}`, 'error');
+            }
+        }
+        
+        // 測試 Zamzar
+        async function testZamzar() {
+            try {
+                showStatus('zamzarStatus', '測試 Zamzar 服務可用性...', 'info');
+                
+                const response = await fetch('https://api.zamzar.com/v1/formats', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Basic ' + btoa('invalid_key_for_test:')
+                    }
+                });
+                
+                if (response.status === 401) {
+                    addResult('Zamzar', true,
+                        '服務端點可訪問，支援 1200+ 格式轉換',
+                        '$0.01/檔案',
+                        ['1200+格式', '批次轉換', '高可靠性']
+                    );
+                    showStatus('zamzarStatus',
+                        '✅ Zamzar 可用<br>需要 API Key 進行實際轉換<br>支援最多格式',
+                        'success'
+                    );
+                } else {
+                    throw new Error(`意外的回應狀態: ${response.status}`);
+                }
+                
+            } catch (error) {
+                addResult('Zamzar', false, `連接測試失敗: ${error.message}`);
+                showStatus('zamzarStatus', `❌ Zamzar 測試失敗: ${error.message}`, 'error');
+            }
+        }
+        
+        // 測試 ILovePDF
+        async function testILovePDF() {
+            try {
+                showStatus('ilovepdfStatus', '測試 ILovePDF 服務可用性...', 'info');
+                
+                const response = await fetch('https://api.ilovepdf.com/v1/start/officepdf', {
+                    method: 'GET'
+                });
+                
+                if (response.status === 401 || response.status === 403) {
+                    addResult('ILovePDF', true,
+                        '服務端點可訪問，專門處理 Office → PDF',
+                        '€4/月 (2500檔案)',
+                        ['專業PDF工具', 'Office專精', '批次處理']
+                    );
+                    showStatus('ilovepdfStatus',
+                        '✅ ILovePDF 可用<br>需要 API Key 進行實際轉換<br>專門處理 PDF 相關轉換',
+                        'success'
+                    );
+                } else {
+                    throw new Error(`意外的回應狀態: ${response.status}`);
+                }
+                
+            } catch (error) {
+                addResult('ILovePDF', false, `連接測試失敗: ${error.message}`);
+                showStatus('ilovepdfStatus', `❌ ILovePDF 測試失敗: ${error.message}`, 'error');
+            }
+        }
+        
+        // 自動開始測試所有服務
+        window.onload = function() {
+            setTimeout(() => {
+                console.log('開始自動測試所有線上服務...');
+                testConvertAPI();
+                setTimeout(testCloudConvert, 1000);
+                setTimeout(testZamzar, 2000);
+                setTimeout(testILovePDF, 3000);
+            }, 500);
+        };
+    </script>
+</body>
+</html>

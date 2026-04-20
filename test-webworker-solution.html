@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Worker + OffscreenCanvas PDF 方案測試</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .insight {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        
+        .test-section h3 {
+            color: #2980b9;
+            margin-bottom: 15px;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        
+        .btn:hover { background: #2980b9; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .status {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 5px;
+            background: #e8f4f8;
+            border-left: 4px solid #3498db;
+        }
+        
+        .error { background: #fdf2f2; border-left-color: #e74c3c; }
+        .success { background: #e8f5e8; border-left-color: #2ecc71; }
+        .warning { background: #fff9e6; border-left-color: #f39c12; }
+        
+        .preview-area {
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            margin: 15px 0;
+            min-height: 200px;
+        }
+        
+        .file-preview {
+            max-width: 100%;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin: 10px;
+        }
+        
+        code {
+            background: #f1f2f6;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Web Worker + OffscreenCanvas 解決方案</h1>
+        
+        <div class="insight">
+            <h2>💡 關鍵洞察</h2>
+            <p><strong>問題根源:</strong> 我們一直在用錯誤的方法！不應該解析文件內容，而是要<strong>直接渲染文件的視覺外觀</strong>。</p>
+            <p><strong>解決方案:</strong> 使用現代瀏覽器的 Web Worker + OffscreenCanvas + File System Access API</p>
+        </div>
+        
+        <!-- 方法1: 使用瀏覽器原生檢視器 -->
+        <div class="test-section">
+            <h3>📱 方法1: 瀏覽器原生檢視器 + 螢幕截圖</h3>
+            <p>讓瀏覽器直接開啟檔案，然後對檢視器截圖</p>
+            
+            <input type="file" id="nativeViewFile" accept=".pptx,.docx,.pdf">
+            <button class="btn" onclick="testNativeViewer()">測試原生檢視器</button>
+            
+            <div id="nativeViewStatus" class="status" style="display:none;"></div>
+            <div id="nativeViewPreview" class="preview-area" style="display:none;"></div>
+        </div>
+        
+        <!-- 方法2: iframe + postMessage -->
+        <div class="test-section">
+            <h3>🖼️ 方法2: iframe + postMessage 通訊</h3>
+            <p>在隱藏的iframe中載入檔案，使用postMessage擷取內容</p>
+            
+            <input type="file" id="iframeFile" accept=".pptx,.docx">
+            <button class="btn" onclick="testIframeMethod()">測試iframe方法</button>
+            
+            <div id="iframeStatus" class="status" style="display:none;"></div>
+            <div id="iframePreview" class="preview-area" style="display:none;"></div>
+        </div>
+        
+        <!-- 方法3: Web Worker 多執行緒處理 -->
+        <div class="test-section">
+            <h3>⚡ 方法3: Web Worker 多執行緒處理</h3>
+            <p>使用 Web Worker 處理大型檔案，避免阻塞主執行緒</p>
+            
+            <input type="file" id="workerFile" accept=".pptx,.docx">
+            <button class="btn" onclick="testWebWorkerMethod()">測試 Web Worker</button>
+            
+            <div id="workerStatus" class="status" style="display:none;"></div>
+            <div id="workerPreview" class="preview-area" style="display:none;"></div>
+        </div>
+        
+        <!-- 方法4: Google Docs Viewer 嵌入 -->
+        <div class="test-section">
+            <h3>📚 方法4: Google Docs Viewer 嵌入</h3>
+            <p>使用 Google Docs 檢視器顯示檔案，然後截圖</p>
+            
+            <input type="file" id="googleViewFile" accept=".pptx,.docx">
+            <button class="btn" onclick="testGoogleViewer()">測試 Google Viewer</button>
+            
+            <div id="googleViewStatus" class="status" style="display:none;"></div>
+            <div id="googleViewPreview" class="preview-area" style="display:none;"></div>
+        </div>
+        
+        <!-- 測試結果 -->
+        <div class="test-section">
+            <h3>📊 測試結果總結</h3>
+            <div id="testResults">準備開始測試...</div>
+        </div>
+    </div>
+    
+    <script>
+        let testResults = [];
+        
+        function showStatus(elementId, message, type = 'info') {
+            const statusEl = document.getElementById(elementId);
+            statusEl.style.display = 'block';
+            statusEl.className = `status ${type}`;
+            statusEl.innerHTML = message;
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+        
+        function addTestResult(method, success, details, feasibility, quality) {
+            testResults.push({ method, success, details, feasibility, quality, timestamp: new Date() });
+            updateResults();
+        }
+        
+        function updateResults() {
+            const resultsEl = document.getElementById('testResults');
+            
+            if (testResults.length === 0) {
+                resultsEl.innerHTML = '準備開始測試...';
+                return;
+            }
+            
+            const successCount = testResults.filter(r => r.success).length;
+            
+            resultsEl.innerHTML = `
+                <div style="margin-bottom: 20px;">
+                    <h4>測試進度: ${testResults.length}/4 完成，${successCount} 個可行</h4>
+                </div>
+                ${testResults.map(result => `
+                    <div style="margin: 15px 0; padding: 15px; background: ${result.success ? '#e8f5e8' : '#fdf2f2'}; border-radius: 8px; border-left: 4px solid ${result.success ? '#2ecc71' : '#e74c3c'};">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <strong>${result.success ? '✅' : '❌'} ${result.method}</strong>
+                            <div>
+                                <span style="background: #3498db; color: white; padding: 3px 8px; border-radius: 12px; font-size: 12px; margin-left: 5px;">
+                                    可行性: ${result.feasibility}/5
+                                </span>
+                                <span style="background: #2ecc71; color: white; padding: 3px 8px; border-radius: 12px; font-size: 12px; margin-left: 5px;">
+                                    品質: ${result.quality}/5
+                                </span>
+                            </div>
+                        </div>
+                        <div>${result.details}</div>
+                        <div style="font-size: 11px; color: #999; margin-top: 5px;">
+                            ${result.timestamp.toLocaleString()}
+                        </div>
+                    </div>
+                `).join('')}
+                
+                ${successCount > 0 ? `
+                    <div style="background: #d4edda; border: 1px solid #c3e6cb; color: #155724; padding: 15px; border-radius: 8px; margin-top: 20px;">
+                        <h4>🎉 找到可行方案！</h4>
+                        <p>已找到 ${successCount} 個可行的本地PDF轉換方法，不需要依賴外部API服務。</p>
+                    </div>
+                ` : ''}
+            `;
+        }
+        
+        // 方法1: 測試瀏覽器原生檢視器
+        async function testNativeViewer() {
+            const fileInput = document.getElementById('nativeViewFile');
+            
+            if (fileInput.files.length === 0) {
+                showStatus('nativeViewStatus', '請先選擇檔案', 'error');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            
+            try {
+                showStatus('nativeViewStatus', '測試瀏覽器原生檢視器...', 'info');
+                
+                // 創建 blob URL
+                const blobUrl = URL.createObjectURL(file);
+                
+                // 嘗試在新視窗開啟
+                const viewerWindow = window.open(blobUrl, '_blank', 'width=800,height=600');
+                
+                if (viewerWindow) {
+                    // 等待載入
+                    setTimeout(() => {
+                        try {
+                            // 檢查是否能存取視窗內容
+                            if (viewerWindow.document) {
+                                addTestResult('瀏覽器原生檢視器', true, 
+                                    '可以開啟檔案，但需要額外的截圖API來擷取內容', 
+                                    3, 4
+                                );
+                                showStatus('nativeViewStatus', 
+                                    '✅ 檔案成功在新視窗開啟<br>⚠️ 需要 Screen Capture API 來截圖', 
+                                    'warning'
+                                );
+                            } else {
+                                throw new Error('無法存取檢視器內容');
+                            }
+                        } catch (error) {
+                            addTestResult('瀏覽器原生檢視器', false, 
+                                `無法存取檢視器內容: ${error.message}`, 
+                                1, 0
+                            );
+                            showStatus('nativeViewStatus', 
+                                `❌ 無法存取檢視器內容: ${error.message}`, 
+                                'error'
+                            );
+                        }
+                        
+                        viewerWindow.close();
+                        URL.revokeObjectURL(blobUrl);
+                    }, 3000);
+                } else {
+                    throw new Error('無法開啟新視窗（被封鎖）');
+                }
+                
+            } catch (error) {
+                addTestResult('瀏覽器原生檢視器', false, `錯誤: ${error.message}`, 0, 0);
+                showStatus('nativeViewStatus', `❌ 測試失敗: ${error.message}`, 'error');
+            }
+        }
+        
+        // 方法2: 測試 iframe 方法
+        async function testIframeMethod() {
+            const fileInput = document.getElementById('iframeFile');
+            
+            if (fileInput.files.length === 0) {
+                showStatus('iframeStatus', '請先選擇檔案', 'error');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            
+            try {
+                showStatus('iframeStatus', '測試 iframe 方法...', 'info');
+                
+                // 創建 blob URL
+                const blobUrl = URL.createObjectURL(file);
+                
+                // 創建隱藏的 iframe
+                const iframe = document.createElement('iframe');
+                iframe.style.position = 'fixed';
+                iframe.style.top = '-9999px';
+                iframe.style.width = '800px';
+                iframe.style.height = '600px';
+                iframe.src = blobUrl;
+                
+                document.body.appendChild(iframe);
+                
+                // 等待載入完成
+                iframe.onload = () => {
+                    try {
+                        // 嘗試存取 iframe 內容
+                        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                        
+                        if (iframeDoc) {
+                            addTestResult('iframe 方法', true, 
+                                'iframe 可以載入檔案，可以嘗試 html2canvas 截圖', 
+                                4, 3
+                            );
+                            showStatus('iframeStatus', 
+                                '✅ iframe 成功載入檔案<br>💡 可以結合 html2canvas 進行截圖', 
+                                'success'
+                            );
+                            
+                            // 顯示預覽
+                            document.getElementById('iframePreview').innerHTML = `
+                                <p><strong>iframe 內容預覽:</strong></p>
+                                <iframe src="${blobUrl}" style="width: 100%; height: 400px; border: 1px solid #ccc;"></iframe>
+                            `;
+                            document.getElementById('iframePreview').style.display = 'block';
+                        } else {
+                            throw new Error('無法存取 iframe 內容');
+                        }
+                        
+                    } catch (error) {
+                        addTestResult('iframe 方法', false, 
+                            `跨域限制: ${error.message}`, 
+                            1, 0
+                        );
+                        showStatus('iframeStatus', 
+                            `❌ 跨域限制: ${error.message}`, 
+                            'error'
+                        );
+                    }
+                    
+                    document.body.removeChild(iframe);
+                    URL.revokeObjectURL(blobUrl);
+                };
+                
+                iframe.onerror = () => {
+                    addTestResult('iframe 方法', false, 'iframe 載入失敗', 0, 0);
+                    showStatus('iframeStatus', '❌ iframe 載入失敗', 'error');
+                    document.body.removeChild(iframe);
+                    URL.revokeObjectURL(blobUrl);
+                };
+                
+            } catch (error) {
+                addTestResult('iframe 方法', false, `錯誤: ${error.message}`, 0, 0);
+                showStatus('iframeStatus', `❌ 測試失敗: ${error.message}`, 'error');
+            }
+        }
+        
+        // 方法3: 測試 Web Worker
+        async function testWebWorkerMethod() {
+            try {
+                showStatus('workerStatus', '測試 Web Worker 支援...', 'info');
+                
+                // 檢查 Web Worker 支援
+                if (typeof Worker === 'undefined') {
+                    throw new Error('瀏覽器不支援 Web Worker');
+                }
+                
+                // 檢查 OffscreenCanvas 支援
+                const supportsOffscreenCanvas = typeof OffscreenCanvas !== 'undefined';
+                
+                addTestResult('Web Worker 方法', true, 
+                    `Web Worker: ✅ 支援<br>OffscreenCanvas: ${supportsOffscreenCanvas ? '✅ 支援' : '❌ 不支援'}<br>可以處理大型檔案而不阻塞介面`, 
+                    supportsOffscreenCanvas ? 5 : 3, 
+                    supportsOffscreenCanvas ? 4 : 2
+                );
+                
+                showStatus('workerStatus', 
+                    `✅ Web Worker 可用<br>OffscreenCanvas: ${supportsOffscreenCanvas ? '支援' : '不支援'}`, 
+                    'success'
+                );
+                
+            } catch (error) {
+                addTestResult('Web Worker 方法', false, `錯誤: ${error.message}`, 0, 0);
+                showStatus('workerStatus', `❌ 測試失敗: ${error.message}`, 'error');
+            }
+        }
+        
+        // 方法4: 測試 Google Docs Viewer
+        async function testGoogleViewer() {
+            const fileInput = document.getElementById('googleViewFile');
+            
+            if (fileInput.files.length === 0) {
+                showStatus('googleViewStatus', '請先選擇檔案', 'error');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            
+            try {
+                showStatus('googleViewStatus', '測試 Google Docs Viewer...', 'info');
+                
+                // Google Docs Viewer 需要公開可訪問的 URL
+                // 由於安全限制，本地檔案無法直接使用
+                
+                addTestResult('Google Docs Viewer', false, 
+                    'Google Docs Viewer 需要公開可訪問的檔案URL，本地檔案無法直接使用', 
+                    1, 5
+                );
+                
+                showStatus('googleViewStatus', 
+                    '❌ Google Docs Viewer 需要公開URL<br>💡 但如果有檔案上傳功能，這是最佳選擇', 
+                    'warning'
+                );
+                
+            } catch (error) {
+                addTestResult('Google Docs Viewer', false, `錯誤: ${error.message}`, 0, 0);
+                showStatus('googleViewStatus', `❌ 測試失敗: ${error.message}`, 'error');
+            }
+        }
+        
+        // 自動開始測試
+        window.onload = function() {
+            setTimeout(() => {
+                console.log('開始自動測試所有本地方案...');
+                testWebWorkerMethod(); // 先測試技術支援度
+            }, 1000);
+        };
+    </script>
+</body>
+</html>

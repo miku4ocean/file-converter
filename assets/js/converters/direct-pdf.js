@@ -67,12 +67,7 @@ class DirectPDFConverter {
             
             const htmlContent = await file.text();
             
-            // Try modern browser print API first
-            if ('showSaveFilePicker' in window) {
-                return await DirectPDFConverter.convertHTMLWithNativePrint(htmlContent);
-            }
-            
-            // Fallback to Puppeteer-like approach
+            // 直接使用 Puppeteer-style 轉換，避免觸發瀏覽器列印對話框
             return await DirectPDFConverter.convertHTMLWithPuppeteerStyle(htmlContent);
             
         } catch (error) {
@@ -81,88 +76,10 @@ class DirectPDFConverter {
         }
     }
 
-    // Use browser's native print functionality
+    // DISABLED: Use browser's native print functionality (causes print dialog)
     static async convertHTMLWithNativePrint(htmlContent) {
-        return new Promise((resolve, reject) => {
-            try {
-                console.log('🖨️ 使用瀏覽器原生列印API');
-                
-                // Create a new window for printing
-                const printWindow = window.open('', '_blank', 'width=794,height=1123');
-                
-                // Enhanced HTML with print-specific styling
-                const printHTML = `
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <meta charset="utf-8">
-                    <title>Print to PDF</title>
-                    <style>
-                        @page {
-                            size: A4;
-                            margin: 1cm;
-                        }
-                        
-                        body {
-                            font-family: Arial, '微軟正黑體', sans-serif;
-                            font-size: 12pt;
-                            line-height: 1.4;
-                            color: #000;
-                            background: white;
-                            margin: 0;
-                            padding: 0;
-                        }
-                        
-                        /* Ensure content fits properly */
-                        * {
-                            box-sizing: border-box;
-                        }
-                        
-                        img {
-                            max-width: 100%;
-                            height: auto;
-                        }
-                        
-                        table {
-                            width: 100%;
-                            border-collapse: collapse;
-                        }
-                        
-                        /* Print optimization */
-                        @media print {
-                            body { -webkit-print-color-adjust: exact !important; }
-                            .no-print { display: none !important; }
-                        }
-                    </style>
-                </head>
-                <body>
-                    ${htmlContent}
-                    <script>
-                        window.onload = function() {
-                            // Auto-trigger print dialog
-                            setTimeout(() => {
-                                window.print();
-                                window.close();
-                            }, 500);
-                        };
-                    </script>
-                </body>
-                </html>`;
-                
-                printWindow.document.write(printHTML);
-                printWindow.document.close();
-                
-                // Note: This will open print dialog - user needs to select "Save as PDF"
-                // For automated PDF generation, we need the fallback method
-                setTimeout(() => {
-                    resolve(new Blob(['PDF generation requires user interaction via print dialog'], 
-                           { type: 'text/plain' }));
-                }, 2000);
-                
-            } catch (error) {
-                reject(error);
-            }
-        });
+        console.warn('⚠️ 原生列印API已禁用，改用Puppeteer風格轉換');
+        return await DirectPDFConverter.convertHTMLWithPuppeteerStyle(htmlContent);
     }
 
     // Puppeteer-style HTML to PDF conversion
@@ -382,6 +299,7 @@ class DirectPDFConverter {
     static async convertDOCXToPDF(file) {
         try {
             console.log('📄 開始DOCX轉PDF轉換');
+            console.log('📁 檔案資訊:', { name: file.name, size: file.size, type: file.type });
             
             // Try to load mammoth.js
             await DirectPDFConverter.loadMammoth();
@@ -547,16 +465,21 @@ class DirectPDFConverter {
     static async convertPPTXToPDF(file) {
         try {
             console.log('🎯 開始PPTX轉PDF (文字提取模式)');
+            console.log('📁 檔案資訊:', { name: file.name, size: file.size, type: file.type });
             
             // Load JSZip for PPTX processing
             await DirectPDFConverter.loadJSZip();
             
             const arrayBuffer = await file.arrayBuffer();
+            console.log('📦 檔案載入完成，大小:', arrayBuffer.byteLength, '位元組');
+            
             const zip = new JSZip();
             const zipContent = await zip.loadAsync(arrayBuffer);
+            console.log('🗂️ ZIP內容載入完成，檔案數量:', Object.keys(zipContent.files).length);
             
             // Extract text content from slides
             const textContent = await DirectPDFConverter.extractPPTXText(zipContent);
+            console.log('📄 提取的文字內容長度:', textContent?.length || 0);
             
             if (textContent && textContent.trim()) {
                 console.log('📊 成功提取PPTX文字內容');
