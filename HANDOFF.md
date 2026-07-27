@@ -18,7 +18,7 @@
 
 ## 下一步（接手的人從這裡開始）
 1. 用瀏覽器開 `index.html` 確認基本轉換功能可用（不需 npm install）
-2. 視需要更新 `GITHUB_PAGES_SETUP.md`／`TEST_GUIDE.md` 中指向舊測試頁路徑的連結（已移至 `tests/`）
+2. ✅ 已完成（2026-07-27）：更新 `GITHUB_PAGES_SETUP.md`／`TEST_GUIDE.md` 中指向舊測試頁路徑的連結（已移至 `tests/`）——8 個連結已更正
 3. 依 `GITHUB_PAGES_SETUP.md` 指引設定 GitHub Pages 部署
 
 ## 地雷（別踩）
