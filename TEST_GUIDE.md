@@ -11,7 +11,7 @@
    ```
 
 2. **開啟自動化測試頁面**
-   - 打開瀏覽器訪問：http://localhost:8081/automated-test.html
+   - 打開瀏覽器訪問：http://localhost:8081/tests/automated-test.html
    - 點擊「執行所有測試」按鈕
    - 等待測試完成並查看結果
 
@@ -28,7 +28,7 @@
 
 ### 方法三：瀏覽器控制台測試
 
-1. **開啟任一頁面**（index.html 或 automated-test.html）
+1. **開啟任一頁面**（index.html 或 tests/automated-test.html）
 2. **按 F12 開啟開發者工具**
 3. **在控制台貼上並執行以下代碼：**
 
@@ -41,7 +41,7 @@ document.head.appendChild(script);
 
 ### 方法四：功能測試頁面
 
-訪問：http://localhost:8081/test-all-functions.html
+訪問：http://localhost:8081/tests/test-all-functions.html
 - 提供完整的手動測試界面
 - 可以上傳真實檔案進行測試
 - 包含所有轉換格式的測試按鈕
@@ -88,8 +88,8 @@ document.head.appendChild(script);
 
 專案中包含以下測試檔案：
 
-1. **automated-test.html** - 完整自動化測試
-2. **test-all-functions.html** - 手動功能測試
+1. **tests/automated-test.html** - 完整自動化測試
+2. **tests/test-all-functions.html** - 手動功能測試
 3. **test-sample.txt** - 文書轉換測試檔案
 4. **test-data.csv** - 表單轉換測試檔案
 5. **quick-test.js** - 控制台快速測試腳本

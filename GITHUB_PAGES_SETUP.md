@@ -31,9 +31,9 @@
 - **檔案轉換**: https://miku4ocean.github.io/file-converter/index.html
 
 ### 測試頁面
-- **直接 PDF 測試**: https://miku4ocean.github.io/file-converter/direct-pdf-test.html
-- **全面測試套件**: https://miku4ocean.github.io/file-converter/comprehensive-pdf-test.html
-- **壓力測試**: https://miku4ocean.github.io/file-converter/stress-test-pdf.html
+- **直接 PDF 測試**: https://miku4ocean.github.io/file-converter/tests/direct-pdf-test.html
+- **全面測試套件**: https://miku4ocean.github.io/file-converter/tests/comprehensive-pdf-test.html
+- **壓力測試**: https://miku4ocean.github.io/file-converter/tests/stress-test-pdf.html
 
 ## ✅ 驗證步驟
 1. 設定完成後，等待 5 分鐘
