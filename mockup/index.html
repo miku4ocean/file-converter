@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>file-converter — Mockup 總覽</title>
+<style>
+:root{
+  --paper:#FBFAF7; --ink:#181B20; --muted:#6B7178;
+  --line:#E7E3DA; --accent:#2E4B8F; --accent-soft:#EAEEF7;
+  --ok:#1F7A54; --err:#B03A2E; --warn:#B8860B;
+  --serif:"Iowan Old Style",Georgia,"Times New Roman",serif;
+  --sans:ui-sans-serif,system-ui,"Segoe UI",Roboto,"Noto Sans TC",sans-serif;
+  --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,monospace;
+}
+*{box-sizing:border-box;}
+body{margin:0; background:var(--paper); color:var(--ink); font-family:var(--sans); padding:48px 20px 90px;}
+.wrap{max-width:920px; margin:0 auto;}
+.wordmark{font-family:var(--serif); font-size:32px; margin:0;}
+.wordmark .dot{color:var(--accent);}
+.subtitle{font-family:var(--mono); font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:8px 0 28px;}
+h2.section{font-family:var(--mono); font-size:12.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:36px 0 14px; display:flex; align-items:center; gap:10px;}
+h2.section::before{content:"▸"; color:var(--accent);}
+.hr{border:none; border-top:1px solid var(--line); margin:26px 0;}
+.list a{
+  display:flex; justify-content:space-between; align-items:center; gap:14px;
+  padding:16px 18px; margin-bottom:12px; background:var(--paper); border:1px solid var(--line);
+  border-radius:9px; text-decoration:none; color:var(--ink);
+}
+.list a:hover{border-color:var(--accent);}
+.list .name{font-size:14.5px; font-weight:600;}
+.list .desc{font-size:12px; color:var(--muted); margin-top:3px; font-weight:400;}
+.list .go{font-family:var(--mono); font-size:12px; color:var(--accent); white-space:nowrap;}
+.no-backend{
+  background:var(--accent-soft); border:1px solid var(--accent); border-radius:9px;
+  padding:16px 18px; font-size:13px; line-height:1.7; color:var(--ink); margin-top:8px;
+}
+.no-backend b{color:var(--accent);}
+footer{margin-top:40px; padding-top:16px; border-top:1px solid var(--line); font-family:var(--mono); font-size:11px; color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 class="wordmark">File Converter<span class="dot">.</span></h1>
+  <p class="subtitle">MOCKUP 總覽 — 前台線框稿（依實際 index.html／app.js 結構產出）</p>
+
+  <h2 class="section">後台／管理頁面</h2>
+  <div class="no-backend">
+    <b>本工具無後端／無後台。</b> 依 HANDOFF.md、AGENTS.md、README.md 與程式碼實讀：這是一個純前端單頁工具（無 npm 建置、無伺服器、無資料庫、無登入機制），所有轉換運算都在使用者瀏覽器本機完成。因此本 mockup 資料夾不含任何「admin-*」頁面 —— 這不是遺漏，而是真實架構的誠實呈現。
+  </div>
+
+  <h2 class="section">前台頁面（5 個，同一 index.html 內的分頁／狀態）</h2>
+  <div class="list">
+    <a href="front-image.html">
+      <span><span class="name">🖼️ 圖片轉檔</span><br><span class="desc">image 分頁 — JPG／PNG／WebP，品質與寬度調整</span></span>
+      <span class="go">開啟 →</span>
+    </a>
+    <a href="front-document.html">
+      <span><span class="name">📄 文書轉檔</span><br><span class="desc">document 分頁 — TXT／DOCX／HTML／MD／PDF／RTF</span></span>
+      <span class="go">開啟 →</span>
+    </a>
+    <a href="front-spreadsheet.html">
+      <span><span class="name">📊 表單轉檔</span><br><span class="desc">spreadsheet 分頁 — CSV／XLSX／JSON／HTML 表格</span></span>
+      <span class="go">開啟 →</span>
+    </a>
+    <a href="front-presentation.html">
+      <span><span class="name">🎯 簡報轉檔</span><br><span class="desc">presentation 分頁 — PPTX／HTML／PDF／Markdown</span></span>
+      <span class="go">開啟 →</span>
+    </a>
+    <a href="front-progress-download.html">
+      <span><span class="name">▸ 轉換進度／下載完成</span><br><span class="desc">同一單頁內的後段狀態 — build-log 式進度＋下載清單</span></span>
+      <span class="go">開啟 →</span>
+    </a>
+  </div>
+
+  <h2 class="section">頁面清單依據</h2>
+  <div class="no-backend" style="background:var(--paper); border-color:var(--line);">
+    index.html 只有一個實際入口，透過 app.js 的 <code>switchFileType()</code> 在 4 種檔案類型間切換，並用同一組 DOM 區塊（上傳／清單／設定／進度／下載）依狀態顯示或隱藏。本 mockup 依此「4 分頁 ＋ 1 組後段狀態」的真實結構，各拆一頁呈現，未臆造任何路由或頁面。<br><br>
+    根目錄 <code>tests/</code> 下 46 個 test-*／debug-*／final-* HTML 為開發過程產物，HANDOFF.md 明載「勿視為正式功能」，故未納入本 mockup。
+  </div>
+
+  <footer>
+    依 index.html、assets/js/app.js、assets/js/converters/*.js、HANDOFF.md、AGENTS.md、README.md 實讀產出。
+  </footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,83 @@
+%% file-converter 架構圖 — Galley 視覺語言／Mermaid 版
+%% 產出依據：實際讀取 index.html、assets/js/*、assets/js/converters/*、HANDOFF.md、AGENTS.md、README.md
+%% 本工具無後端／無後台：純前端單頁工具，五層由「頁面」到「執行期外部依賴」
+
+flowchart TB
+    classDef layer fill:#FBFAF7,stroke:#E7E3DA,stroke-width:1px,color:#181B20;
+    classDef keystone fill:#EAEEF7,stroke:#2E4B8F,stroke-width:2.5px,color:#181B20,font-weight:bold;
+    classDef warn fill:#FBFAF7,stroke:#B8860B,stroke-width:1.5px,color:#181B20,stroke-dasharray:4 3;
+    classDef dead fill:#FBFAF7,stroke:#6B7178,stroke-width:1px,color:#6B7178,stroke-dasharray:2 2;
+    classDef note fill:#EAEEF7,stroke:#2E4B8F,stroke-width:1.5px,color:#181B20;
+
+    subgraph L1["① 使用者 ／ 瀏覽器 UI 層"]
+        A1["index.html（唯一正式入口，單頁 SPA）<br/>四分頁：圖片・文書・表單・簡報"]
+        A2["assets/css/style.css<br/>響應式版面"]
+    end
+
+    subgraph L2["② 應用邏輯層（Vanilla JS 狀態機，無框架）"]
+        B1["auto-loader.js<br/>啟動時序：先背景載入函式庫 → 再 new FileConverter()"]
+        B2["app.js — class FileConverter<br/>狀態流：上傳 → 檔案清單 → 轉換設定 → 進度 → 下載"]
+    end
+
+    subgraph L3["③ 轉換器模組層（index.html 實際載入的 4＋2 個檔）"]
+        C1["image.js"]
+        C2["document.js"]
+        C3["spreadsheet.js"]
+        C4["presentation.js"]
+        C5["visual-pdf-converter.js／direct-pdf.js<br/>PDF 相關輔助模組"]
+    end
+
+    subgraph L4["④ 瀏覽器原生 API 層 —— 全部運算在此完成，無伺服器"]
+        D1["Canvas API（圖片繪製／格式轉換）"]
+        D2["File API ／ Blob API（讀檔・組檔）"]
+        D3["Drag &amp; Drop API"]
+        D4["URL.createObjectURL（本機下載，不經任何伺服器）"]
+    end
+
+    subgraph L5["⑤ 外部函式庫（CDN，執行期才動態載入，非隨包）"]
+        E1["必要：jszip・jspdf・sheetjs（jsdelivr／cdn.sheetjs.com）"]
+        E2["可選：mammoth・pptxgenjs・html2canvas・pdfjs-dist<br/>背景載入，失敗不影響核心功能"]
+    end
+
+    K["🔑 KEYSTONE 設計決定<br/>零伺服器・檔案不上傳<br/>轉換運算全在瀏覽器記憶體完成<br/>分頁一關資料即消失，對應 footer 承諾<br/>『純前端處理，檔案不上傳伺服器』"]
+
+    W["⚠ 與 AGENTS.md 目標的落差（未確認是否已知）<br/>既定目標：『保持零安裝、可離線執行』<br/>現況：核心函式庫 jszip／jspdf／sheetjs 仍需<br/>連網向 CDN 下載，斷網時核心功能未確認可用"]
+
+    X1["✗ 未接入的實驗檔案（不在 index.html 的 &lt;script&gt; 清單內）<br/>cloudconvert-pdf.js — 內含真實第三方雲端上傳 API<br/>fixed-pdf-converter.js／presentation-backup.js"]
+    X2["tests/ 目錄 — 46 個除錯／實驗用 HTML<br/>HANDOFF.md 明載：開發產物，非正式功能"]
+
+    A2 --> A1
+    A1 --> B2
+    B1 --> B2
+    B2 --> C1
+    B2 --> C2
+    B2 --> C3
+    B2 --> C4
+    C2 -.-> C5
+    C4 -.-> C5
+    C1 --> D1
+    C1 --> D2
+    C2 --> D2
+    C3 --> D2
+    C4 --> D2
+    A1 --> D3
+    C1 --> D4
+    C2 --> D4
+    C3 --> D4
+    C4 --> D4
+    B1 -. 動態載入 .-> E1
+    B1 -. 動態載入（可失敗） .-> E2
+    C2 -. 需要時呼叫 .-> E1
+    C3 -. 需要時呼叫 .-> E1
+    C4 -. 需要時呼叫 .-> E1
+    C2 -. 需要時呼叫 .-> E2
+    C4 -. 需要時呼叫 .-> E2
+
+    K -.-> D2
+    W -.-> E1
+
+    class L4 keystone;
+    class D1,D2,D3,D4 keystone;
+    class K note;
+    class W,E1,E2 warn;
+    class X1,X2 dead;

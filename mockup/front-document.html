@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>線框稿 — 文書轉檔</title>
+<style>
+:root{
+  --paper:#FBFAF7; --ink:#181B20; --muted:#6B7178;
+  --line:#E7E3DA; --accent:#2E4B8F; --accent-soft:#EAEEF7;
+  --ok:#1F7A54; --err:#B03A2E; --warn:#B8860B;
+  --serif:"Iowan Old Style",Georgia,"Times New Roman",serif;
+  --sans:ui-sans-serif,system-ui,"Segoe UI",Roboto,"Noto Sans TC",sans-serif;
+  --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,monospace;
+}
+*{box-sizing:border-box;}
+body{margin:0; background:var(--paper); color:var(--ink); font-family:var(--sans); padding:40px 20px 80px;}
+.wrap{max-width:880px; margin:0 auto;}
+.wordmark{font-family:var(--serif); font-size:26px; margin:0 0 2px;}
+.wordmark .dot{color:var(--accent);}
+.pagetag{font-family:var(--mono); font-size:11px; letter-spacing:.1em; color:var(--muted); text-transform:uppercase;}
+.notebar{
+  margin:18px 0 26px; padding:10px 14px; background:var(--accent-soft); border:1px solid var(--accent);
+  border-radius:8px; font-family:var(--mono); font-size:11.5px; color:var(--accent);
+}
+h2.section{font-family:var(--mono); font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:26px 0 12px;}
+.tabs{display:flex; gap:10px; flex-wrap:wrap;}
+.tab{
+  font-family:var(--sans); font-size:13.5px; padding:9px 16px; border-radius:8px; border:1px solid var(--line);
+  background:var(--paper); color:var(--muted);
+}
+.tab.active{border-color:var(--accent); color:var(--accent); background:var(--accent-soft); font-weight:600;}
+.dropzone{
+  border:2px dashed var(--line); border-radius:10px; padding:48px 24px; text-align:center; margin-top:8px;
+}
+.dropzone .icon{font-size:38px;}
+.dropzone h3{margin:12px 0 6px; font-size:16px;}
+.dropzone p{margin:0 0 18px; color:var(--muted); font-size:13px;}
+.btn{
+  font-family:var(--sans); font-size:13px; padding:9px 20px; border-radius:7px; border:1px solid var(--accent);
+  background:var(--accent); color:#fff; cursor:default;
+}
+.btn.secondary{background:var(--paper); color:var(--accent);}
+.card{background:var(--paper); border:1px solid var(--line); border-radius:9px; padding:18px 20px;}
+.opt{display:grid; grid-template-columns:160px 1fr; gap:10px; align-items:center; padding:9px 0; border-bottom:1px solid var(--line); font-size:13px;}
+.opt:last-child{border-bottom:none;}
+.opt .field{color:var(--muted); font-family:var(--mono); font-size:11.5px;}
+.opt .val{background:var(--paper); border:1px solid var(--line); border-radius:6px; padding:6px 10px; color:var(--ink);}
+.placeholder{color:var(--muted); font-size:12.5px; font-style:italic;}
+footer{margin-top:36px; padding-top:16px; border-top:1px solid var(--line); font-family:var(--mono); font-size:11px; color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="wordmark">File Converter<span class="dot">.</span></div>
+  <div class="pagetag">前台 — 文書轉檔（document 分頁）／ 線框稿</div>
+  <div class="notebar">依實際程式碼還原：index.html 主頁 ＋ app.js switchFileType('document') ＋ document.js。輸出至 DOCX／PDF 需 CDN 函式庫（jszip／jspdf／mammoth）到位。</div>
+
+  <h2 class="section">選擇檔案類型</h2>
+  <div class="tabs">
+    <div class="tab">🖼️ 圖片轉檔</div>
+    <div class="tab active">📄 文書轉檔</div>
+    <div class="tab">📊 表單轉檔</div>
+    <div class="tab">🎯 簡報轉檔</div>
+  </div>
+
+  <h2 class="section">上傳區</h2>
+  <div class="dropzone">
+    <div class="icon">📄</div>
+    <h3>拖拉文書檔案到此處或點擊上傳</h3>
+    <p>支援 DOCX、TXT、HTML、MD、RTF 格式</p>
+    <div class="btn">選擇檔案</div>
+  </div>
+
+  <h2 class="section">待轉換檔案</h2>
+  <div class="card"><span class="placeholder">尚無檔案 — 上傳後於此列出檔名／大小／類型，並提供「移除」按鈕</span></div>
+
+  <h2 class="section">轉換設定（document.js 選項欄位）</h2>
+  <div class="card">
+    <div class="opt"><span class="field">輸出格式</span><span class="val">請選擇格式 ▾（TXT／DOCX／HTML／Markdown／PDF／RTF）</span></div>
+    <div class="opt"><span class="field">內容壓縮</span><span class="val">標準 ▾（標準／輕度／中度／高度壓縮）</span></div>
+  </div>
+  <div style="margin-top:14px;">
+    <span class="btn secondary" style="opacity:.5;">開始轉換（未選格式前 disabled）</span>
+  </div>
+
+  <footer>
+    本工具無後端／無後台，全部轉換在瀏覽器本機完成（File／Blob API），檔案不上傳伺服器。<br>
+    來源：index.html、assets/js/app.js、assets/js/converters/document.js
+  </footer>
+</div>
+</body>
+</html>

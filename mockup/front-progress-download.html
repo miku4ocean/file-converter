@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>線框稿 — 轉換進度／下載完成</title>
+<style>
+:root{
+  --paper:#FBFAF7; --ink:#181B20; --muted:#6B7178;
+  --line:#E7E3DA; --accent:#2E4B8F; --accent-soft:#EAEEF7;
+  --ok:#1F7A54; --err:#B03A2E; --warn:#B8860B;
+  --serif:"Iowan Old Style",Georgia,"Times New Roman",serif;
+  --sans:ui-sans-serif,system-ui,"Segoe UI",Roboto,"Noto Sans TC",sans-serif;
+  --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,monospace;
+}
+*{box-sizing:border-box;}
+body{margin:0; background:var(--paper); color:var(--ink); font-family:var(--sans); padding:40px 20px 80px;}
+.wrap{max-width:880px; margin:0 auto;}
+.wordmark{font-family:var(--serif); font-size:26px; margin:0 0 2px;}
+.wordmark .dot{color:var(--accent);}
+.pagetag{font-family:var(--mono); font-size:11px; letter-spacing:.1em; color:var(--muted); text-transform:uppercase;}
+.notebar{
+  margin:18px 0 26px; padding:10px 14px; background:var(--accent-soft); border:1px solid var(--accent);
+  border-radius:8px; font-family:var(--mono); font-size:11.5px; color:var(--accent);
+}
+h2.section{font-family:var(--mono); font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:26px 0 12px;}
+.card{background:var(--paper); border:1px solid var(--line); border-radius:9px; padding:18px 20px; margin-bottom:12px;}
+.file-row{display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--line); font-size:13px;}
+.file-row:last-child{border-bottom:none;}
+.file-row .name{font-weight:600;}
+.file-row .meta{color:var(--muted); font-size:11.5px;}
+.remove{color:var(--err); font-family:var(--mono); font-size:11px;}
+.progress-outer{background:var(--accent-soft); border:1px solid var(--line); border-radius:20px; height:20px; overflow:hidden; margin:10px 0;}
+.progress-inner{background:var(--accent); height:100%; width:64%;}
+.progress-label{font-family:var(--mono); font-size:12px; color:var(--muted);}
+.buildlog{font-family:var(--mono); font-size:12.5px; line-height:1.9; margin-top:10px;}
+.buildlog .ok{color:var(--ok);}
+.buildlog .go{color:var(--accent);}
+.buildlog .err{color:var(--err);}
+.download-row{display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--line); font-size:13px;}
+.download-row:last-child{border-bottom:none;}
+.btn{
+  font-family:var(--sans); font-size:13px; padding:9px 20px; border-radius:7px; border:1px solid var(--accent);
+  background:var(--accent); color:#fff; cursor:default; display:inline-block;
+}
+.btn.secondary{background:var(--paper); color:var(--accent);}
+.dl-link{font-family:var(--mono); font-size:11.5px; color:var(--accent);}
+footer{margin-top:36px; padding-top:16px; border-top:1px solid var(--line); font-family:var(--mono); font-size:11px; color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="wordmark">File Converter<span class="dot">.</span></div>
+  <div class="pagetag">前台 — 轉換進度／下載完成（同一單頁內的後段狀態）／ 線框稿</div>
+  <div class="notebar">依 index.html 的 progressSection／downloadSection 與 app.js 的 startConversion()／downloadAll() 還原。此頁示範「多檔混合進度中＋部分已完成」的中繼畫面，實際上與圖片／文書等分頁共用同一 index.html。</div>
+
+  <h2 class="section">待轉換檔案（示例：文書分頁，3 檔）</h2>
+  <div class="card">
+    <div class="file-row"><span class="name">季度報告.docx <span class="meta">1.2 MB ｜ 文書</span></span><span class="remove">移除</span></div>
+    <div class="file-row"><span class="name">會議紀錄.txt <span class="meta">18 KB ｜ 文書</span></span><span class="remove">移除</span></div>
+    <div class="file-row"><span class="name">簡報草稿.md <span class="meta">6 KB ｜ 文書</span></span><span class="remove">移除</span></div>
+  </div>
+
+  <h2 class="section">轉換進度</h2>
+  <div class="card">
+    <div class="progress-outer"><div class="progress-inner"></div></div>
+    <div class="progress-label">64% ｜ 正在轉換：簡報草稿.md → PDF</div>
+    <div class="buildlog">
+      <div><span class="ok">✓</span> 季度報告.docx → PDF 轉換完成</div>
+      <div><span class="ok">✓</span> 會議紀錄.txt → PDF 轉換完成</div>
+      <div><span class="go">▸</span> 簡報草稿.md → PDF 轉換中…</div>
+    </div>
+  </div>
+
+  <h2 class="section">轉換完成（已完成的 2 個檔案）</h2>
+  <div class="card">
+    <div class="download-row"><span>季度報告.pdf</span><span class="dl-link">下載 ↓</span></div>
+    <div class="download-row"><span>會議紀錄.pdf</span><span class="dl-link">下載 ↓</span></div>
+  </div>
+  <div style="display:flex; gap:12px;">
+    <span class="btn">下載全部</span>
+    <span class="btn secondary">重新開始</span>
+  </div>
+
+  <footer>
+    下載透過 URL.createObjectURL 在瀏覽器本機完成，全程未經任何伺服器；分頁關閉後暫存資料即消失。<br>
+    來源：index.html、assets/js/app.js（startConversion／downloadAll／reset）
+  </footer>
+</div>
+</body>
+</html>

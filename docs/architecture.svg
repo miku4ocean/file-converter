@@ -1,0 +1,139 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 1360" font-family="ui-sans-serif,system-ui,'Segoe UI',Roboto,'Noto Sans TC',sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2E4B8F"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1280" height="1360" fill="#FBFAF7"/>
+
+  <!-- Header -->
+  <text x="60" y="56" font-family="'Iowan Old Style',Georgia,'Times New Roman',serif" font-size="30" fill="#181B20">File Converter<tspan fill="#2E4B8F">.</tspan></text>
+  <text x="60" y="82" font-family="ui-monospace,'SF Mono','Cascadia Code',Menlo,monospace" font-size="12" letter-spacing="2" fill="#6B7178">ARCHITECTURE — 架構圖（由實際程式碼與 HANDOFF／AGENTS／README 讀出）</text>
+  <line x1="60" y1="96" x2="1220" y2="96" stroke="#E7E3DA" stroke-width="1"/>
+
+  <!-- spine -->
+  <line x1="640" y1="96" x2="640" y2="1250" stroke="#E7E3DA" stroke-width="2" stroke-dasharray="1 6"/>
+
+  <!-- ===== Layer 1 ===== -->
+  <text x="60" y="126" font-family="ui-monospace,monospace" font-size="13" letter-spacing="2" fill="#6B7178">① 使用者 ／ 瀏覽器 UI 層</text>
+  <g>
+    <rect x="60" y="138" width="560" height="86" rx="9" fill="#FBFAF7" stroke="#E7E3DA"/>
+    <text x="82" y="168" font-size="15" fill="#181B20" font-weight="600">index.html</text>
+    <text x="82" y="190" font-size="12.5" fill="#6B7178">唯一正式入口，單頁 SPA</text>
+    <text x="82" y="208" font-size="12.5" fill="#6B7178">四分頁：圖片 ・ 文書 ・ 表單 ・ 簡報</text>
+
+    <rect x="660" y="138" width="560" height="86" rx="9" fill="#FBFAF7" stroke="#E7E3DA"/>
+    <text x="682" y="168" font-size="15" fill="#181B20" font-weight="600">assets/css/style.css</text>
+    <text x="682" y="190" font-size="12.5" fill="#6B7178">響應式版面（桌面／行動裝置）</text>
+  </g>
+  <line x1="640" y1="224" x2="640" y2="264" stroke="#2E4B8F" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ===== Layer 2 ===== -->
+  <text x="60" y="284" font-family="ui-monospace,monospace" font-size="13" letter-spacing="2" fill="#6B7178">② 應用邏輯層（Vanilla JS 狀態機，無框架）</text>
+  <g>
+    <rect x="60" y="296" width="560" height="90" rx="9" fill="#FBFAF7" stroke="#E7E3DA"/>
+    <text x="82" y="326" font-size="15" fill="#181B20" font-weight="600">auto-loader.js</text>
+    <text x="82" y="348" font-size="12.5" fill="#6B7178">啟動時序：先背景載入必要函式庫</text>
+    <text x="82" y="366" font-size="12.5" fill="#6B7178">→ 再 new FileConverter()</text>
+
+    <rect x="660" y="296" width="560" height="90" rx="9" fill="#FBFAF7" stroke="#E7E3DA"/>
+    <text x="682" y="326" font-size="15" fill="#181B20" font-weight="600">app.js — class FileConverter</text>
+    <text x="682" y="348" font-size="12.5" fill="#6B7178">狀態流：上傳 → 檔案清單 → 轉換設定</text>
+    <text x="682" y="366" font-size="12.5" fill="#6B7178">→ 進度 → 下載</text>
+  </g>
+  <line x1="640" y1="386" x2="640" y2="426" stroke="#2E4B8F" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ===== Layer 3 ===== -->
+  <text x="60" y="446" font-family="ui-monospace,monospace" font-size="13" letter-spacing="2" fill="#6B7178">③ 轉換器模組層（index.html 實際載入的模組）</text>
+  <g>
+    <rect x="60"  y="458" width="224" height="96" rx="9" fill="#FBFAF7" stroke="#E7E3DA"/>
+    <text x="172" y="500" font-size="13.5" fill="#181B20" text-anchor="middle" font-weight="600">image.js</text>
+    <text x="172" y="520" font-size="11" fill="#6B7178" text-anchor="middle">JPG/PNG/WebP</text>
+
+    <rect x="304" y="458" width="224" height="96" rx="9" fill="#FBFAF7" stroke="#E7E3DA"/>
+    <text x="416" y="500" font-size="13.5" fill="#181B20" text-anchor="middle" font-weight="600">document.js</text>
+    <text x="416" y="520" font-size="11" fill="#6B7178" text-anchor="middle">TXT/DOCX/HTML/MD/PDF/RTF</text>
+
+    <rect x="548" y="458" width="224" height="96" rx="9" fill="#FBFAF7" stroke="#E7E3DA"/>
+    <text x="660" y="500" font-size="13.5" fill="#181B20" text-anchor="middle" font-weight="600">spreadsheet.js</text>
+    <text x="660" y="520" font-size="11" fill="#6B7178" text-anchor="middle">CSV/XLSX/JSON/HTML</text>
+
+    <rect x="792" y="458" width="224" height="96" rx="9" fill="#FBFAF7" stroke="#E7E3DA"/>
+    <text x="904" y="500" font-size="13.5" fill="#181B20" text-anchor="middle" font-weight="600">presentation.js</text>
+    <text x="904" y="520" font-size="11" fill="#6B7178" text-anchor="middle">PPTX/HTML/PDF</text>
+
+    <rect x="1036" y="458" width="224" height="96" rx="9" fill="#FBFAF7" stroke="#E7E3DA"/>
+    <text x="1148" y="494" font-size="12.5" fill="#181B20" text-anchor="middle" font-weight="600">visual-pdf-converter.js</text>
+    <text x="1148" y="512" font-size="12.5" fill="#181B20" text-anchor="middle" font-weight="600">direct-pdf.js</text>
+    <text x="1148" y="530" font-size="11" fill="#6B7178" text-anchor="middle">PDF 輔助模組</text>
+  </g>
+  <line x1="640" y1="554" x2="640" y2="600" stroke="#2E4B8F" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ===== Layer 4 : KEYSTONE ===== -->
+  <rect x="40" y="602" width="1200" height="188" rx="12" fill="#EAEEF7" stroke="#2E4B8F" stroke-width="2.5"/>
+  <text x="64" y="630" font-family="ui-monospace,monospace" font-size="13" letter-spacing="2" fill="#2E4B8F" font-weight="700">④ 瀏覽器原生 API 層 —— 全部運算在此完成，無伺服器</text>
+  <g>
+    <rect x="64"  y="644" width="272" height="84" rx="8" fill="#FBFAF7" stroke="#2E4B8F"/>
+    <text x="200" y="682" font-size="13.5" fill="#181B20" text-anchor="middle" font-weight="600">Canvas API</text>
+    <text x="200" y="700" font-size="11" fill="#6B7178" text-anchor="middle">圖片繪製／格式轉換</text>
+
+    <rect x="352" y="644" width="272" height="84" rx="8" fill="#FBFAF7" stroke="#2E4B8F"/>
+    <text x="488" y="682" font-size="13.5" fill="#181B20" text-anchor="middle" font-weight="600">File API ／ Blob API</text>
+    <text x="488" y="700" font-size="11" fill="#6B7178" text-anchor="middle">讀檔・組裝輸出檔</text>
+
+    <rect x="640" y="644" width="272" height="84" rx="8" fill="#FBFAF7" stroke="#2E4B8F"/>
+    <text x="776" y="682" font-size="13.5" fill="#181B20" text-anchor="middle" font-weight="600">Drag &amp; Drop API</text>
+    <text x="776" y="700" font-size="11" fill="#6B7178" text-anchor="middle">拖拉上傳互動</text>
+
+    <rect x="928" y="644" width="272" height="84" rx="8" fill="#FBFAF7" stroke="#2E4B8F"/>
+    <text x="1064" y="682" font-size="13.5" fill="#181B20" text-anchor="middle" font-weight="600">URL.createObjectURL</text>
+    <text x="1064" y="700" font-size="11" fill="#6B7178" text-anchor="middle">本機下載，不經任何伺服器</text>
+  </g>
+  <text x="64" y="748" font-size="12.5" fill="#181B20">🔑 <tspan font-weight="700">KEYSTONE 設計決定</tspan> — 零伺服器・檔案不上傳：轉換運算全在瀏覽器記憶體完成，</text>
+  <text x="64" y="768" font-size="12.5" fill="#181B20">分頁一關資料即消失，對應 footer 承諾「純前端處理，檔案不上傳伺服器」。</text>
+
+  <line x1="640" y1="790" x2="640" y2="830" stroke="#2E4B8F" stroke-width="1.5" marker-end="url(#arrow)" stroke-dasharray="2 5"/>
+
+  <!-- ===== Layer 5 ===== -->
+  <text x="60" y="850" font-family="ui-monospace,monospace" font-size="13" letter-spacing="2" fill="#6B7178">⑤ 外部函式庫（CDN，執行期才動態載入，非隨包／非離線）</text>
+  <g>
+    <rect x="60" y="862" width="560" height="92" rx="9" fill="#FBFAF7" stroke="#B8860B" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <text x="82" y="892" font-size="14" fill="#181B20" font-weight="600">必要：jszip ・ jspdf ・ sheetjs</text>
+    <text x="82" y="912" font-size="11.5" fill="#6B7178">來源：cdn.jsdelivr.net ／ cdn.sheetjs.com</text>
+    <text x="82" y="930" font-size="11.5" fill="#6B7178">缺一即無法完成對應轉換</text>
+
+    <rect x="660" y="862" width="560" height="92" rx="9" fill="#FBFAF7" stroke="#B8860B" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <text x="682" y="892" font-size="14" fill="#181B20" font-weight="600">可選：mammoth ・ pptxgenjs ・ html2canvas ・ pdfjs-dist</text>
+    <text x="682" y="912" font-size="11.5" fill="#6B7178">背景載入，逾時／失敗不阻斷核心功能</text>
+  </g>
+
+  <!-- warn annotation -->
+  <rect x="60" y="972" width="1160" height="94" rx="10" fill="#FBFAF7" stroke="#B8860B" stroke-width="1.5"/>
+  <text x="84" y="1000" font-size="12.5" fill="#181B20" font-weight="700">⚠ 與 AGENTS.md 目標的落差（未確認開發者是否已知）</text>
+  <text x="84" y="1020" font-size="12" fill="#6B7178">AGENTS.md 明訂目標「保持零安裝、可離線執行」；但現況核心函式庫 jszip／jspdf／sheetjs 仍須連網向 CDN 下載，</text>
+  <text x="84" y="1038" font-size="12" fill="#6B7178">斷網時文書／表單／簡報轉換能否運作「未確認」。僅圖片轉換（純 Canvas API）不依賴任何 CDN。</text>
+  <text x="84" y="1056" font-size="12" fill="#6B7178">此外 workers/ 目錄實際為空（0 檔案），HANDOFF.md 所述「Web Worker 非同步」現況查無對應程式碼，狀態「未確認」。</text>
+
+  <!-- ===== 未接入 / 非正式頁面 ===== -->
+  <text x="60" y="1108" font-family="ui-monospace,monospace" font-size="13" letter-spacing="2" fill="#6B7178">未接入實驗檔案 ／ 非正式頁面（不在上述五層資料流內）</text>
+  <g>
+    <rect x="60" y="1120" width="560" height="128" rx="9" fill="#FBFAF7" stroke="#6B7178" stroke-width="1" stroke-dasharray="3 3"/>
+    <text x="82" y="1148" font-size="13.5" fill="#6B7178" font-weight="600">✗ cloudconvert-pdf.js</text>
+    <text x="82" y="1168" font-size="11.5" fill="#6B7178">內含真實第三方雲端上傳 API（api.cloudconvert.com）</text>
+    <text x="82" y="1186" font-size="11.5" fill="#6B7178">未被 index.html 的 &lt;script&gt; 清單載入，不在正式流程中</text>
+    <text x="82" y="1206" font-size="11.5" fill="#6B7178">✗ fixed-pdf-converter.js ／ presentation-backup.js</text>
+    <text x="82" y="1224" font-size="11.5" fill="#6B7178">同樣未被載入，疑似廢棄實驗（HANDOFF.md 註記待下一手判斷）</text>
+
+    <rect x="660" y="1120" width="560" height="128" rx="9" fill="#FBFAF7" stroke="#6B7178" stroke-width="1" stroke-dasharray="3 3"/>
+    <text x="682" y="1148" font-size="13.5" fill="#6B7178" font-weight="600">tests/ 目錄</text>
+    <text x="682" y="1168" font-size="11.5" fill="#6B7178">46 個 test-*／debug-*／final-* 等 HTML</text>
+    <text x="682" y="1186" font-size="11.5" fill="#6B7178">HANDOFF.md 明載：開發過程產物，非正式功能</text>
+    <text x="682" y="1206" font-size="11.5" fill="#6B7178">index.html 未連結其中任何一頁（已交叉確認）</text>
+  </g>
+
+  <!-- footer -->
+  <line x1="60" y1="1290" x2="1220" y2="1290" stroke="#E7E3DA" stroke-width="1"/>
+  <text x="60" y="1316" font-family="ui-monospace,monospace" font-size="11" fill="#6B7178">依 index.html／assets/js/*／HANDOFF.md／AGENTS.md／README.md 實讀產出；標「未確認」處為查無對應程式碼佐證。</text>
+  <text x="60" y="1334" font-family="ui-monospace,monospace" font-size="11" fill="#6B7178">▸ 進行中　✓ 已確認　✗ 未接入／廢棄</text>
+</svg>

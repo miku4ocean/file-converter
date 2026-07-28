@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>file-converter — 架構圖</title>
+<style>
+:root{
+  --paper:#FBFAF7; --ink:#181B20; --muted:#6B7178;
+  --line:#E7E3DA; --accent:#2E4B8F; --accent-soft:#EAEEF7;
+  --ok:#1F7A54; --err:#B03A2E; --warn:#B8860B;
+  --serif:"Iowan Old Style",Georgia,"Times New Roman",serif;
+  --sans:ui-sans-serif,system-ui,"Segoe UI",Roboto,"Noto Sans TC",sans-serif;
+  --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,monospace;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0; background:var(--paper); color:var(--ink); font-family:var(--sans);
+  padding:48px 24px 96px;
+}
+.wrap{max-width:1180px; margin:0 auto;}
+.wordmark{font-family:var(--serif); font-size:32px; margin:0;}
+.wordmark .dot{color:var(--accent);}
+.subtitle{
+  font-family:var(--mono); font-size:12px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--muted); margin:8px 0 28px;
+}
+h2.section{
+  font-family:var(--mono); font-size:12.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--muted); margin:40px 0 14px; display:flex; align-items:center; gap:10px;
+}
+h2.section::before{content:"▸"; color:var(--accent);}
+.hr{border:none; border-top:1px solid var(--line); margin:28px 0;}
+
+.grid{display:grid; gap:16px;}
+.g2{grid-template-columns:repeat(2,1fr);}
+.g4{grid-template-columns:repeat(4,1fr);}
+.g5{grid-template-columns:repeat(5,1fr);}
+
+.card{
+  background:var(--paper); border:1px solid var(--line); border-radius:9px;
+  padding:16px 18px;
+}
+.card h3{margin:0 0 6px; font-size:14.5px;}
+.card p{margin:2px 0; font-size:12.5px; color:var(--muted); line-height:1.5;}
+
+.keystone-band{
+  background:var(--accent-soft); border:2.5px solid var(--accent); border-radius:12px;
+  padding:20px 22px 22px;
+}
+.keystone-band .card{border-color:var(--accent);}
+.keystone-note{
+  margin-top:16px; font-size:13px; line-height:1.6;
+}
+.keystone-note b{color:var(--accent);}
+
+.warn-card{
+  border:1.5px dashed var(--warn); border-radius:9px; padding:16px 18px;
+}
+.warn-card h3{margin:0 0 6px; font-size:13.5px; color:var(--ink);}
+.warn-card p{margin:3px 0; font-size:12px; color:var(--muted); line-height:1.6;}
+
+.dead-card{
+  border:1px dashed var(--muted); border-radius:9px; padding:16px 18px; color:var(--muted);
+}
+.dead-card h3{margin:0 0 6px; font-size:13.5px; color:var(--muted);}
+.dead-card p{margin:3px 0; font-size:11.5px; line-height:1.6;}
+
+.arrow{
+  text-align:center; color:var(--accent); font-family:var(--mono); font-size:18px; margin:6px 0;
+}
+
+.legend{
+  font-family:var(--mono); font-size:11.5px; color:var(--muted); margin-top:36px;
+  display:flex; gap:24px; flex-wrap:wrap;
+}
+.legend span{white-space:nowrap;}
+
+.source-note{font-size:12px; color:var(--muted); margin-top:6px; line-height:1.6;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 class="wordmark">File Converter<span class="dot">.</span></h1>
+  <p class="subtitle">ARCHITECTURE — 架構圖（依實讀程式碼與 HANDOFF／AGENTS／README 產出）</p>
+  <p class="source-note">本工具<b>無後端／無後台</b>：純前端單頁工具，一支 index.html 靠 JS 狀態機切換四種轉換模式。下列五層由「頁面」到「執行期外部依賴」，由上而下依實際資料流排列。</p>
+
+  <h2 class="section">① 使用者 ／ 瀏覽器 UI 層</h2>
+  <div class="grid g2">
+    <div class="card">
+      <h3>index.html</h3>
+      <p>唯一正式入口，單頁 SPA</p>
+      <p>四分頁：圖片 ・ 文書 ・ 表單 ・ 簡報</p>
+    </div>
+    <div class="card">
+      <h3>assets/css/style.css</h3>
+      <p>響應式版面（桌面／行動裝置皆支援）</p>
+    </div>
+  </div>
+  <div class="arrow">↓</div>
+
+  <h2 class="section">② 應用邏輯層（Vanilla JS 狀態機，無框架）</h2>
+  <div class="grid g2">
+    <div class="card">
+      <h3>auto-loader.js</h3>
+      <p>啟動時序：先背景載入必要函式庫</p>
+      <p>→ 再 <code>new FileConverter()</code></p>
+    </div>
+    <div class="card">
+      <h3>app.js — class FileConverter</h3>
+      <p>狀態流：上傳 → 檔案清單 → 轉換設定</p>
+      <p>→ 進度 → 下載</p>
+    </div>
+  </div>
+  <div class="arrow">↓</div>
+
+  <h2 class="section">③ 轉換器模組層（index.html 實際載入的模組）</h2>
+  <div class="grid g5">
+    <div class="card"><h3>image.js</h3><p>JPG/PNG/WebP</p></div>
+    <div class="card"><h3>document.js</h3><p>TXT/DOCX/HTML/MD/PDF/RTF</p></div>
+    <div class="card"><h3>spreadsheet.js</h3><p>CSV/XLSX/JSON/HTML</p></div>
+    <div class="card"><h3>presentation.js</h3><p>PPTX/HTML/PDF</p></div>
+    <div class="card"><h3>visual-pdf-converter.js<br>direct-pdf.js</h3><p>PDF 輔助模組</p></div>
+  </div>
+  <div class="arrow">↓</div>
+
+  <h2 class="section">④ 瀏覽器原生 API 層 —— 全部運算在此完成，無伺服器</h2>
+  <div class="keystone-band">
+    <div class="grid g4">
+      <div class="card"><h3>Canvas API</h3><p>圖片繪製／格式轉換</p></div>
+      <div class="card"><h3>File API ／ Blob API</h3><p>讀檔・組裝輸出檔</p></div>
+      <div class="card"><h3>Drag &amp; Drop API</h3><p>拖拉上傳互動</p></div>
+      <div class="card"><h3>URL.createObjectURL</h3><p>本機下載，不經任何伺服器</p></div>
+    </div>
+    <p class="keystone-note">
+      🔑 <b>KEYSTONE 設計決定</b> — 零伺服器・檔案不上傳：轉換運算全在瀏覽器記憶體完成，
+      分頁一關資料即消失，對應 footer 承諾「純前端處理，檔案不上傳伺服器」。
+    </p>
+  </div>
+  <div class="arrow">┄┄▾</div>
+
+  <h2 class="section">⑤ 外部函式庫（CDN，執行期才動態載入，非隨包／非離線）</h2>
+  <div class="grid g2">
+    <div class="warn-card">
+      <h3>必要：jszip ・ jspdf ・ sheetjs</h3>
+      <p>來源：cdn.jsdelivr.net ／ cdn.sheetjs.com</p>
+      <p>缺一即無法完成對應轉換</p>
+    </div>
+    <div class="warn-card">
+      <h3>可選：mammoth ・ pptxgenjs ・ html2canvas ・ pdfjs-dist</h3>
+      <p>背景載入，逾時／失敗不阻斷核心功能</p>
+    </div>
+  </div>
+
+  <div class="warn-card" style="margin-top:20px;">
+    <h3>⚠ 與 AGENTS.md 目標的落差（未確認開發者是否已知）</h3>
+    <p>AGENTS.md 明訂目標「保持零安裝、可離線執行」；但現況核心函式庫 jszip／jspdf／sheetjs 仍須連網向 CDN 下載，斷網時文書／表單／簡報轉換能否運作「未確認」。僅圖片轉換（純 Canvas API）不依賴任何 CDN。</p>
+    <p>此外 <code>workers/</code> 目錄實際為空（0 檔案），HANDOFF.md 所述「Web Worker 非同步，除錯時需注意跨執行緒訊息」現況查無對應程式碼，狀態「未確認」。</p>
+  </div>
+
+  <h2 class="section">未接入實驗檔案 ／ 非正式頁面（不在上述五層資料流內）</h2>
+  <div class="grid g2">
+    <div class="dead-card">
+      <h3>✗ cloudconvert-pdf.js</h3>
+      <p>內含真實第三方雲端上傳 API（api.cloudconvert.com）</p>
+      <p>未被 index.html 的 &lt;script&gt; 清單載入，不在正式流程中</p>
+      <p>✗ fixed-pdf-converter.js ／ presentation-backup.js</p>
+      <p>同樣未被載入，疑似廢棄實驗（HANDOFF.md 註記待下一手判斷）</p>
+    </div>
+    <div class="dead-card">
+      <h3>tests/ 目錄</h3>
+      <p>46 個 test-*／debug-*／final-* 等 HTML</p>
+      <p>HANDOFF.md 明載：開發過程產物，非正式功能</p>
+      <p>index.html 未連結其中任何一頁（已交叉確認）</p>
+    </div>
+  </div>
+
+  <hr class="hr">
+  <div class="legend">
+    <span>依 index.html／assets/js/*／HANDOFF.md／AGENTS.md／README.md 實讀產出</span>
+    <span>標「未確認」＝查無對應程式碼佐證</span>
+    <span>▸ 進行中　✓ 已確認　✗ 未接入／廢棄</span>
+  </div>
+</div>
+</body>
+</html>
