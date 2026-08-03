@@ -836,7 +836,7 @@ class DocumentConverter {
             @page { margin: 2cm; size: A4; }
         }
         body {
-            font-family: Arial, "微軟正黑體", sans-serif;
+            font-family: 'PingFang TC', 'Microsoft JhengHei', 'Noto Sans CJK TC', 'Microsoft YaHei', Arial, sans-serif;
             line-height: 1.6;
             color: #333;
             max-width: 800px;
@@ -1267,7 +1267,7 @@ class DocumentConverter {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${DocumentConverter.escapeXml(documentTitle)}</title>
     <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; margin: 40px; }
+        body { font-family: 'PingFang TC', 'Microsoft JhengHei', 'Noto Sans CJK TC', 'Microsoft YaHei', Arial, sans-serif; line-height: 1.6; margin: 40px; }
         h1 { color: #333; border-bottom: 2px solid #333; padding-bottom: 10px; }
         p { margin: 16px 0; }
     </style>

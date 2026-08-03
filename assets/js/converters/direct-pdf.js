@@ -203,7 +203,7 @@ class DirectPDFConverter {
                 }
                 
                 body {
-                    font-family: 'Times New Roman', '微軟正黑體', serif;
+                    font-family: 'Times New Roman', 'PingFang TC', 'Microsoft JhengHei', 'Noto Serif CJK TC', 'SimSun', serif;
                     font-size: 12pt;
                     line-height: 1.5;
                     color: #000;
@@ -323,7 +323,7 @@ class DirectPDFConverter {
                         <title>文書轉換</title>
                         <style>
                             body { 
-                                font-family: 'Times New Roman', '微軟正黑體', serif; 
+                                font-family: 'Times New Roman', 'PingFang TC', 'Microsoft JhengHei', 'Noto Serif CJK TC', 'SimSun', serif; 
                                 font-size: 12pt; 
                                 line-height: 1.5; 
                                 margin: 2.5cm;
@@ -544,7 +544,7 @@ class DirectPDFConverter {
     // Create placeholder PDF for presentations
     static async createPresentationPlaceholderPDF(file) {
         const content = `
-        <div style="text-align: center; padding: 50px; font-family: Arial, sans-serif;">
+        <div style="text-align: center; padding: 50px; font-family: 'PingFang TC', 'Microsoft JhengHei', 'Noto Sans CJK TC', 'Microsoft YaHei', Arial, sans-serif;">
             <h1>📊 簡報檔案</h1>
             <h2>${file.name}</h2>
             <p>檔案大小: ${DirectPDFConverter.formatFileSize(file.size)}</p>
@@ -592,7 +592,7 @@ class DirectPDFConverter {
             .replace(/\n/g, '<br>');
         
         const htmlDoc = DirectPDFConverter.createStyledHTML(
-            `<div style="white-space: pre-wrap; font-family: 'Courier New', monospace;">${formattedContent}</div>`,
+            `<div style="white-space: pre-wrap; font-family: 'Courier New', 'PingFang TC', 'Microsoft JhengHei', monospace;">${formattedContent}</div>`,
             filename || '文字文件'
         );
         
@@ -612,7 +612,7 @@ class DirectPDFConverter {
             <title>${title}</title>
             <style>
                 body { 
-                    font-family: Arial, '微軟正黑體', sans-serif; 
+                    font-family: 'PingFang TC', 'Microsoft JhengHei', 'Noto Sans CJK TC', 'Microsoft YaHei', Arial, sans-serif; 
                     font-size: 12pt; 
                     line-height: 1.6; 
                     margin: 2.5cm;
@@ -786,7 +786,7 @@ class DirectPDFConverter {
             height: 210mm; 
             padding: 20mm; 
             background: white; 
-            font-family: Arial, '微軟正黑體', sans-serif;
+            font-family: 'PingFang TC', 'Microsoft JhengHei', 'Noto Sans CJK TC', 'Microsoft YaHei', Arial, sans-serif;
             display: flex;
             flex-direction: column;
             justify-content: center;

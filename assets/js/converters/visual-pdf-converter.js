@@ -218,7 +218,7 @@ class VisualPDFConverter {
                         }
                         
                         body {
-                            font-family: 'Times New Roman', '微軟正黑體', serif;
+                            font-family: 'Times New Roman', 'PingFang TC', 'Microsoft JhengHei', 'Noto Serif CJK TC', 'SimSun', serif;
                             font-size: 12pt;
                             line-height: 1.6;
                             color: #000;
@@ -351,7 +351,7 @@ class VisualPDFConverter {
                         }
                         
                         body {
-                            font-family: 'Arial', '微軟正黑體', sans-serif;
+                            font-family: 'PingFang TC', 'Microsoft JhengHei', 'Noto Sans CJK TC', 'Microsoft YaHei', Arial, sans-serif;
                             margin: 0;
                             padding: 0;
                             background: white;
@@ -622,7 +622,7 @@ class VisualPDFConverter {
     static async captureTextRendering(file) {
         const textContent = await file.text();
         const htmlContent = `
-            <div style="font-family: 'Courier New', monospace; font-size: 12pt; line-height: 1.4; padding: 40px; white-space: pre-wrap;">
+            <div style="font-family: 'Courier New', 'PingFang TC', 'Microsoft JhengHei', monospace; font-size: 12pt; line-height: 1.4; padding: 40px; white-space: pre-wrap;">
                 ${textContent.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
             </div>
         `;

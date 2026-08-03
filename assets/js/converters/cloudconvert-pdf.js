@@ -183,7 +183,7 @@ class CloudConvertPDFConverter {
     <title>CloudConvert 設定說明</title>
     <style>
         body {
-            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            font-family: 'PingFang TC', 'Microsoft JhengHei', 'Noto Sans CJK TC', 'Microsoft YaHei', Arial, sans-serif;
             max-width: 800px;
             margin: 40px auto;
             padding: 40px;
@@ -217,7 +217,7 @@ class CloudConvertPDFConverter {
             background: #f1f2f6;
             padding: 3px 8px;
             border-radius: 4px;
-            font-family: 'Courier New', monospace;
+            font-family: 'Courier New', 'PingFang TC', 'Microsoft JhengHei', monospace;
         }
         
         .highlight {

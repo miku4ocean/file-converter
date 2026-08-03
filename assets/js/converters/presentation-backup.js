@@ -692,7 +692,7 @@ class PresentationConverter {
             .slide { page-break-after: always; }
         }
         body {
-            font-family: Arial, "微軟正黑體", sans-serif;
+            font-family: 'PingFang TC', 'Microsoft JhengHei', 'Noto Sans CJK TC', 'Microsoft YaHei', Arial, sans-serif;
             line-height: 1.6;
             color: #333;
             margin: 0;

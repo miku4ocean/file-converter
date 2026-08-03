@@ -58,7 +58,7 @@ class FixedPDFConverter {
         }
         
         body {
-            font-family: 'Times New Roman', '微軟正黑體', serif;
+            font-family: 'Times New Roman', 'PingFang TC', 'Microsoft JhengHei', 'Noto Serif CJK TC', 'SimSun', serif;
             font-size: 12pt;
             line-height: 1.5;
             color: #000;
@@ -232,7 +232,7 @@ class FixedPDFConverter {
         body {
             margin: 0;
             padding: 0;
-            font-family: 'Arial', '微軟正黑體', sans-serif;
+            font-family: 'PingFang TC', 'Microsoft JhengHei', 'Noto Sans CJK TC', 'Microsoft YaHei', Arial, sans-serif;
             background: white;
         }
         

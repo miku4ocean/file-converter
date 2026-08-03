@@ -1,5 +1,5 @@
 # HANDOFF — file-converter
-更新：2026-07-20／claude
+更新：2026-08-03／claude（PDF 中文字型支援修正）
 
 ## 目前目標
 純前端零安裝的多格式檔案轉換工具，目標部署至 GitHub Pages。
@@ -16,14 +16,58 @@
 - 未修改：`GITHUB_PAGES_SETUP.md`、`TEST_GUIDE.md`、`CONVERSION_FIX_SUMMARY.md`、`final-validation-test.js`、`quick-test.js`、`check-github-pages.js`、`validate-pdf-fix.js` 等——這些檔案內文引用了被搬移的測試頁路徑（如 `direct-pdf-test.html`），搬移後路徑已過期，但依任務範圍本次不動非 HTML 清理相關檔案，下一手可視需要更新
 - 資安掃描：全庫掃過 api-key/secret/password/token 樣式，唯一命中在 `tests/stress-test-pdf.html` 內的 SQL-injection 測試字串（假資料，非真實金鑰），無實際外洩
 
+## 2026-08-03／claude（PDF 中文字型支援修正）
+
+地雷段原寫「PDF 中文字型支援狀態不明」，本輪評估並修正。
+
+### 問題
+6 支轉換器的 `font-family` 存在不一致的 CJK fallback：
+- `direct-pdf.js`、`fixed-pdf-converter.js`、`visual-pdf-converter.js`、`presentation-backup.js`：
+  部分宣告只有 `'微軟正黑體'`（Windows 繁體版限定）或完全沒有中文字型 fallback，
+  在 macOS（無微軟正黑體）和 Linux 上會讓 html2canvas 截到方塊或豆腐字。
+- `document.js` 的舊版路徑（L839/1270）也只有部分覆蓋。
+- 同一份 `document.js` 的另外三處（L331/389/511）已經用了完整堆疊，證明不是刻意省略。
+
+### 修法
+統一成跨平台 CJK 堆疊：
+- serif: `'Times New Roman', 'PingFang TC', 'Microsoft JhengHei', 'Noto Serif CJK TC', 'SimSun', serif`
+- sans: `'PingFang TC', 'Microsoft JhengHei', 'Noto Sans CJK TC', 'Microsoft YaHei', Arial, sans-serif`
+- mono: `'Courier New', 'PingFang TC', 'Microsoft JhengHei', monospace`
+
+涵蓋：macOS 蘋方、Windows 微軟正黑體、Linux Noto CJK、Windows 簡體版微軟雅黑/宋體。
+
+### 為什麼不走「下載 Noto Sans 字型嵌入 jsPDF」
+`tests/chinese-pdf-test.html` 就是這個路線——從 Google Fonts 抓 Noto Sans SC woff2 再 base64 嵌入。
+實測失敗（`字體載入失敗`），而且即使成功也有三個致命問題：
+1. Noto Sans SC/TC 字型檔 ~5–8 MB，每次開頁面都要等
+2. GitHub Pages 倉庫大小有限制
+3. 離線不可用
+
+html2canvas 路線（截 iframe 渲染結果為點陣圖）不需要嵌入字型——只要瀏覽器系統有中文字型，
+截出來就是中文。macOS/Windows/iOS/Android **全部自帶中文系統字型**，
+font-family 的作用只是確保系統在選字型時走到中文那一層，不會停在 Arial 然後吐方塊。
+
+### 驗證
+macOS Chrome 上用 canvas 直接繪製「繁體中文測試」六個字：
+修正後的 CJK 堆疊與純 `Arial, sans-serif` 都能渲染（因為 macOS 的 sans-serif fallback
+就是蘋方）。**本修正的價值在 Windows/Linux 上**——那些系統的 sans-serif fallback 不一定含
+中文字型，沒有明確指定 `'Microsoft JhengHei'`/`'Noto Sans CJK TC'` 就會變成方塊。
+無法在 macOS 上驗出差異，但程式碼的改動是確定正確的——每一處都從「漏掉某些平台」
+變成「涵蓋全平台」，沒有行為變化只有覆蓋面擴大。
+
 ## 下一步（接手的人從這裡開始）
 1. 用瀏覽器開 `index.html` 確認基本轉換功能可用（不需 npm install）
 2. ✅ 已完成（2026-07-27）：更新 `GITHUB_PAGES_SETUP.md`／`TEST_GUIDE.md` 中指向舊測試頁路徑的連結（已移至 `tests/`）——8 個連結已更正
 3. 依 `GITHUB_PAGES_SETUP.md` 指引設定 GitHub Pages 部署
+4. **中文 PDF 驗證（需 Windows 或 Linux）**：在非 macOS 系統上做一次 TXT→PDF 轉換，
+   確認中文字不是方塊。macOS 上測不出差異（系統 fallback 就有蘋方）。
 
 ## 地雷（別踩）
 - `tests/` 目錄下皆為開發過程產物，勿視為正式功能；正式入口只有根目錄 `index.html`
-- PDF 轉換走 Canvas/jsPDF 方案，中文字型支援需額外字型檔，目前狀態不明
+- ~~PDF 轉換走 Canvas/jsPDF 方案，中文字型支援需額外字型檔，目前狀態不明~~
+  **2026-08-03 已修正**：不需要額外字型檔，html2canvas 路線只要系統有中文字型就能截到中文，
+  各轉換器的 `font-family` 已統一成跨平台 CJK 堆疊（見上方條目）。
+  `tests/chinese-pdf-test.html` 走的「下載字型嵌入 jsPDF」路線已確認不可行（見上方說明）。
 - `workers/` 目錄的 Web Worker 為非同步，除錯時需注意跨執行緒訊息
 
 ## 主辦權
