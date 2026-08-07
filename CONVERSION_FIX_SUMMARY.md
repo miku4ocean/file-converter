@@ -80,8 +80,8 @@ XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
 ## 測試驗證
 
 ### 自動化測試
-- 建立 `final-conversion-test.html` 進行完整功能測試
-- 建立 `validate-conversions.js` 進行自動化驗證
+- 建立 `tests/final-conversion-test.html` 進行完整功能測試
+- 建立 `tests/validate-conversions.js` 進行自動化驗證
 - 包含檔案簽名驗證、檔案大小檢查、庫載入狀態檢查
 
 ### 測試內容
