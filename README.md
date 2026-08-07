@@ -5,7 +5,7 @@
 ## ✨ 特色功能
 
 - **🖼️ 圖片轉換** - 支援 JPG、PNG、WebP 互轉
-- **📄 文書處理** - PDF、Word、Excel 格式轉換 (規劃中)
+- **📄 文書處理** - TXT、DOCX、HTML、Markdown、PDF、RTF、CSV、XLSX、PPTX 格式轉換
 - **🎵 音檔轉換** - MP3、WAV、OGG 格式轉換 (規劃中)
 - **🎬 影片轉換** - MP4、WebM 格式轉換 (規劃中)
 - **🔒 隱私保護** - 純前端處理，檔案不上傳伺服器
@@ -42,15 +42,22 @@ npx http-server -p 8080
 
 ```
 file-converter/
-├── index.html                   # 主頁面
+├── index.html                   # 主頁面（唯一正式入口）
 ├── assets/
 │   ├── css/
 │   │   └── style.css           # 響應式樣式表
 │   └── js/
 │       ├── app.js              # 主要應用程式邏輯
+│       ├── lib-loader.js       # CDN 函式庫動態載入
+│       ├── auto-loader.js      # 背景載入可選函式庫
 │       └── converters/
-│           └── image.js        # 圖片轉換核心功能
-├── workers/                     # Web Workers (未來擴展)
+│           ├── image.js        # 圖片轉換
+│           ├── document.js     # 文書轉換（TXT/DOCX/HTML/MD/PDF/RTF）
+│           ├── spreadsheet.js  # 表單轉換（CSV/XLSX/JSON/HTML）
+│           ├── presentation.js # 簡報轉換（PPTX/HTML/TXT/MD/PDF）
+│           ├── direct-pdf.js   # PDF 直接轉換輔助
+│           └── visual-pdf-converter.js # PDF 視覺化轉換輔助
+├── tests/                       # 開發過程測試/除錯頁（非正式功能）
 ├── README.md                   # 專案說明文件
 └── .gitignore                  # Git 忽略檔案
 ```
@@ -88,11 +95,11 @@ file-converter/
 - [x] 拖拉上傳介面
 - [x] 批次處理功能
 
-### Phase 2 - 文書處理 🚧
-- [ ] PDF 讀取與轉換
-- [ ] Word 文件處理 (使用 mammoth.js)
-- [ ] Excel 檔案處理 (使用 SheetJS)
-- [ ] PowerPoint 支援
+### Phase 2 - 文書／表單／簡報處理 ✅
+- [x] PDF 讀取與轉換（jsPDF + html2canvas，跨平台 CJK 字型堆疊）
+- [x] Word 文件處理（JSZip 手刻 Office Open XML）
+- [x] Excel 檔案處理（SheetJS + 自製 XLSX 回退）
+- [x] PowerPoint 支援（PPTX/HTML/TXT/MD/PDF 互轉）
 
 ### Phase 3 - 音檔轉換 📋
 - [ ] Web Audio API 整合
