@@ -1,5 +1,5 @@
 # HANDOFF — file-converter
-更新：2026-08-03／claude（PDF 中文字型支援修正）
+更新：2026-08-07／claude（孤兒轉換器+測試檔清理+README同步+workers移除）
 
 ## 目前目標
 純前端零安裝的多格式檔案轉換工具，目標部署至 GitHub Pages。
@@ -55,20 +55,41 @@ macOS Chrome 上用 canvas 直接繪製「繁體中文測試」六個字：
 無法在 macOS 上驗出差異，但程式碼的改動是確定正確的——每一處都從「漏掉某些平台」
 變成「涵蓋全平台」，沒有行為變化只有覆蓋面擴大。
 
+## 2026-08-07／claude（專案衛生清理）
+
+### 孤兒轉換器搬出 assets/
+`cloudconvert-pdf.js`（含 `api.cloudconvert.com` 端點，與「不上傳」承諾衝突）、
+`fixed-pdf-converter.js`、`presentation-backup.js` 三檔未被 index.html 載入，
+從 `assets/js/converters/` 搬入 `tests/`，避免隨 GitHub Pages 部署。
+
+### 根目錄測試檔搬入 tests/
+10 個測試/驗證檔案（`test-data.csv`、`quick-test.js`、`validate-conversions.js` 等）
+從根目錄搬入 `tests/`，已確認 index.html 及生產 JS 無任何引用。
+
+### README 同步
+Phase 2 路線圖從 🚧 改為 ✅，專案結構樹補上全部六支轉換器。
+
+### workers/ 移除
+該目錄自建立以來始終為空，已刪除。
+
+### CONVERSION_FIX_SUMMARY.md 路徑修正
+測試檔路徑補上 `tests/` 前綴。
+
 ## 下一步（接手的人從這裡開始）
 1. 用瀏覽器開 `index.html` 確認基本轉換功能可用（不需 npm install）
 2. ✅ 已完成（2026-07-27）：更新 `GITHUB_PAGES_SETUP.md`／`TEST_GUIDE.md` 中指向舊測試頁路徑的連結（已移至 `tests/`）——8 個連結已更正
 3. 依 `GITHUB_PAGES_SETUP.md` 指引設定 GitHub Pages 部署
 4. **中文 PDF 驗證（需 Windows 或 Linux）**：在非 macOS 系統上做一次 TXT→PDF 轉換，
    確認中文字不是方塊。macOS 上測不出差異（系統 fallback 就有蘋方）。
+5. 考慮將 CDN 函式庫（jszip/jspdf/sheetjs）vendor 進 repo 或加 Service Worker，
+   以落實 AGENTS.md 標定的「可離線執行」目標
 
 ## 地雷（別踩）
-- `tests/` 目錄下皆為開發過程產物，勿視為正式功能；正式入口只有根目錄 `index.html`
+- `tests/` 目錄下皆為開發過程產物（含三支搬入的廢棄轉換器），勿視為正式功能；正式入口只有根目錄 `index.html`
 - ~~PDF 轉換走 Canvas/jsPDF 方案，中文字型支援需額外字型檔，目前狀態不明~~
   **2026-08-03 已修正**：不需要額外字型檔，html2canvas 路線只要系統有中文字型就能截到中文，
   各轉換器的 `font-family` 已統一成跨平台 CJK 堆疊（見上方條目）。
   `tests/chinese-pdf-test.html` 走的「下載字型嵌入 jsPDF」路線已確認不可行（見上方說明）。
-- `workers/` 目錄的 Web Worker 為非同步，除錯時需注意跨執行緒訊息
 
 ## 主辦權
 單線／待分派
