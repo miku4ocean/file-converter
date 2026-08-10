@@ -203,28 +203,25 @@ class SpreadsheetConverter {
     }
 
     // Helper function to parse CSV text with custom delimiter
+    // Note: follows RFC 4180 quoting rules (double-quote doubling only).
+    // Backslash has NO special meaning in CSV/TSV and must be preserved
+    // verbatim (e.g. Windows paths like C:\Users\name, regex, LaTeX).
     static parseCsvText(text, delimiter = ',') {
         const rows = [];
         const lines = text.split('\n');
-        
+
         for (let line of lines) {
             line = line.trim();
             if (line.length === 0) continue;
-            
+
             const row = [];
             let current = '';
             let inQuotes = false;
-            let escapeNext = false;
-            
+
             for (let i = 0; i < line.length; i++) {
                 const char = line[i];
-                
-                if (escapeNext) {
-                    current += char;
-                    escapeNext = false;
-                } else if (char === '\\') {
-                    escapeNext = true;
-                } else if (char === '"') {
+
+                if (char === '"') {
                     if (inQuotes && i + 1 < line.length && line[i + 1] === '"') {
                         // Double quote escape
                         current += '"';
@@ -239,13 +236,13 @@ class SpreadsheetConverter {
                     current += char;
                 }
             }
-            
+
             row.push(current);
             if (row.some(cell => cell.trim().length > 0)) { // Only add non-empty rows
                 rows.push(row);
             }
         }
-        
+
         return rows;
     }
 

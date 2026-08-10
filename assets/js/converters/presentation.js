@@ -235,6 +235,19 @@ class PresentationConverter {
         }
     }
 
+    // Helper: escape HTML special characters. Required whenever text extracted
+    // from an untrusted uploaded file (slide title/content/notes) is embedded
+    // into generated HTML output, to prevent markup/script injection.
+    static escapeHtml(text) {
+        if (text === null || text === undefined) return '';
+        return String(text)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     // Format file size
     static formatFileSize(bytes) {
         if (bytes === 0) return '0 Bytes';
@@ -520,30 +533,37 @@ class PresentationConverter {
     static convertToHtml(content, title, options = {}) {
         try {
             console.log('🔄 開始簡報轉HTML...');
-            
+
+            const { includeNotes = true } = options;
             let htmlContent = '';
-            
+
             if (content && content.slides) {
                 // Process slides into HTML
+                // NOTE: slide title/content/notes come from parsing an untrusted
+                // uploaded file (PPTX/PDF/HTML text nodes). They MUST be HTML-escaped
+                // before being embedded in the generated HTML, otherwise a slide
+                // containing e.g. "<script>...</script>" as literal text would be
+                // re-interpreted as live markup/script when the exported .html file
+                // is opened in a browser.
                 const slidesHtml = content.slides.map((slide, index) => `
                     <div class="slide" data-slide="${index + 1}">
-                        <h2>投影片 ${slide.slideNumber || index + 1}: ${slide.title || '無標題'}</h2>
+                        <h2>投影片 ${slide.slideNumber || index + 1}: ${PresentationConverter.escapeHtml(slide.title || '無標題')}</h2>
                         <div class="slide-content">
-                            ${Array.isArray(slide.content) ? 
-                                slide.content.map(item => `<p>${item}</p>`).join('') : 
-                                `<p>${slide.content || ''}</p>`
+                            ${Array.isArray(slide.content) ?
+                                slide.content.map(item => `<p>${PresentationConverter.escapeHtml(item)}</p>`).join('') :
+                                `<p>${PresentationConverter.escapeHtml(slide.content || '')}</p>`
                             }
                         </div>
-                        ${slide.notes ? `<div class="slide-notes"><strong>備註:</strong> ${slide.notes}</div>` : ''}
+                        ${slide.notes && includeNotes ? `<div class="slide-notes"><strong>備註:</strong> ${PresentationConverter.escapeHtml(slide.notes)}</div>` : ''}
                     </div>
                 `).join('');
-                
+
                 htmlContent = `<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${title || '簡報文件'}</title>
+    <title>${PresentationConverter.escapeHtml(title || '簡報文件')}</title>
     <style>
         body { 
             font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif; 
@@ -587,7 +607,7 @@ class PresentationConverter {
     </style>
 </head>
 <body>
-    <h1>📊 ${title || '簡報文件'}</h1>
+    <h1>📊 ${PresentationConverter.escapeHtml(title || '簡報文件')}</h1>
     ${slidesHtml}
     <div class="footer">
         <p>由簡報轉換器生成 - ${new Date().toLocaleString()}</p>
@@ -600,11 +620,11 @@ class PresentationConverter {
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>${title || '簡報文件'}</title>
+    <title>${PresentationConverter.escapeHtml(title || '簡報文件')}</title>
 </head>
 <body>
-    <h1>${title || '簡報文件'}</h1>
-    <pre>${content || '無簡報內容'}</pre>
+    <h1>${PresentationConverter.escapeHtml(title || '簡報文件')}</h1>
+    <pre>${PresentationConverter.escapeHtml(content || '無簡報內容')}</pre>
 </body>
 </html>`;
             }
@@ -623,28 +643,29 @@ class PresentationConverter {
     static convertToText(content, title, options = {}) {
         try {
             console.log('🔄 開始簡報轉文字...');
-            
+
+            const { includeNotes = true } = options;
             let textContent = '';
-            
+
             if (title) {
                 textContent += `${title}\n${'='.repeat(title.length)}\n\n`;
             }
-            
+
             if (content && content.slides) {
                 content.slides.forEach((slide, index) => {
                     textContent += `投影片 ${slide.slideNumber || index + 1}: ${slide.title || '無標題'}\n`;
                     textContent += '-'.repeat(50) + '\n';
-                    
+
                     if (Array.isArray(slide.content)) {
                         textContent += slide.content.join('\n') + '\n';
                     } else if (slide.content) {
                         textContent += slide.content + '\n';
                     }
-                    
-                    if (slide.notes) {
+
+                    if (slide.notes && includeNotes) {
                         textContent += `\n備註: ${slide.notes}\n`;
                     }
-                    
+
                     textContent += '\n';
                 });
             } else {

@@ -647,7 +647,9 @@ ${error.message}
     async convertSpreadsheetFile(file, outputFormat) {
         try {
             const parsedData = await SpreadsheetConverter.parseSpreadsheetData(file);
-            const includeHeaders = document.getElementById('includeHeaders')?.checked || true;
+            // Use ?? (not ||) so an unchecked box (checked === false) is respected;
+            // only fall back to true when the element itself is missing (undefined).
+            const includeHeaders = document.getElementById('includeHeaders')?.checked ?? true;
             
             return await SpreadsheetConverter.convertToFormat(parsedData, outputFormat, {
                 includeHeaders
@@ -669,7 +671,9 @@ ${error.message}
             
             // For other formats, extract content first
             const presentationData = await PresentationConverter.extractPresentationContent(file);
-            const includeNotes = document.getElementById('includeNotes')?.checked || true;
+            // Use ?? (not ||) so an unchecked box (checked === false) is respected;
+            // only fall back to true when the element itself is missing (undefined).
+            const includeNotes = document.getElementById('includeNotes')?.checked ?? true;
             
             let blob;
             switch (outputFormat.toLowerCase()) {
