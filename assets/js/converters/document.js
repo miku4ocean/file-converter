@@ -72,10 +72,32 @@ class DocumentConverter {
         }
     }
 
+    // Decode an uploaded text file honoring its BOM.
+    // Blob.text() always decodes as UTF-8, which silently mangles UTF-16 files
+    // (e.g. Windows Notepad's "Unicode" encoding) into NUL-riddled mojibake.
+    static async decodeTextFile(file) {
+        const buffer = await file.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+        if (bytes.length >= 2 && bytes[0] === 0xFF && bytes[1] === 0xFE) {
+            return new TextDecoder('utf-16le').decode(buffer); // BOM consumed by decoder
+        }
+        if (bytes.length >= 2 && bytes[0] === 0xFE && bytes[1] === 0xFF) {
+            // UTF-16BE: byte-swap to LE ("utf-16be" decoder label is not
+            // guaranteed in all runtimes), skipping the 2-byte BOM.
+            const swapped = new Uint8Array(bytes.length - 2);
+            for (let i = 2; i + 1 < bytes.length; i += 2) {
+                swapped[i - 2] = bytes[i + 1];
+                swapped[i - 1] = bytes[i];
+            }
+            return new TextDecoder('utf-16le').decode(swapped);
+        }
+        return new TextDecoder('utf-8').decode(buffer); // strips a UTF-8 BOM
+    }
+
     // Extract content from plain text files
     static async extractFromText(file) {
         try {
-            const text = await file.text();
+            const text = await DocumentConverter.decodeTextFile(file);
             return {
                 content: text,
                 title: file.name.replace(/\.[^/.]+$/, ''),
@@ -117,16 +139,21 @@ class DocumentConverter {
     // Extract content from Markdown files
     static async extractFromMarkdown(file) {
         try {
-            const markdown = await file.text();
-            
-            // Simple markdown to text conversion
+            const markdown = await DocumentConverter.decodeTextFile(file);
+
+            // Simple markdown to text conversion.
+            // ORDER MATTERS: fenced code blocks must be removed BEFORE the
+            // inline-code rule - `(.*?)` would otherwise eat two of the three
+            // fence backticks first, so ``` fences never matched and broken
+            // backtick fragments (plus the code that should have been
+            // removed) leaked into the output.
             let content = markdown
+                .replace(/```[\s\S]*?```/g, '') // Remove fenced code blocks first
                 .replace(/^#+ /gm, '') // Remove headers
                 .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold
                 .replace(/\*(.*?)\*/g, '$1') // Remove italic
                 .replace(/\[(.*?)\]\(.*?\)/g, '$1') // Remove links, keep text
-                .replace(/`(.*?)`/g, '$1') // Remove code backticks
-                .replace(/```[\s\S]*?```/g, '') // Remove code blocks
+                .replace(/`([^`]*)`/g, '$1') // Remove inline code backticks
                 .trim();
             
             return {
@@ -140,18 +167,18 @@ class DocumentConverter {
         }
     }
 
-    // Basic RTF text extraction
+    // Basic RTF text extraction.
+    // The old implementation stripped commands with /\\[a-z]+\d*\s?/ which
+    // deleted \uN Unicode escapes together with their code point - all CJK
+    // text collapsed to fallback '?' marks; \'xx hex escapes were left as
+    // raw garbage, and destination groups (font table etc.) leaked strings
+    // like "Times New Roman;" into the extracted text.
     static async extractFromRtf(file) {
         try {
             const rtf = await file.text();
-            
-            // Simple RTF to text conversion (basic implementation)
-            let content = rtf
-                .replace(/\\[a-z]+\d*\s?/gi, '') // Remove RTF commands
-                .replace(/[{}]/g, '') // Remove braces
-                .replace(/\s+/g, ' ') // Normalize whitespace
-                .trim();
-            
+
+            const content = DocumentConverter.rtfToText(rtf);
+
             return {
                 content: content,
                 title: file.name.replace(/\.[^/.]+$/, ''),
@@ -160,6 +187,103 @@ class DocumentConverter {
         } catch (error) {
             throw new Error('RTF 檔案讀取失敗: ' + error.message);
         }
+    }
+
+    // Remove RTF destination groups whose content is metadata, not body text
+    // (font table, color table, stylesheet, info block, embedded pictures,
+    // and any \* ignorable destination). Uses brace matching so nested
+    // groups are removed in full; bails out on unbalanced input instead of
+    // looping forever.
+    static stripRtfGroups(rtf) {
+        const destination = /\{\\(?:\*|fonttbl|colortbl|stylesheet|info|pict|themedata|generator)/;
+        let result = rtf;
+        let match;
+        while ((match = destination.exec(result)) !== null) {
+            const start = match.index;
+            let depth = 0;
+            let end = -1;
+            for (let i = start; i < result.length; i++) {
+                const c = result[i];
+                if (c === '\\') { i++; continue; } // skip escaped char (\{ \} \\ ...)
+                if (c === '{') depth++;
+                else if (c === '}') {
+                    depth--;
+                    if (depth === 0) { end = i + 1; break; }
+                }
+            }
+            if (end === -1) break; // unbalanced braces: keep the rest as-is
+            result = result.slice(0, start) + result.slice(end);
+        }
+        return result;
+    }
+
+    // Sequentially decode an RTF token stream to plain text:
+    // \uN (signed 16-bit Unicode escape, with its '?' or \'xx fallback char)
+    // -> the actual character (surrogate pairs recombine naturally);
+    // \'xx -> latin-1 approximation; \\ \{ \} -> literal chars;
+    // \par & \line -> newline; \tab -> tab; other control words dropped.
+    static rtfToText(rtf) {
+        const src = DocumentConverter.stripRtfGroups(rtf);
+        let out = '';
+
+        for (let i = 0; i < src.length; i++) {
+            const ch = src[i];
+
+            if (ch === '\\') {
+                const next = src[i + 1];
+                if (next === '\\' || next === '{' || next === '}') {
+                    out += next;
+                    i++;
+                    continue;
+                }
+                if (next === "'") {
+                    const hex = src.substring(i + 2, i + 4);
+                    if (/^[0-9a-fA-F]{2}$/.test(hex)) {
+                        out += String.fromCharCode(parseInt(hex, 16));
+                        i += 3;
+                    } else {
+                        i++;
+                    }
+                    continue;
+                }
+                const m = /^\\([a-zA-Z]+)(-?\d+)? ?/.exec(src.slice(i));
+                if (m) {
+                    const word = m[1];
+                    const param = m[2];
+                    i += m[0].length - 1;
+                    if (word === 'u' && param !== undefined) {
+                        let code = parseInt(param, 10);
+                        if (code < 0) code += 65536; // RTF \u is a signed 16-bit code unit
+                        out += String.fromCharCode(code);
+                        // Consume the fallback char emitted for legacy readers
+                        // (commonly '?' or a \'xx escape); anything else is
+                        // real data and must not be eaten.
+                        if (src[i + 1] === '?') {
+                            i++;
+                        } else if (src.substring(i + 1, i + 3) === "\\'") {
+                            i += 4;
+                        }
+                    } else if (word === 'par' || word === 'line') {
+                        out += '\n';
+                    } else if (word === 'tab') {
+                        out += '\t';
+                    }
+                    // all other control words: formatting only, drop
+                    continue;
+                }
+                i++; // lone control symbol like \~ \- \* : drop
+                continue;
+            }
+
+            if (ch === '{' || ch === '}') continue; // group delimiters
+            if (ch === '\r' || ch === '\n') continue; // raw newlines in RTF source are not text
+            out += ch;
+        }
+
+        return out
+            .replace(/[ \t]+/g, ' ') // collapse runs of spaces/tabs
+            .replace(/ ?\n ?/g, '\n') // tidy spaces around paragraph breaks
+            .trim();
     }
 
     // Convert extracted content to various formats
@@ -171,9 +295,12 @@ class DocumentConverter {
             case 'txt':
                 return DocumentConverter.convertToText(content, title);
             case 'html':
-                return DocumentConverter.convertToHtml(content, title, originalHtml);
+                // Pass the original source through options (the third
+                // positional argument is the options object) so HTML→HTML
+                // keeps the untouched original instead of a stripped rebuild.
+                return DocumentConverter.convertToHtml(content, title, { originalHtml });
             case 'md':
-                return DocumentConverter.convertToMarkdown(content, title, originalMarkdown);
+                return DocumentConverter.convertToMarkdown(content, title, { originalMarkdown });
             case 'pdf':
                 return await DocumentConverter.convertToPdf(content, title, options);
             case 'docx':
@@ -185,80 +312,13 @@ class DocumentConverter {
         }
     }
 
-    // Convert to plain text
-    static convertToText(content, title) {
-        let output = '';
-        if (title) {
-            output += title + '\n';
-            output += '='.repeat(title.length) + '\n\n';
-        }
-        output += content;
-        
-        const blob = new Blob([output], { type: 'text/plain;charset=utf-8' });
-        return blob;
-    }
-
-    // Convert to HTML
-    static convertToHtml(content, title, originalHtml = null) {
-        let html;
-        
-        if (originalHtml) {
-            html = originalHtml;
-        } else {
-            const paragraphs = content.split('\n\n').map(p => 
-                p.trim() ? `<p>${p.replace(/\n/g, '<br>')}</p>` : ''
-            ).filter(p => p).join('\n');
-            
-            html = `<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${title || '轉換後的文件'}</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            line-height: 1.6;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            color: #333;
-        }
-        h1 { color: #2c3e50; }
-        p { margin-bottom: 1em; }
-    </style>
-</head>
-<body>
-    <h1>${title || '轉換後的文件'}</h1>
-    ${paragraphs}
-</body>
-</html>`;
-        }
-        
-        const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-        return blob;
-    }
-
-    // Convert to Markdown
-    static convertToMarkdown(content, title, originalMarkdown = null) {
-        let markdown;
-        
-        if (originalMarkdown) {
-            markdown = originalMarkdown;
-        } else {
-            markdown = '';
-            if (title) {
-                markdown += `# ${title}\n\n`;
-            }
-            
-            // Convert paragraphs to markdown
-            const paragraphs = content.split('\n\n');
-            markdown += paragraphs.join('\n\n');
-        }
-        
-        const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
-        return blob;
-    }
+    // NOTE (R2): this class used to define convertToText/convertToHtml/
+    // convertToMarkdown TWICE - the later definitions silently overrode the
+    // earlier ones (which were the only ones honoring originalHtml/
+    // originalMarkdown), so HTML→HTML and MD→MD conversions returned a
+    // stripped-down rebuild instead of the original document. The dead
+    // earlier copies were removed; the live definitions further below now
+    // accept options.originalHtml / options.originalMarkdown.
 
     // Convert to PDF - Direct file conversion (like print-to-PDF)
     static async convertToPdf(documentFile, title, options = {}) {
@@ -1165,7 +1225,11 @@ class DocumentConverter {
             .replace(/'/g, '&apos;');
     }
 
-    // Helper: Escape RTF characters
+    // Helper: Escape RTF characters.
+    // Non-ASCII characters MUST be emitted as \uN? escapes (N = signed 16-bit
+    // UTF-16 code unit, '?' = fallback for legacy readers): this file is an
+    // \ansi RTF, so raw CJK/emoji bytes are mojibake in Word/WordPad.
+    // Surrogate pairs (emoji) naturally become two consecutive \uN? escapes.
     static escapeRtf(text) {
         if (!text) return '';
         return text
@@ -1173,7 +1237,12 @@ class DocumentConverter {
             .replace(/{/g, '\\{')
             .replace(/}/g, '\\}')
             .replace(/\n/g, '\\par ')
-            .replace(/\r/g, '');
+            .replace(/\r/g, '')
+            .replace(/[\u0080-\uFFFF]/g, (ch) => {
+                let code = ch.charCodeAt(0);
+                if (code > 32767) code -= 65536; // RTF \u takes a signed 16-bit value
+                return `\\u${code}?`;
+            });
     }
 
 
@@ -1251,13 +1320,21 @@ class DocumentConverter {
 
     // Convert to HTML format
     static convertToHtml(content, title = '', options = {}) {
+        // Round-trip fidelity: if the source document was already HTML,
+        // return it unchanged instead of regenerating from stripped text.
+        if (options && options.originalHtml) {
+            return new Blob([options.originalHtml], { type: 'text/html;charset=utf-8' });
+        }
+
         const documentTitle = title || '文件';
         const processedContent = content || '';
-        
-        // Convert paragraphs to HTML
+
+        // Convert paragraphs to HTML.
+        // Escape FIRST, then turn newlines into <br> - the old order escaped
+        // the freshly inserted <br> tags into literal "&lt;br&gt;" text.
         const paragraphs = processedContent.split(/\n\s*\n/)
             .filter(p => p.trim())
-            .map(p => `<p>${DocumentConverter.escapeXml(p.trim().replace(/\n/g, '<br>'))}</p>`)
+            .map(p => `<p>${DocumentConverter.escapeXml(p.trim()).replace(/\n/g, '<br>')}</p>`)
             .join('\n');
         
         const htmlContent = `<!DOCTYPE html>
@@ -1297,6 +1374,12 @@ class DocumentConverter {
 
     // Convert to Markdown format
     static convertToMarkdown(content, title = '', options = {}) {
+        // Round-trip fidelity: if the source document was already Markdown,
+        // return it unchanged instead of a rebuild that lost all formatting.
+        if (options && options.originalMarkdown) {
+            return new Blob([options.originalMarkdown], { type: 'text/markdown;charset=utf-8' });
+        }
+
         const documentTitle = title || '文件';
         const processedContent = content || '';
         

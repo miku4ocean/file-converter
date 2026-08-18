@@ -111,21 +111,123 @@ describe('SpreadsheetConverter.sanitizeCsvField', () => {
         assert.equal(SpreadsheetConverter.sanitizeCsvField('@SUM(A1:A2)'), "'@SUM(A1:A2)");
     });
 
+    // R2 behavior fix: the guard still *checks* the trimmed value (so leading
+    // whitespace cannot bypass it), but the cell data itself is no longer
+    // trimmed/mutated - the apostrophe is prefixed to the original value.
+    // A cell of "'   =cmd" is still inert in Excel (leading ' = literal text).
     test('checks the trimmed value, so leading whitespace does not bypass the guard', () => {
-        assert.equal(SpreadsheetConverter.sanitizeCsvField('   =cmd'), "'=cmd");
+        assert.equal(SpreadsheetConverter.sanitizeCsvField('   =cmd'), "'   =cmd");
     });
 
-    // NOTE: \t and \r are also listed in the guard's regex per the OWASP CSV
-    // Injection prefix list, for defense-in-depth against any future caller
-    // that skips trimming. But JS's String.trim() (used to normalize the
-    // value first, matching pre-existing cell-formatting behavior) already
-    // strips leading tab/CR as whitespace, so a *trimmed* value can never
-    // actually start with one - those two branches are unreachable in this
-    // call path. A leading tab/CR is therefore always removed rather than
-    // preserved, which is safe (nothing formula-like reaches the output).
-    test('a leading tab or CR is stripped by trimming, not preserved as a formula trigger', () => {
-        assert.equal(SpreadsheetConverter.sanitizeCsvField('\tevil'), 'evil');
-        assert.equal(SpreadsheetConverter.sanitizeCsvField('\revil'), 'evil');
+    // R2 behavior fix: a raw leading tab/CR is itself an Excel formula/command
+    // trigger (OWASP CSV Injection prefix list). Previously the tab/CR was
+    // silently DELETED by the unconditional trim (data mutation); now the
+    // original value is preserved and neutralized with a leading apostrophe.
+    test('a leading tab or CR is neutralized with a quote, not silently deleted', () => {
+        assert.equal(SpreadsheetConverter.sanitizeCsvField('\tevil'), "'\tevil");
+        assert.equal(SpreadsheetConverter.sanitizeCsvField('\revil'), "'\revil");
+    });
+});
+
+describe('SpreadsheetConverter.sanitizeCsvField - 資料保真（R2 回歸）', () => {
+    // REGRESSION (real bug): String(value || '') 把 falsy 但真實存在的儲存格值
+    // 0 與 false 變成空字串 —— 每次 CSV 匯出都把「數值 0」欄位靜默清空。
+    test('preserves numeric zero and boolean false instead of blanking them', () => {
+        assert.equal(SpreadsheetConverter.sanitizeCsvField(0), '0');
+        assert.equal(SpreadsheetConverter.sanitizeCsvField(false), 'false');
+    });
+
+    // REGRESSION (real bug): 每個儲存格都被 .trim()，合法的前後空白被靜默改寫。
+    test('does not trim legitimate leading/trailing whitespace of ordinary cells', () => {
+        assert.equal(SpreadsheetConverter.sanitizeCsvField('  padded  '), '  padded  ');
+    });
+
+    // REGRESSION (real bug): 純數字（尤其負數）被當公式觸發字元加上前導單引號，
+    // 整欄負數輸出成 '-42 之類的文字，數值欄毀損且使用者不易察覺。
+    // 純數字在 Excel 中求值就是它自己，無注入風險，必須原樣通過。
+    test('plain numbers (incl. negative / signed / scientific) are not prefixed', () => {
+        assert.equal(SpreadsheetConverter.sanitizeCsvField(-42), '-42');
+        assert.equal(SpreadsheetConverter.sanitizeCsvField('-3.14'), '-3.14');
+        assert.equal(SpreadsheetConverter.sanitizeCsvField('+7'), '+7');
+        assert.equal(SpreadsheetConverter.sanitizeCsvField('-1e-5'), '-1e-5');
+    });
+
+    test('non-numeric formula triggers are still neutralized', () => {
+        assert.equal(SpreadsheetConverter.sanitizeCsvField('-1+1'), "'-1+1");
+        assert.equal(SpreadsheetConverter.sanitizeCsvField('=SUM(A1)'), "'=SUM(A1)");
+    });
+
+    test('convertToCsv keeps 0 and -5 as data', async () => {
+        const blob = SpreadsheetConverter.convertToCsv([[0, -5]], { includeHeaders: true });
+        const text = await blob.text();
+        assert.match(text, /^"0","-5"\n$/);
+    });
+});
+
+describe('SpreadsheetConverter.parseCsvText - RFC 4180 引號內換行（R2 回歸）', () => {
+    // REGRESSION (real bug): 解析前先用 '\n' 把整份文字切行，引號內含換行的
+    // 多行儲存格（RFC 4180 合法）被硬拆成兩列，之後所有列全部錯位，
+    // 使用者不易察覺資料已毀損。
+    test('keeps a newline inside quotes as part of the cell', () => {
+        const rows = SpreadsheetConverter.parseCsvText('"a\nb",c', ',');
+        assert.deepEqual(rows, [['a\nb', 'c']]);
+    });
+
+    test('rows after a multi-line cell stay aligned', () => {
+        const rows = SpreadsheetConverter.parseCsvText('h1,h2\n"multi\nline",x\ny,z', ',');
+        assert.deepEqual(rows, [['h1', 'h2'], ['multi\nline', 'x'], ['y', 'z']]);
+    });
+
+    test('handles CRLF row endings', () => {
+        const rows = SpreadsheetConverter.parseCsvText('a,b\r\n1,2\r\n', ',');
+        assert.deepEqual(rows, [['a', 'b'], ['1', '2']]);
+    });
+});
+
+describe('SpreadsheetConverter.convertToJson - falsy 儲存格保真（R2 回歸）', () => {
+    // REGRESSION (real bug): row[index] || '' 把 0 與 false 變成 ''，
+    // Excel/SheetJS 解析出的數值 0 在 JSON 匯出中被清空。
+    test('keeps 0 and false cell values', async () => {
+        const blob = SpreadsheetConverter.convertToJson([['n', 'b'], [0, false]], { includeHeaders: true });
+        const parsed = JSON.parse(await blob.text());
+        assert.deepEqual(parsed, [{ n: 0, b: false }]);
+    });
+});
+
+describe('SpreadsheetConverter.parseCsv - UTF-16 編碼偵測（R2 回歸）', () => {
+    // REGRESSION (real bug): parseCsv 用 file.text()（固定 UTF-8 解碼）。
+    // Excel「Unicode 文字」匯出與 Windows 記事本「Unicode」存檔皆為 UTF-16LE，
+    // 解出來是夾滿 NUL 的亂碼且無任何報錯 —— 靜默半成品。
+    test('decodes a UTF-16LE (BOM) CSV correctly', async () => {
+        const payload = Buffer.from('名稱,值\nA,1', 'utf16le');
+        const bytes = new Uint8Array(2 + payload.length);
+        bytes.set([0xFF, 0xFE], 0);
+        bytes.set(payload, 2);
+        const file = new File([bytes], 'u16.csv', { type: 'text/csv' });
+        const parsed = await SpreadsheetConverter.parseCsv(file);
+        assert.deepEqual(parsed.data, [['名稱', '值'], ['A', '1']]);
+    });
+
+    test('decodes a UTF-16BE (BOM) CSV correctly', async () => {
+        const le = Buffer.from('名稱,值\nA,1', 'utf16le');
+        const be = Buffer.from(le);
+        be.swap16();
+        const bytes = new Uint8Array(2 + be.length);
+        bytes.set([0xFE, 0xFF], 0);
+        bytes.set(be, 2);
+        const file = new File([bytes], 'u16be.csv', { type: 'text/csv' });
+        const parsed = await SpreadsheetConverter.parseCsv(file);
+        assert.deepEqual(parsed.data, [['名稱', '值'], ['A', '1']]);
+    });
+
+    test('still decodes plain UTF-8 with BOM stripped (guard)', async () => {
+        const body = Buffer.from('a,b\n1,2', 'utf8');
+        const bytes = new Uint8Array(3 + body.length);
+        bytes.set([0xEF, 0xBB, 0xBF], 0);
+        bytes.set(body, 3);
+        const file = new File([bytes], 'u8.csv', { type: 'text/csv' });
+        const parsed = await SpreadsheetConverter.parseCsv(file);
+        assert.deepEqual(parsed.data, [['a', 'b'], ['1', '2']]);
     });
 });
 

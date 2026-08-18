@@ -47,10 +47,33 @@ class SpreadsheetConverter {
         return extension;
     }
 
+    // Decode an uploaded text file honoring its BOM.
+    // Blob.text() always decodes as UTF-8, which silently mangles UTF-16 files
+    // (e.g. Excel's "Unicode Text" export, Windows Notepad's "Unicode"
+    // encoding) into NUL-riddled mojibake with no error raised.
+    static async decodeTextFile(file) {
+        const buffer = await file.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+        if (bytes.length >= 2 && bytes[0] === 0xFF && bytes[1] === 0xFE) {
+            return new TextDecoder('utf-16le').decode(buffer); // BOM consumed by decoder
+        }
+        if (bytes.length >= 2 && bytes[0] === 0xFE && bytes[1] === 0xFF) {
+            // UTF-16BE: byte-swap to LE ("utf-16be" decoder label is not
+            // guaranteed in all runtimes), skipping the 2-byte BOM.
+            const swapped = new Uint8Array(bytes.length - 2);
+            for (let i = 2; i + 1 < bytes.length; i += 2) {
+                swapped[i - 2] = bytes[i + 1];
+                swapped[i - 1] = bytes[i];
+            }
+            return new TextDecoder('utf-16le').decode(swapped);
+        }
+        return new TextDecoder('utf-8').decode(buffer); // strips a UTF-8 BOM
+    }
+
     // Parse CSV files
     static async parseCsv(file) {
         try {
-            const text = await file.text();
+            const text = await SpreadsheetConverter.decodeTextFile(file);
             const rows = SpreadsheetConverter.parseCsvText(text, ',');
             
             return {
@@ -68,7 +91,7 @@ class SpreadsheetConverter {
     // Parse TSV files
     static async parseTsv(file) {
         try {
-            const text = await file.text();
+            const text = await SpreadsheetConverter.decodeTextFile(file);
             const rows = SpreadsheetConverter.parseCsvText(text, '\t');
             
             return {
@@ -206,43 +229,50 @@ class SpreadsheetConverter {
     // Note: follows RFC 4180 quoting rules (double-quote doubling only).
     // Backslash has NO special meaning in CSV/TSV and must be preserved
     // verbatim (e.g. Windows paths like C:\Users\name, regex, LaTeX).
+    // The whole text is scanned in a single pass (NOT pre-split on '\n'):
+    // per RFC 4180 a quoted cell may legally contain newlines, and splitting
+    // lines first used to break such cells into separate rows, misaligning
+    // every row that followed.
     static parseCsvText(text, delimiter = ',') {
         const rows = [];
-        const lines = text.split('\n');
+        let row = [];
+        let current = '';
+        let inQuotes = false;
 
-        for (let line of lines) {
-            line = line.trim();
-            if (line.length === 0) continue;
-
-            const row = [];
-            let current = '';
-            let inQuotes = false;
-
-            for (let i = 0; i < line.length; i++) {
-                const char = line[i];
-
-                if (char === '"') {
-                    if (inQuotes && i + 1 < line.length && line[i + 1] === '"') {
-                        // Double quote escape
-                        current += '"';
-                        i++; // Skip next quote
-                    } else {
-                        inQuotes = !inQuotes;
-                    }
-                } else if (char === delimiter && !inQuotes) {
-                    row.push(current);
-                    current = '';
-                } else {
-                    current += char;
-                }
-            }
-
+        const endRow = () => {
             row.push(current);
+            current = '';
             if (row.some(cell => cell.trim().length > 0)) { // Only add non-empty rows
                 rows.push(row);
             }
+            row = [];
+        };
+
+        for (let i = 0; i < text.length; i++) {
+            const char = text[i];
+
+            if (char === '"') {
+                if (inQuotes && i + 1 < text.length && text[i + 1] === '"') {
+                    // Double quote escape
+                    current += '"';
+                    i++; // Skip next quote
+                } else {
+                    inQuotes = !inQuotes;
+                }
+            } else if (char === delimiter && !inQuotes) {
+                row.push(current);
+                current = '';
+            } else if ((char === '\n' || char === '\r') && !inQuotes) {
+                if (char === '\r' && text[i + 1] === '\n') {
+                    i++; // Treat CRLF as one row break
+                }
+                endRow();
+            } else {
+                current += char;
+            }
         }
 
+        endRow();
         return rows;
     }
 
@@ -275,14 +305,26 @@ class SpreadsheetConverter {
     }
 
     // Guard against CSV formula injection (OWASP CSV Injection).
-    // If a cell's trimmed value starts with a character that Excel/Google
-    // Sheets treats as a formula/command trigger (=, +, -, @, tab, CR),
-    // prefix it with a single quote so it is opened as literal text instead
-    // of being evaluated (e.g. =cmd|'/c calc'!A1). Applied before quote
-    // escaping so existing CSV escaping behavior is unchanged.
+    // If a cell starts (raw or after trimming, so whitespace cannot bypass
+    // the check) with a character that Excel/Google Sheets treats as a
+    // formula/command trigger (=, +, -, @, tab, CR), prefix the ORIGINAL
+    // value with a single quote so it is opened as literal text instead of
+    // being evaluated (e.g. =cmd|'/c calc'!A1).
+    // Data-fidelity rules (R2):
+    // - null/undefined -> '' but 0 and false are real data and must survive
+    //   (String(value || '') used to blank them);
+    // - the cell content itself is never trimmed/mutated - only the
+    //   apostrophe is added;
+    // - plain numbers (-42, +3.14, 1e-5) evaluate to themselves in Excel and
+    //   are harmless; prefixing them corrupted every negative-number column.
     static sanitizeCsvField(value) {
-        const str = String(value || '').trim();
-        if (/^[=+\-@\t\r]/.test(str)) {
+        if (value === null || value === undefined) return '';
+        const str = String(value);
+        const trimmed = str.trim();
+        if (/^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/.test(trimmed)) {
+            return str; // pure number: no injection risk, keep verbatim
+        }
+        if (/^[=+\-@\t\r]/.test(str) || /^[=+\-@]/.test(trimmed)) {
             return `'${str}`;
         }
         return str;
@@ -333,7 +375,9 @@ class SpreadsheetConverter {
             jsonData = data.slice(1).map(row => {
                 const obj = {};
                 headers.forEach((header, index) => {
-                    obj[header] = row[index] || '';
+                    // ?? (not ||): 0 and false are real cell values and must
+                    // not be blanked; only a truly missing cell becomes ''.
+                    obj[header] = row[index] ?? '';
                 });
                 return obj;
             });

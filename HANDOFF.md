@@ -1,5 +1,55 @@
 # HANDOFF — file-converter
-更新：2026-08-18／claude（CSV 公式注入修復）
+更新：2026-08-18／claude（R2 深度偵錯：8 個資料正確性真 bug）
+
+## 2026-08-18／claude（R2 第二輪深度偵錯——各轉換器資料正確性邊界）
+本輪定義的真 bug＝轉換產出內容毀損/遺失/錯位而使用者不易察覺。共修 8 個，
+測試 68 → 93（+25，全部先紅後綠），全套連跑兩次全綠。
+
+### spreadsheet.js
+1. `sanitizeCsvField`：`String(value || '')` 把儲存格值 0/false 清成空字串；
+   所有欄位被 `.trim()` 靜默改寫；純數字（尤其負數 -42）被加 `'` 前綴毀損數值欄。
+   改為：null/undefined 才轉 ''、資料本體永不改寫（只加前綴）、純數字直通；
+   trimmed 檢查保留（空白不能繞過防護），前導 tab/CR 改為「保留＋前綴中和」
+   而非刪除。**兩條 R1 測試因此更新**（'   =cmd'、'\tevil' 的預期值）。
+2. `parseCsvText`：先用 '\n' 切行再掃引號，RFC 4180 合法的「引號內含換行」
+   多行儲存格被硬拆成兩列，之後所有列錯位。重寫為單趟全文掃描（含 CRLF）。
+3. `convertToJson`：`row[index] || ''` 把 0/false 清空 → 改 `??`。
+4. `parseCsv`/`parseTsv`：`file.text()` 固定 UTF-8，Excel「Unicode 文字」匯出
+   （UTF-16LE）與記事本 Unicode 存檔解成 NUL 亂碼且無報錯。新增
+   `decodeTextFile()` 依 BOM 偵測 UTF-16LE/BE（BE 用位元組交換，不賭
+   'utf-16be' label 存在）。
+
+### document.js
+5. **重複方法定義**：convertToText/convertToHtml/convertToMarkdown 各有兩份，
+   後者覆蓋前者；convertToFormat 用第三個位置參數傳 originalHtml/
+   originalMarkdown，被存活版當 options 丟棄 → MD→MD、HTML→HTML 輸出
+   被剝光格式的重生成內容。已刪死程式碼、改以 options 傳遞並在存活版尊重。
+6. `convertToHtml`：先把 \n 換成 `<br>` 再 escapeXml → 頁面出現字面
+   "&lt;br&gt;" 文字。改為先跳脫再插 `<br>`。
+7. `extractFromMarkdown`：inline-code 規則在 fenced code block 規則之前執行，
+   ``` 圍欄被先吃掉兩個反引號 → code block 永遠移除不掉、殘留破反引號。
+   已調整順序（fence 先）。
+8. **RTF Unicode 雙向**：`escapeRtf` 對非 ASCII 原樣輸出（\ansi RTF 在 Word
+   開啟 CJK 全亂碼）→ 改輸出 `\uN?`（signed 16-bit，emoji 代理對自然成雙）；
+   `extractFromRtf` 舊 regex 把 `\uN` 連數字整段刪掉（CJK 只剩 '?'）、`\'xx`
+   殘留原文、fonttbl 的 "Times New Roman;" 洩漏進正文 → 重寫為
+   `stripRtfGroups()`（brace-matching 剝除 destination group）＋`rtfToText()`
+   （循序解碼 \uN/\'xx/\\{}、\par→換行）。txt→rtf→txt round-trip 測試含
+   CJK+emoji。extractFromText 也套用 UTF-16 BOM 偵測。
+
+### 驗收
+`node --test "tests/unit/*.test.js"`：93 pass / 0 fail，連跑兩次一致。
+
+### 範圍外發現（本輪未修，留給下一手）
+- `document.js` `convertToASCII()`：把中文「翻譯」成英文字典替換的舊 jsPDF
+  路徑遺物，只在 legacy `createPdfWithJsPDF` 用到，主路徑不經過；建議整段廢棄。
+- `spreadsheet.js` `convertToText()`：儲存格內含 tab/換行會讓 TXT（tab 分隔）
+  欄位錯位；TXT 本為有損輸出，未動。
+- `getDocumentStats()`：空內容時 `avgWordsPerParagraph` 為 NaN（顯示統計，非
+  轉換資料路徑）。
+- `presentation.js` `parseSlideXML()` 的 `querySelectorAll('a\\:t, t')`
+  namespace selector 在部分瀏覽器可能撈不到文字節點——需瀏覽器實測，Node
+  無法覆蓋。
 
 ## 2026-08-18／claude（CSV 公式注入修復，跨專案同族修復之一）
 `assets/js/converters/spreadsheet.js` 的 `convertToCsv()` 先前直接把儲存格值寫入 CSV，
