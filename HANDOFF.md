@@ -1,4 +1,16 @@
 # HANDOFF — file-converter
+更新：2026-08-18／claude（CSV 公式注入修復）
+
+## 2026-08-18／claude（CSV 公式注入修復，跨專案同族修復之一）
+`assets/js/converters/spreadsheet.js` 的 `convertToCsv()` 先前直接把儲存格值寫入 CSV，
+未防範 OWASP CSV Injection（CSV 公式注入）：若欄位值以 `=`、`+`、`-`、`@`、Tab 或 `\r`
+開頭，在 Excel/Google Sheets 開啟時可能被當公式執行（如 `=cmd|'/c calc'!A1`）。
+新增 `SpreadsheetConverter.sanitizeCsvField()` 輔助函式，在既有的引號跳脫（`""`）之前，
+先檢查trim後的值是否以上述字元開頭，是則補一個前導單引號 `'` 使其被當純文字讀取；
+純既有跳脫邏輯不變。已於 `tests/unit/spreadsheet.test.js` 補上對應測試（含
+`=cmd|'/c calc'!A1` payload）並跑 `node --test "tests/unit/*.test.js"` 全數通過（68/68）。
+此修復為跨 5 個專案的同族批次整治（CSV 公式注入）之一。
+
 更新：2026-08-07／claude（孤兒轉換器+測試檔清理+README同步+workers移除）
 
 ## 目前目標

@@ -71,6 +71,62 @@ describe('SpreadsheetConverter.convertToCsv', () => {
         const text = await blob.text();
         assert.match(text, /"He said ""hi"""/);
     });
+
+    // SECURITY (OWASP CSV Injection / CSV Formula Injection): a cell value
+    // that starts with =, +, -, @, tab, or CR can be interpreted as a
+    // formula/command by Excel or Google Sheets when the CSV is opened,
+    // e.g. =cmd|'/c calc'!A1 can trigger code execution. Such values must be
+    // prefixed with a leading single quote so spreadsheet apps treat them as
+    // literal text instead of evaluating them.
+    test('a benign value passes through unchanged', async () => {
+        const blob = SpreadsheetConverter.convertToCsv([['Alice']], { includeHeaders: true });
+        const text = await blob.text();
+        assert.match(text, /^"Alice"\n$/);
+    });
+
+    test('prefixes a formula-injection payload with a leading single quote', async () => {
+        const blob = SpreadsheetConverter.convertToCsv([["=cmd|'/c calc'!A1"]], { includeHeaders: true });
+        const text = await blob.text();
+        assert.match(text, /^"'=cmd\|'/);
+    });
+
+    test('prefixes +/-/@-prefixed values with a leading single quote', async () => {
+        const blob = SpreadsheetConverter.convertToCsv([
+            ['+1+1', '-1+1', '@SUM(A1:A2)']
+        ], { includeHeaders: true });
+        const text = await blob.text();
+        assert.match(text, /^"'\+1\+1","'-1\+1","'@SUM\(A1:A2\)"\n$/);
+    });
+});
+
+describe('SpreadsheetConverter.sanitizeCsvField', () => {
+    test('leaves normal text untouched', () => {
+        assert.equal(SpreadsheetConverter.sanitizeCsvField('Alice'), 'Alice');
+    });
+
+    test('prepends a single quote to formula-triggering prefixes', () => {
+        assert.equal(SpreadsheetConverter.sanitizeCsvField("=cmd|'/c calc'!A1"), "'=cmd|'/c calc'!A1");
+        assert.equal(SpreadsheetConverter.sanitizeCsvField('+1+1'), "'+1+1");
+        assert.equal(SpreadsheetConverter.sanitizeCsvField('-1+1'), "'-1+1");
+        assert.equal(SpreadsheetConverter.sanitizeCsvField('@SUM(A1:A2)'), "'@SUM(A1:A2)");
+    });
+
+    test('checks the trimmed value, so leading whitespace does not bypass the guard', () => {
+        assert.equal(SpreadsheetConverter.sanitizeCsvField('   =cmd'), "'=cmd");
+    });
+
+    // NOTE: \t and \r are also listed in the guard's regex per the OWASP CSV
+    // Injection prefix list, for defense-in-depth against any future caller
+    // that skips trimming. But JS's String.trim() (used to normalize the
+    // value first, matching pre-existing cell-formatting behavior) already
+    // strips leading tab/CR as whitespace, so a *trimmed* value can never
+    // actually start with one - those two branches are unreachable in this
+    // call path. A leading tab/CR is therefore always removed rather than
+    // preserved, which is safe (nothing formula-like reaches the output).
+    test('a leading tab or CR is stripped by trimming, not preserved as a formula trigger', () => {
+        assert.equal(SpreadsheetConverter.sanitizeCsvField('\tevil'), 'evil');
+        assert.equal(SpreadsheetConverter.sanitizeCsvField('\revil'), 'evil');
+    });
 });
 
 describe('SpreadsheetConverter.convertToJson', () => {

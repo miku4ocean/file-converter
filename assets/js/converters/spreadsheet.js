@@ -274,31 +274,45 @@ class SpreadsheetConverter {
         }
     }
 
+    // Guard against CSV formula injection (OWASP CSV Injection).
+    // If a cell's trimmed value starts with a character that Excel/Google
+    // Sheets treats as a formula/command trigger (=, +, -, @, tab, CR),
+    // prefix it with a single quote so it is opened as literal text instead
+    // of being evaluated (e.g. =cmd|'/c calc'!A1). Applied before quote
+    // escaping so existing CSV escaping behavior is unchanged.
+    static sanitizeCsvField(value) {
+        const str = String(value || '').trim();
+        if (/^[=+\-@\t\r]/.test(str)) {
+            return `'${str}`;
+        }
+        return str;
+    }
+
     // Convert to CSV format
     static convertToCsv(data, options = {}) {
         const { delimiter = ',', includeHeaders = true } = options;
-        
+
         if (!data || data.length === 0) {
             const blob = new Blob([''], { type: 'text/csv;charset=utf-8' });
             return blob;
         }
-        
+
         let csvContent = '';
         const BOM = '\uFEFF'; // UTF-8 BOM for Excel compatibility
         csvContent += BOM;
-        
+
         data.forEach((row, index) => {
             if (index === 0 && !includeHeaders) return;
-            
+
             const csvRow = row.map(cell => {
-                const cellStr = String(cell || '').trim();
+                const cellStr = SpreadsheetConverter.sanitizeCsvField(cell);
                 // Always wrap in quotes for better compatibility
                 return `"${cellStr.replace(/"/g, '""')}"`;
             }).join(delimiter);
-            
+
             csvContent += csvRow + '\n';
         });
-        
+
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
         return blob;
     }
