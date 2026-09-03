@@ -111,7 +111,12 @@ class DocumentConverter {
     // Extract content from HTML files
     static async extractFromHtml(file) {
         try {
-            const html = await file.text();
+            // file.text() always assumes UTF-8 - an HTML file saved with a
+            // UTF-16 encoding (e.g. Windows Notepad "Unicode" Save As) would
+            // silently decode into NUL-riddled mojibake with no error, same
+            // class of bug already fixed for extractFromText/Markdown/CSV.
+            // decodeTextFile() honors the BOM instead.
+            const html = await DocumentConverter.decodeTextFile(file);
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
             

@@ -245,6 +245,25 @@ describe('SpreadsheetConverter.convertToJson', () => {
     });
 });
 
+describe('SpreadsheetConverter.convertToJson - 單列（僅表頭）不外洩為假資料列（R2 第二輪新真 bug）', () => {
+    // REGRESSION (real bug): a sheet with ONLY a header row (blank export
+    // template, or any single-row sheet) has data.length === 1. The
+    // "has headers" branch used to require data.length > 1, so with
+    // includeHeaders true (the UI default) a single-row sheet fell through
+    // to the no-headers branch and the header row's own cell text was
+    // emitted as a fake DATA record under generic column_0/column_1 keys -
+    // silently wrong output instead of the correct empty result set.
+    test('a header-only sheet converts to an empty array, not a fake record', async () => {
+        const blob = SpreadsheetConverter.convertToJson([['name', 'age']], { includeHeaders: true });
+        assert.deepEqual(JSON.parse(await blob.text()), []);
+    });
+
+    test('a single data row with includeHeaders false is still a record (guard)', async () => {
+        const blob = SpreadsheetConverter.convertToJson([['Alice', '30']], { includeHeaders: false });
+        assert.deepEqual(JSON.parse(await blob.text()), [{ column_0: 'Alice', column_1: '30', _rowIndex: 0 }]);
+    });
+});
+
 describe('SpreadsheetConverter.numberToColumnName', () => {
     test('converts 1-based column indices to Excel-style letters', () => {
         assert.equal(SpreadsheetConverter.numberToColumnName(1), 'A');

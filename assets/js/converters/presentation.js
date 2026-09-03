@@ -828,18 +828,46 @@ class PresentationConverter {
         try {
             const parser = new DOMParser();
             const xmlDoc = parser.parseFromString(xmlContent, 'text/xml');
-            
-            // Extract text content from the slide
-            const textElements = xmlDoc.querySelectorAll('a\\:t, t');
+
+            // Extract text content from the slide, one entry per paragraph
+            // (<a:p>). PowerPoint splits a single visual line into MULTIPLE
+            // <a:t> runs whenever formatting changes mid-line (a bold word,
+            // a different color, a hyperlink boundary...) - this is the
+            // common case, not an edge case. Selecting every <a:t> directly
+            // and treating each run as its own line truncated the title to
+            // just its first run and turned the remaining runs into bogus
+            // extra bullet points. Grouping runs by their enclosing
+            // paragraph and concatenating them (no separator - the runs are
+            // contiguous fragments of one line, spacing is already inside
+            // each run's text) reconstructs the real line.
+            const paragraphs = xmlDoc.querySelectorAll('a\\:p, p');
             const textContent = [];
-            
-            textElements.forEach(element => {
-                const text = element.textContent?.trim();
-                if (text && text.length > 0) {
-                    textContent.push(text);
+
+            paragraphs.forEach(paragraph => {
+                const runs = paragraph.querySelectorAll('a\\:t, t');
+                let line = '';
+                runs.forEach(run => {
+                    line += run.textContent || '';
+                });
+                line = line.trim();
+                if (line.length > 0) {
+                    textContent.push(line);
                 }
             });
-            
+
+            // Fallback for slide XML with no <a:p>/<p> paragraph wrappers
+            // (non-standard structure) but text runs present directly -
+            // keep the old flat extraction rather than losing all content.
+            if (textContent.length === 0) {
+                const textElements = xmlDoc.querySelectorAll('a\\:t, t');
+                textElements.forEach(element => {
+                    const text = element.textContent?.trim();
+                    if (text && text.length > 0) {
+                        textContent.push(text);
+                    }
+                });
+            }
+
             // Try to identify title (usually the first or largest text element)
             let title = `投影片 ${slideNumber}`;
             if (textContent.length > 0) {

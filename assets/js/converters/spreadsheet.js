@@ -369,8 +369,16 @@ class SpreadsheetConverter {
         }
         
         let jsonData;
-        
-        if (includeHeaders && data.length > 1) {
+
+        // NOTE (R2 second pass, real bug): this used to require
+        // `data.length > 1` to take the "has headers" branch. A file with
+        // ONLY a header row (a blank export template, or any single-row
+        // sheet) has data.length === 1, so with includeHeaders checked
+        // (the default) it fell through to the else branch below and the
+        // header row's own text got emitted as a fake DATA record under
+        // generic "column_0"/"column_1" keys instead of the correct `[]`
+        // (zero real data rows once the single row is consumed as headers).
+        if (includeHeaders && data.length > 0) {
             const headers = data[0];
             jsonData = data.slice(1).map(row => {
                 const obj = {};

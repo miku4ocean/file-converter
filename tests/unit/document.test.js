@@ -219,6 +219,148 @@ describe('DocumentConverter.extractFromText - UTF-16 編碼偵測（R2 回歸）
     });
 });
 
+describe('DocumentConverter.extractFromHtml - UTF-16 編碼偵測（R2 第二輪新真 bug）', () => {
+    // REGRESSION (real bug): extractFromHtml 用 file.text()（固定 UTF-8）,
+    // 與 extractFromText/extractFromMarkdown 同款 bug 但當時未一併修——用
+    // Windows 記事本「Unicode」(UTF-16LE) 存的 .html 檔會解出夾滿 NUL 的
+    // 亂碼且無任何報錯，DOMParser 再對亂碼 "解析" 只會產生更破損的結果。
+    // 改用既有的 decodeTextFile()（依 BOM 偵測）取代 file.text()。
+
+    // extractFromHtml needs a real DOMParser; Node has none, so this is a
+    // minimal HTML-tag-tree stand-in - just enough (querySelector(All),
+    // textContent, remove(), body/documentElement) to exercise the REAL
+    // extractFromHtml logic against small hand-built HTML fixtures.
+    function createHtmlDomParserStub() {
+        function decodeEntities(text) {
+            return text
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/&quot;/g, '"')
+                .replace(/&apos;/g, "'")
+                .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(parseInt(d, 10)))
+                .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+                .replace(/&amp;/g, '&');
+        }
+
+        const voidTags = new Set(['br', 'hr', 'img', 'meta', 'link', 'input']);
+
+        class MiniElement {
+            constructor(tagName) {
+                this.tagName = tagName;
+                this.childNodes = [];
+                this.parentNode = null;
+            }
+            get textContent() {
+                let out = '';
+                for (const c of this.childNodes) out += typeof c === 'string' ? c : c.textContent;
+                return out;
+            }
+            get body() { return this.querySelector('body'); }
+            get documentElement() {
+                return this.childNodes.find(c => typeof c !== 'string') || null;
+            }
+            querySelectorAll(selector) {
+                const names = selector.split(',').map(s => s.trim());
+                const results = [];
+                const walk = (node) => {
+                    for (const c of node.childNodes) {
+                        if (typeof c !== 'string') {
+                            if (names.includes(c.tagName)) results.push(c);
+                            walk(c);
+                        }
+                    }
+                };
+                walk(this);
+                return results;
+            }
+            querySelector(selector) {
+                return this.querySelectorAll(selector)[0] || null;
+            }
+            remove() {
+                if (this.parentNode) {
+                    const idx = this.parentNode.childNodes.indexOf(this);
+                    if (idx !== -1) this.parentNode.childNodes.splice(idx, 1);
+                }
+            }
+        }
+
+        function parseHTML(htmlString) {
+            const root = new MiniElement('#document');
+            const stack = [root];
+            const tagRe = /<(\/?)([A-Za-z_][\w.\-:]*)((?:\s+[^<>]*?)?)(\/?)>|<!--[\s\S]*?-->|<\?[\s\S]*?\?>/g;
+            let lastIndex = 0;
+            let m;
+            while ((m = tagRe.exec(htmlString)) !== null) {
+                const text = htmlString.slice(lastIndex, m.index);
+                if (text) {
+                    const decoded = decodeEntities(text);
+                    if (decoded) stack[stack.length - 1].childNodes.push(decoded);
+                }
+                lastIndex = tagRe.lastIndex;
+                if (m[0].startsWith('<!--') || m[0].startsWith('<?')) continue;
+                const closing = m[1];
+                const tagName = m[2].toLowerCase();
+                const selfClose = m[4];
+                if (closing) {
+                    for (let i = stack.length - 1; i > 0; i--) {
+                        if (stack[i].tagName === tagName) {
+                            stack.length = i;
+                            break;
+                        }
+                    }
+                } else {
+                    const node = new MiniElement(tagName);
+                    node.parentNode = stack[stack.length - 1];
+                    stack[stack.length - 1].childNodes.push(node);
+                    if (!selfClose && !voidTags.has(tagName)) stack.push(node);
+                }
+            }
+            return root;
+        }
+
+        return class DOMParserStub {
+            parseFromString(htmlString) {
+                return parseHTML(htmlString);
+            }
+        };
+    }
+
+    const originalDOMParser = global.DOMParser;
+
+    test('decodes a UTF-16LE (BOM) html file instead of producing NUL mojibake', async () => {
+        global.DOMParser = createHtmlDomParserStub();
+        try {
+            const html = '<html><head><title>中文標題</title></head><body>內容測試</body></html>';
+            const payload = Buffer.from(html, 'utf16le');
+            const bytes = new Uint8Array(2 + payload.length);
+            bytes.set([0xFF, 0xFE], 0);
+            bytes.set(payload, 2);
+            const file = new File([bytes], 'u16.html', { type: 'text/html' });
+
+            const extracted = await DocumentConverter.extractFromHtml(file);
+            assert.equal(extracted.title, '中文標題');
+            assert.equal(extracted.content, '內容測試');
+            assert.doesNotMatch(extracted.originalHtml, /\u0000/);
+            assert.equal(extracted.originalHtml, html);
+        } finally {
+            global.DOMParser = originalDOMParser;
+        }
+    });
+
+    test('still decodes plain UTF-8 html (guard)', async () => {
+        global.DOMParser = createHtmlDomParserStub();
+        try {
+            const html = '<html><head><title>Plain</title></head><body>Hello</body></html>';
+            const file = new File([html], 'plain.html', { type: 'text/html' });
+            const extracted = await DocumentConverter.extractFromHtml(file);
+            assert.equal(extracted.title, 'Plain');
+            assert.equal(extracted.content, 'Hello');
+        } finally {
+            global.DOMParser = originalDOMParser;
+        }
+    });
+});
+
 describe('DocumentConverter.getFileType / isValidDocumentFile', () => {
     test('extracts lowercase extension without the dot', () => {
         assert.equal(DocumentConverter.getFileType({ name: 'Report.TXT' }), 'txt');
