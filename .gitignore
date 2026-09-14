@@ -107,4 +107,4 @@ build/
 # Test files (if any)
 test/
 tests/
-__tests__/
+__tests__/test-results/
